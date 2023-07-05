@@ -9,6 +9,7 @@
   home.packages = [
     pkgs.fortune
     pkgs.vimPlugins.packer-nvim
+    pkgs.gcc
   ];
 
   # This value determines the Home Manager release that your
@@ -36,7 +37,10 @@
    enableCompletion = true;
    shellAliases = {
      ll = "ls -l";
-     update = "sudo nixos-rebuild switch";
+     switch = "sudo nixos-rebuild switch";
+     hswitch = "home-manager switch";
+     hconf = "vi ~/nix-config/home.nix";
+     conf = "sudo vi /etc/nixos/configuration.nix";
    };
    history = {
      size = 10000;
@@ -48,14 +52,20 @@
      theme = "agnoster";
    };
   };
+
   programs.neovim = {
     enable = true;
     viAlias = true;
     vimAlias = true;
-      packages.myVimPackage = with pkgs.vimPlugins; {
-        start = [ vim-nix packer-nvim ];
-      };
-    };
+    plugins = with pkgs.vimPlugins; [
+      packer-nvim
+      vim-nix
+      rose-pine
+      harpoon
+      lsp-zero-nvim
+      nvim-cmp
+    ];
+  };
 
  programs.tmux = {
     enable = true;
