@@ -83,7 +83,6 @@
     tldr
     wget
     tmux
-    yadm
     git
     ripgrep
     home-manager
