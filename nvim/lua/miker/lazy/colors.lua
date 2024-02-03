@@ -18,8 +18,8 @@ return {
                 styles = {
                     comments = { italic = false },
                     keywords = { italic = false },
-                    sidebars = "dark", 
-                    floats = "dark", 
+                    sidebars = "dark",
+                    floats = "dark",
                 },
             })
         end
