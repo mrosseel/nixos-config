@@ -47,14 +47,14 @@
     # $ darwin-rebuild build --flake .#airelon
     darwinConfigurations."airelon" = nix-darwin.lib.darwinSystem {
       modules = [
-        configuration 
+        ./modules/darwin
         home-manager.darwinModules.home-manager
         {
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = {};
-            users.demo.imports = [ ./modules/home-manager ];
+            users.mike.imports = [ ./modules/home-manager ];
           };
         }
         ];

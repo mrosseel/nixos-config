@@ -13,19 +13,23 @@
     CLICLOLOR = 1;
     EDITOR = "nvim";
   };
+  home = {
+    username = "mike";
+    homeDirectory = "/Users/mike";
+  };
   programs.bat.enable = true;
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
   programs.fzf.enableZshIntegration = true;
-  programs.exa.enable = true;
+  programs.eza.enable = true;
   programs.git.enable = true;
   programs.zsh.enable = true;
   programs.zsh.enableCompletion = true;
   programs.zsh.enableAutosuggestions = true;
-  programs.zsh.enableSyntaxHighlighting = true;
+  programs.zsh.syntaxHighlighting.enable = true;
   programs.zsh.shellAliases = {
     ls = "ls --color=auto -F";
-    nixswitch = "darwin-rebuild switch --flake ~/src/system-config/.#";
+    nixswitch = "darwin-rebuild switch --flake ~/nix-config/.#";
     nixup = "pushd ~/src/system-config; nix flake update; nixswitch; popd";
   };
   programs.starship.enable = true;

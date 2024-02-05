@@ -1,5 +1,6 @@
 { pkgs, ... }: {
   # here go the darwin preferences and config items
+  users.users.mike.home = "/Users/mike";
   programs.zsh.enable = true;
   environment = {
     shells = with pkgs; [ bash zsh ];
