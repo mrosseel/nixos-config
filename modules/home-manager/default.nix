@@ -10,7 +10,7 @@
     fd
     curl
     less
-    htop
+    manix
   ];
   home.sessionVariables = {
     PAGER = "less";

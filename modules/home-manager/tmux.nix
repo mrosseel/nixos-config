@@ -57,6 +57,8 @@
 
       # Use vim keybindings in copy mode
       set-window-option -g mode-keys vi
+      set-option -g set-titles on
+      set-option -g set-titles-string "#S / #W"
 
       # v in copy mode starts making selection
       bind-key -T copy-mode-vi v send-keys -X begin-selection

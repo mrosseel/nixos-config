@@ -35,8 +35,7 @@
     caskArgs.no_quarantine = true;
     onActivation.autoUpdate = false; 
     global.brewfile = true;
-    #masApps = { };
-    #casks = [ "raycast" "amethyst" ];
+    casks = [ "raycast" "amethyst" ];
     #taps = [ "fujiapple852/trippy" ];
     #brews = [ "trippy" ];
   };
