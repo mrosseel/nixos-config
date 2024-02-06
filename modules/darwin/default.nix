@@ -6,7 +6,7 @@
     shells = with pkgs; [ bash zsh ];
     loginShell = pkgs.zsh;
     systemPackages = [ pkgs.coreutils ];
-    systemPath = [ "/opt/homebrew/bin" ];
+    #systemPath = [ "/opt/homebrew/bin" ];
     pathsToLink = [ "/Applications" ];
     variables.LANG = "en_US.UTF-8";
   };
@@ -28,13 +28,14 @@
   };
   # backwards compat; don't change
   system.stateVersion = 4;
- # homebrew = {
- #   enable = true;
- #   caskArgs.no_quarantine = true;
- #   global.brewfile = true;
- #   masApps = { };
- #   casks = [ "raycast" "amethyst" ];
- #   taps = [ "fujiapple852/trippy" ];
- #   brews = [ "trippy" ];
- # };
+  homebrew = {
+    enable = true;
+    caskArgs.no_quarantine = true;
+    onActivation.autoUpdate = false; 
+    global.brewfile = true;
+    #masApps = { };
+    #casks = [ "raycast" "amethyst" ];
+    #taps = [ "fujiapple852/trippy" ];
+    #brews = [ "trippy" ];
+  };
 }

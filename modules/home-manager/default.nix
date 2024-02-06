@@ -27,6 +27,13 @@
     vimAlias = true;
     vimdiffAlias = true;
   };
+  programs.btop = {
+    enable = true;
+    settings = {
+      color_theme = "gruvbox-dark-v2";
+      vim_keys = true;
+    };
+  };
   #xdg.configFile.nvim = {
   #    source = ./nvim;
   #    recursive = true;
@@ -105,10 +112,10 @@
       read_only = " ";
       truncation_length = 0;
     };
-    cmd_duration = {
-      format = "[$duration]($style) ";
-      style = "bright-blue";
-    };
+    #cmd_duration = {
+    #  format = "[$duration]($style) ";
+    #  style = "bright-blue";
+    #};
     jobs = {
       style = "bright-green bold";
     };
