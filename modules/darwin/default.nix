@@ -2,6 +2,7 @@
   # here go the darwin preferences and config items
   users.users.mike.home = "/Users/mike";
   programs.zsh.enable = true;
+  nixpkgs.hostPlatform = "aarch64-darwin";
   environment = {
     shells = with pkgs; [ bash zsh ];
     loginShell = pkgs.zsh;

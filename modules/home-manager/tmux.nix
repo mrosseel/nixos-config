@@ -72,8 +72,8 @@
       #set-option -g status-position top
 
       # make Prefix p paste the buffer.
-      unbind p
-      bind p paste-buffer
+      #unbind p
+      #bind p paste-buffer
 
       # Bind Keys
       bind-key -T prefix C-g split-window \
