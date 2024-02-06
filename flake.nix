@@ -1,5 +1,5 @@
 {
-  description = "Example Darwin system flake";
+  description = "Darwin system flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -47,6 +47,7 @@
     # $ darwin-rebuild build --flake .#airelon
     darwinConfigurations."airelon" = nix-darwin.lib.darwinSystem {
       modules = [
+        configuration
         ./modules/darwin
         home-manager.darwinModules.home-manager
         {

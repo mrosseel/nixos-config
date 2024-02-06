@@ -8,6 +8,7 @@
     systemPackages = [ pkgs.coreutils ];
     systemPath = [ "/opt/homebrew/bin" ];
     pathsToLink = [ "/Applications" ];
+    variables.LANG = "en_US.UTF-8";
   };
   nix.extraOptions = ''
     experimental-features = nix-command flakes
