@@ -69,7 +69,7 @@
     add_newline = false;
     format = "$shlvl$shell$username$hostname$nix_shell$git_branch$git_commit$git_state$git_status$directory$jobs$cmd_duration$character";
     shlvl = {
-      disabled = false;
+      disabled = true;
       symbol = "ﰬ";
       style = "bright-red bold";
     };
@@ -96,7 +96,6 @@
     git_branch = {
       only_attached = true;
       format = "[$symbol$branch]($style) ";
-      symbol = "שׂ";
       style = "bright-yellow bold";
     };
     git_commit = {

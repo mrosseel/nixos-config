@@ -11,6 +11,7 @@
       co = "checkout";
       ci = "commit";
       cia = "commit --amend";
+      d = "diff";
       s = "status";
       st = "status";
       b = "branch";
