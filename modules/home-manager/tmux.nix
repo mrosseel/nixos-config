@@ -10,7 +10,7 @@
     # Force tmux to use /tmp for sockets (WSL2 compat)
     secureSocket = false;
     clock24 = true;
-    shell = "${pkgs.fish}/bin/fish";
+    shell = "${pkgs.zsh}/bin/zsh";
     terminal = "tmux-256color";
     historyLimit = 100000;
     keyMode = "vi";

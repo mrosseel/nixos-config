@@ -57,8 +57,8 @@
   programs.zsh.enableAutosuggestions = true;
   programs.zsh.syntaxHighlighting.enable = true;
   programs.zsh.shellAliases = {
-    ls = "eza -1 -l";
-    ll = "eza --icons=auto";
+    ls = "eza -a --icons=auto";
+    ll = "eza -1 -l -a --icons=auto";
     nixswitch = "darwin-rebuild switch --flake ~/nixos-config/.#";
     nixupdate = "nix flake update";
     nixup = "pushd ~/src/system-config; nix flake update; nixswitch; popd";
