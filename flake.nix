@@ -69,6 +69,7 @@
     };
     nixosConfigurations."piDSC" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
+      nixpkgs.hostPlatform = "aarch64-linux";
       modules = [
         configuration
         home-manager.darwinModules.home-manager
