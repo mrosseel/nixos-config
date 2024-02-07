@@ -3,6 +3,7 @@
   home.stateVersion = "23.11";
   imports = [
     ./tmux.nix
+    ./git.nix
     ./kitty.nix
   ];
   # specify my home-manager configs
