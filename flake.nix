@@ -57,8 +57,30 @@
         }
         ];
     };
-
     # Expose the package set, including overlays, for convenience.
     darwinPackages = self.darwinConfigurations."airelon".pkgs;
+
+    nixosConfigurations."nix270" = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./machines/nix270/configuration.nix
+        ./machines/nix270/hardware-configuration.nix
+      ];
+    };
+    nixosConfigurations."piDSC" = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        configuration
+        home-manager.darwinModules.home-manager
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            extraSpecialArgs = {};
+            users.mike.imports = [ ./modules/home-manager ];
+          };
+        }
+        ];
+    };
   };
 }

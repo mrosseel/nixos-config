@@ -5,6 +5,8 @@
     ./tmux.nix
     ./git.nix
     ./kitty.nix
+    ./astro.nix
+#    ./gc.nix
   ];
   # specify my home-manager configs
   home.packages = with pkgs; [
