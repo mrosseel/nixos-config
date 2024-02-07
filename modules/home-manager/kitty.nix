@@ -3,10 +3,11 @@
   programs.kitty = {
     enable = true;
     # Pick "name" from https://github.com/kovidgoyal/kitty-themes/blob/master/themes.json
-    theme = "Tokyo Night";
+    theme = "Solarized Dark Higher Contrast";
+    #theme = "Solarized Dark";
     font = {
-      name = "Monaco";
-      size = 14;
+      name = "Hack Nerd Font";
+      size = 16;
     };
     keybindings = {
       "kitty_mod+e" = "kitten hints"; # https://sw.kovidgoyal.net/kitty/kittens/hints/
