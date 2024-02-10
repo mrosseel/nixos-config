@@ -95,18 +95,28 @@
         ./machines/nix270/hardware-configuration.nix
       ];
     };
-    nixosConfigurations."piDSC" = nixpkgs.lib.nixosSystem {
+    homeConfigurations."pifinder" = home-manager.lib.homeManagerConfiguration {
+        specialArgs = { inherit inputs; };
+        pkgs = nixpkgs.legacyPackages."aarch64-linux";
+        defaultPackage."aarch64-linux" = home-manager.defaultPackage."aarch64-linux";
+        modules = [
+          ./modules/home-manager
+        ];
+    };
+    homeManagerConfigurations."piDSC" = home-manager.lib.homeManagerConfiguration {
       specialArgs = { inherit inputs; };
-      nixpkgs.hostPlatform = "aarch64-linux";
+      system = "aarch64-linux";
+      pkgs = nixpkgs.legacyPackages."aarch64-linux";
       modules = [
         configuration
-        home-manager.darwinModules.home-manager
+        home-manager.nixosModules.home-manager
         {
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = {};
             users.mike.imports = [ ./modules/home-manager ];
+            users.pifinder.imports = [ ./modules/home-manager ];
           };
         }
         ];
