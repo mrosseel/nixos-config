@@ -47,6 +47,8 @@
   programs.fzf.enable = true;
   programs.fzf.enableZshIntegration = true;
   programs.eza.enable = true;
+  programs.zoxide.enable = true;
+  programs.zoxide.enableZshIntegration = true;
   programs.git = {
     enable = true;
     userName = "Mike Rosseel";
@@ -64,6 +66,7 @@
     nixswitch = "darwin-rebuild switch --flake ~/nixos-config/.#";
     nixupdate = "nix flake update";
     nixup = "pushd ~/src/system-config; nix flake update; nixswitch; popd";
+    cd = "z";
   };
   programs.starship.enable = true;
   programs.starship.enableZshIntegration = true;

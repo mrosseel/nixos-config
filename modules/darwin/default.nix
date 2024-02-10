@@ -1,8 +1,21 @@
-{ pkgs, ... }: {
+{ pkgs, home-manager, ... }: {
+  imports = [
+    #./yabai.nix
+    #./sketchybar.nix
+    ./spacelauncher.nix
+  ];
+
+
   # here go the darwin preferences and config items
-  users.users.mike.home = "/Users/mike";
+  users.users.mike = {
+        home = "/Users/mike";
+        shell = pkgs.zsh;
+        };
+  #home = {
+  #  username = "mike";
+  #  homeDirectory = "/Users/mike";
+  #};
   programs.zsh.enable = true;
-  nixpkgs.hostPlatform = "aarch64-darwin";
   environment = {
     shells = with pkgs; [ bash zsh ];
     loginShell = pkgs.zsh;
@@ -11,9 +24,9 @@
     pathsToLink = [ "/Applications" ];
     variables.LANG = "en_US.UTF-8";
   };
-  nix.extraOptions = ''
-    experimental-features = nix-command flakes
-  '';
+  #nix.extraOptions = ''
+  #  experimental-features = nix-command flakes
+  #'';
   system.keyboard.enableKeyMapping = true;
   system.keyboard.remapCapsLockToEscape = true;
   security.pam.enableSudoTouchIdAuth = true;

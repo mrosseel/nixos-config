@@ -3,16 +3,33 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-23.11";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     # Manages configs links things into your home directory
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    # sketchybar config
+    sketchybar = {
+      url = "github:FelixKratz/dotfiles";
+      flake = false;
+    };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs }:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, ...}:
   let
+    nixpkgsConfig = {
+      allowUnfree = true;
+      allowUnsupportedSystem = false;
+      vivaldi = {
+        proprietaryCodecs = true;
+        enableWideVine = true;
+      };
+    };
+    overlays = with inputs; [
+    ];
+    user = "mike";
     configuration = { pkgs, ... }: {
       # List packages installed in system profile. To search by name, run:
       # $ nix-env -qaP | grep wget
@@ -22,10 +39,19 @@
 
       # Auto upgrade nix package and the daemon service.
       services.nix-daemon.enable = true;
-      # nix.package = pkgs.nix;
 
-      # Necessary for using flakes on this system.
-      nix.settings.experimental-features = "nix-command flakes";
+      nix = {
+        # enable flakes per default
+        package = pkgs.nixFlakes;
+        settings = {
+          allowed-users = [ user ];
+          experimental-features = [ "nix-command" "flakes" ];
+        };
+        # pin the flake registry https://yusef.napora.org/blog/pinning-nixpkgs-flake/
+        registry.nixpkgs.flake = nixpkgs-stable;
+      };
+      nixpkgs.config = nixpkgsConfig;
+      nixpkgs.overlays = overlays;
 
       # Create /etc/zshrc that loads the nix-darwin environment.
       programs.zsh.enable = true;  # default shell on catalina
@@ -42,23 +68,25 @@
   {
     # Build darwin flake using:
     # $ darwin-rebuild build --flake .#airelon
-    darwinConfigurations."airelon" = nix-darwin.lib.darwinSystem {
-      modules = [
+    darwinConfigurations.airelon = nix-darwin.lib.darwinSystem {
+      system = "aarch64-darwin";
+      specialArgs = { inherit inputs home-manager;};
+      modules = [ 
         configuration
-        ./modules/darwin
         home-manager.darwinModules.home-manager
         {
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            extraSpecialArgs = {};
-            users.mike.imports = [ ./modules/home-manager ];
+            extraSpecialArgs = { inherit inputs;};
+            users.${user}.imports = [ ./modules/home-manager ];
           };
         }
+        ./modules/darwin
         ];
     };
     # Expose the package set, including overlays, for convenience.
-    darwinPackages = self.darwinConfigurations."airelon".pkgs;
+    #darwinPackages = self.darwinConfigurations."airelon".pkgs;
 
     nixosConfigurations."nix270" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
