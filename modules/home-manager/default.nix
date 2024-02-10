@@ -15,6 +15,8 @@
     curl
     less
     manix
+    mc
+    ncdu
   ];
   home.sessionVariables = {
     PAGER = "less";
