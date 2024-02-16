@@ -27,6 +27,7 @@
         tmuxPlugins.yank
         tmuxPlugins.sensible
         tmuxPlugins.catppuccin
+        tmuxPlugins.vim-tmux-navigator
         {
           plugin = tmuxPlugins.resurrect;
           extraConfig = ''
@@ -43,13 +44,31 @@
             set -g @continuum-save-interval '10'
           '';
         }
+        {
+          plugin = tmuxPlugins.dracula;
+          extraConfig = ''
+            set -g @dracula-show-powerline true
+            set -g @dracula-plugins "weather"
+            #set -g @dracula-fixed-location "Ghent"
+            set -g @dracula-show-fahrenheit false
+            set -g @dracula-show-flags true
+            set -g @dracula-show-location false
+            set -g @dracula-show-left-icon session
+            set -g status-position top
+          '';
+        }
         tmuxPlugins.better-mouse-mode
       ];
     extraConfig = ''
-      #set -ag terminal-overrides ",xterm-256color:RGB"
-
       # Change splits to match nvim and easier to remember
-      # Open new split at cwd of current split
+ 
+      # act like vim
+      setw -g mode-keys vi
+      bind-key h select-pane -L
+      bind-key j select-pane -D
+      bind-key k select-pane -U
+      bind-key l select-pane -R     # Open new split at cwd of current split
+
       unbind %
       unbind '"'
       bind | split-window -h -c "#{pane_current_path}"
@@ -78,11 +97,11 @@
       #bind p paste-buffer
 
       # Bind Keys
-      bind-key -T prefix C-g split-window \
-        "$SHELL --login -i -c 'navi --print | head -c -1 | tmux load-buffer -b tmp - ; tmux paste-buffer -p -t {last} -b tmp -d'"
-      bind-key -T prefix C-l switch -t notes
-      bind-key -T prefix C-d switch -t dotfiles
-      bind-key e send-keys "tmux capture-pane -p -S - | nvim -c 'set buftype=nofile' +" Enter
+      # bind-key -T prefix C-g split-window \
+      #   "$SHELL --login -i -c 'navi --print | head -c -1 | tmux load-buffer -b tmp - ; tmux paste-buffer -p -t {last} -b tmp -d'"
+      # bind-key -T prefix C-l switch -t notes
+      # bind-key -T prefix C-d switch -t dotfiles
+      # bind-key e send-keys "tmux capture-pane -p -S - | nvim -c 'set buftype=nofile' +" Enter
     '';
   };
 }

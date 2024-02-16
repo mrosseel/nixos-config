@@ -1,9 +1,10 @@
 return {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
+    event = {"BufReadPRe", "BufNewFile"},
     config = function()
         require('nvim-treesitter.configs').setup ({ -- A list of parser names, or "all"
-          ensure_installed = { "vimdoc", "javascript", "typescript", "python", "c", "lua", "rust" },
+          ensure_installed = { "vimdoc", "javascript", "typescript", "python", "c", "lua", "rust", "json", "html", "css", "yaml" },
 
           -- Install parsers synchronously (only applied to `ensure_installed`)
           sync_install = false,
@@ -11,6 +12,16 @@ return {
           -- Automatically install missing parsers when entering buffer
           -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
           auto_install = true,
+
+          incremental_selection = {
+            enable = true,
+            keymaps = {
+              init_selection = "gnn",
+              node_incremental = "grn",
+              scope_incremental = "grc",
+              node_decremental = "grm",
+            },
+          },
 
           highlight = {
             -- `false` will disable the whole extension
