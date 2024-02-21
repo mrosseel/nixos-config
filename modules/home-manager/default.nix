@@ -6,6 +6,7 @@
     ./git.nix
     ./kitty.nix
     ./astro.nix
+    ./neovim.nix
 #    ./gc.nix
   ];
   # specify my home-manager configs
@@ -17,6 +18,7 @@
     manix
     mc
     ncdu
+    tldr
   ];
   home.sessionVariables = {
     PAGER = "less";
@@ -25,13 +27,6 @@
   };
   home = {
     username = "mike";
-    homeDirectory = "/Users/mike";
-  };
-  programs.neovim = {
-    enable = true;
-    viAlias = true;
-    vimAlias = true;
-    vimdiffAlias = true;
   };
   programs.btop = {
     enable = true;

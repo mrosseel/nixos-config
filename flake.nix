@@ -93,11 +93,36 @@
       modules = [
         ./machines/nix270/configuration.nix
         ./machines/nix270/hardware-configuration.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            extraSpecialArgs = {};
+            users.mike.imports = [ ./modules/home-manager ];
+          };
+        }
+      ];
+    };
+    nixosConfigurations.general-server = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./machines/general-server/configuration.nix
+        ./machines/general-server/hardware-configuration.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            extraSpecialArgs = {};
+            users.mike.imports = [ ./modules/home-manager ];
+          };
+        }
       ];
     };
     homeConfigurations."pifinder" = home-manager.lib.homeManagerConfiguration {
         specialArgs = { inherit inputs; };
-        pkgs = nixpkgs.legacyPackages."aarch64-linux";
+        pkgs = nixpkgs.legacyPackages."aarch6 -linux";
         defaultPackage."aarch64-linux" = home-manager.defaultPackage."aarch64-linux";
         modules = [
           ./modules/home-manager

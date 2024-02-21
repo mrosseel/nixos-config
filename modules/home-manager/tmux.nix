@@ -49,7 +49,7 @@
           extraConfig = ''
             set -g @dracula-show-powerline true
             set -g @dracula-plugins "weather"
-            #set -g @dracula-fixed-location "Ghent"
+            set -g @dracula-fixed-location "Ghent, Belgium"
             set -g @dracula-show-fahrenheit false
             set -g @dracula-show-flags true
             set -g @dracula-show-location false
