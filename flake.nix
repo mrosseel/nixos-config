@@ -54,7 +54,7 @@
       nixpkgs.overlays = overlays;
 
       # Create /etc/zshrc that loads the nix-darwin environment.
-      programs.zsh.enable = true;  # default shell on catalina
+      programs.zsh.enable = true; 
       # programs.fish.enable = true;
 
       # Set Git commit hash for darwin-version.
@@ -107,9 +107,9 @@
     nixosConfigurations.general-server = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+        home-manager.nixosModules.home-manager
         ./machines/general-server/configuration.nix
         ./machines/general-server/hardware-configuration.nix
-        home-manager.nixosModules.home-manager
         {
           home-manager = {
             useGlobalPkgs = true;
