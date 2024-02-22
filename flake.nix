@@ -107,9 +107,10 @@
     nixosConfigurations.general-server = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
-        home-manager.nixosModules.home-manager
         ./machines/general-server/configuration.nix
         ./machines/general-server/hardware-configuration.nix
+        ./machines/general-server/caddy-service.nix
+        home-manager.nixosModules.home-manager
         {
           home-manager = {
             useGlobalPkgs = true;

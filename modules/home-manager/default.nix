@@ -19,6 +19,9 @@
     mc
     ncdu
     tldr
+    neofetch
+    jq
+    xclip
   ];
   home.sessionVariables = {
     PAGER = "less";
@@ -64,6 +67,9 @@
     nixupdate = "nix flake update";
     nixup = "pushd ~/src/system-config; nix flake update; nixswitch; popd";
     cd = "z";
+    pbcopy="xclip -selection clipboard";
+    pbpaste="xclip -selection clipboard -o";
+
   };
   programs.starship.enable = true;
   programs.starship.enableZshIntegration = true;
