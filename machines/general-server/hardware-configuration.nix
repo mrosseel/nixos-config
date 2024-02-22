@@ -13,7 +13,7 @@
   boot.kernelModules = [ ];
   boot.extraModulePackages = [ ];
   fileSystems."/" = {
-    device = "/dev/sda3";  # Adjust this to your root partition's device identifier
+    device = "/dev/sda1";  # Adjust this to your root partition's device identifier
     fsType = "ext4";  # Or another file system type like "xfs", "btrfs", etc.
   };
   swapDevices = [ ];
