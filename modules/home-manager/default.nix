@@ -22,6 +22,7 @@
     neofetch
     jq
     xclip
+    htop-vim
   ];
   home.sessionVariables = {
     PAGER = "less";
