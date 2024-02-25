@@ -105,12 +105,18 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = {};
-            users.mike.imports = [ ./modules/home-manager ];
+            users.${user} = {
+              imports = [ ./modules/home-manager ];
+              programs.tmux = {
+                enable = true;
+                shortcut = "a";  # Set your custom shortcut here
+              };
+            };
           };
         }
       ];
     };
-    nixosConfigurations.general-server = nixpkgs.lib.nixosSystem {
+    nixosConfigurations."general-server" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
         ./machines/general-server/configuration.nix
