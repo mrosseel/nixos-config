@@ -23,6 +23,7 @@
     jq
     xclip
     htop-vim
+    wormhole-william
   ];
   home.sessionVariables = {
     PAGER = "less";
