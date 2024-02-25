@@ -79,7 +79,13 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = { inherit inputs;};
-            users.${user}.imports = [ ./modules/home-manager ];
+            users.${user} = {
+              imports = [ ./modules/home-manager ];
+              programs.tmux = {
+                enable = true;
+                shortcut = "a";  # Set your custom shortcut here
+              };
+            };
           };
         }
         ./modules/darwin
@@ -116,7 +122,13 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = {};
-            users.mike.imports = [ ./modules/home-manager ];
+            users.${user} = {
+              imports = [ ./modules/home-manager ];
+              programs.tmux = {
+                enable = true;
+                shortcut = "b";  # Set your custom shortcut here
+              };
+            };
           };
         }
       ];

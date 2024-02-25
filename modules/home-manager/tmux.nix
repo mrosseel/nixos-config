@@ -2,7 +2,6 @@
 {
   programs.tmux = {
     enable = true;
-    shortcut = "a";
     baseIndex = 1;
     newSession = true;
     # Stop tmux+escape craziness.
