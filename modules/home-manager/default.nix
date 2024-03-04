@@ -73,6 +73,12 @@
     pbpaste="xclip -selection clipboard -o";
 
   };
+  programs.zsh.initExtra = ''
+    #make sure brew is on the path for M1 
+    if [[ $(uname -m) == 'arm64' ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+    '';
   programs.starship.enable = true;
   programs.starship.enableZshIntegration = true;
   programs.starship.settings = {
