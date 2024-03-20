@@ -24,6 +24,7 @@
     xclip
     htop-vim
     wormhole-william
+    dust # du alternative
   ];
   home.sessionVariables = {
     PAGER = "less";
@@ -60,14 +61,14 @@
   programs.bash.enable = true;
   programs.zsh.enable = true;
   programs.zsh.enableCompletion = true;
-  programs.zsh.enableAutosuggestions = true;
+  programs.zsh.autosuggestion.enable = true;
   programs.zsh.syntaxHighlighting.enable = true;
   programs.zsh.shellAliases = {
     ls = "eza -a --icons=auto";
     ll = "eza -1 -l -a --icons=auto";
     nixswitch = "darwin-rebuild switch --flake ~/nixos-config/.#";
     nixupdate = "nix flake update";
-    nixup = "pushd ~/src/system-config; nix flake update; nixswitch; popd";
+    nixup = "pushd ~/nixos-config; nix flake update; nixswitch; popd";
     cd = "z";
     pbcopy="xclip -selection clipboard";
     pbpaste="xclip -selection clipboard -o";
