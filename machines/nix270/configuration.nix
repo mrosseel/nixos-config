@@ -74,10 +74,8 @@
     isNormalUser = true;
     description = "Mike";
     extraGroups = [ "networkmanager" "wheel" ];
-    packages = with pkgs; [
-      firefox
-    #  thunderbird
-    ];
+    shell = pkgs.zsh;
+    ignoreShellProgramCheck = true;
   };
 
   # Allow unfree packages
