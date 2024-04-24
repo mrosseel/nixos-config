@@ -3,8 +3,8 @@
 { config, pkgs, ... }:
 
 {
-  programs.chromium = {
-    enable = true;  # Enable Chromium
-  };
+  environment.systemPackages = with pkgs; [
+    brave
+  ];
 }
 
