@@ -39,8 +39,8 @@
 
   # Configure keymap in X11
   services.xserver = {
-    layout = "us";
-    xkbVariant = "dvorak";
+    xkb.layout = "us";
+    xkb.variant = "dvorak";
   };
 
   # Configure console keymap
@@ -94,6 +94,7 @@
   environment.systemPackages = with pkgs; [
   #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
   #  wget
+    brave
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
