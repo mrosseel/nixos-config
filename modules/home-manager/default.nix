@@ -25,6 +25,7 @@
     htop-vim
     wormhole-william
     dust # du alternative
+    lnav # log file navigator
   ];
   home.sessionVariables = {
     PAGER = "less";
