@@ -89,6 +89,7 @@
           };
         }
         ./modules/darwin
+	./modules/desktop.nix
         ];
     };
     # Expose the package set, including overlays, for convenience.
@@ -99,7 +100,7 @@
       modules = [
         ./machines/nix270/configuration.nix
         ./machines/nix270/hardware-configuration.nix
-	./modules/default-browser.nix
+	./modules/desktop.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
