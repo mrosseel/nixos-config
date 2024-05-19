@@ -62,18 +62,18 @@
         shell = pkgs.zsh;  # Set zsh as the default shell
         ignoreShellProgramCheck = true;
   };
-  system.autoUpgrade = {
-    enable = true;
-    flake = inputs.self.outPath;
-    flags = [
-      "--update-input"
-      "nixpkgs"
-      "--no-write-lock-file"
-      "-L" # print build logs
-    ];
-    dates = "03:00";
-    randomizedDelaySec = "45min";
-  };
+  # system.autoUpgrade = {
+  #   enable = true;
+  #   flake = inputs.self.outPath;
+  #   flags = [
+  #     "--update-input"
+  #     "nixpkgs"
+  #     "--no-write-lock-file"
+  #     "-L" # print build logs
+  #   ];
+  #   dates = "03:00";
+  #   randomizedDelaySec = "45min";
+  # };
   system.stateVersion = "23.11"; # Did you read the comment?
 
 }
