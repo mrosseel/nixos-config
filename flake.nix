@@ -125,6 +125,7 @@
         ./machines/general-server/configuration.nix
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
+        ./modules/simple-mail-server.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {

@@ -67,9 +67,10 @@
   programs.zsh.shellAliases = {
     ls = "eza -a --icons=auto";
     ll = "eza -1 -l -a --icons=auto";
-    nixswitch = "darwin-rebuild switch --flake ~/nixos-config/.#";
-    nixupdate = "nix flake update";
-    nixup = "pushd ~/nixos-config; nix flake update; nixswitch; popd";
+    nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
+    nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
+    nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
+    nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
     cd = "z";
     pbcopy="xclip -selection clipboard";
     pbpaste="xclip -selection clipboard -o";
