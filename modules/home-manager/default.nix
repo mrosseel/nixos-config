@@ -62,8 +62,8 @@
   programs.zsh.shellAliases = {
     ls = "eza -a --icons=auto";
     ll = "eza -1 -l -a --icons=auto";
-    nixswmac = "darwin-rebuild switch --flake ~/nixos-config/.#";
-    nixsw = "os-rebuild switch --flake ~/nixos-config/.#";
+    nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
+    nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
     nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
     nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
     cd = "z";
