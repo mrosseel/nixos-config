@@ -2,12 +2,12 @@
   description = "Darwin system flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     # Manages configs links things into your home directory
-    home-manager.url = "github:nix-community/home-manager/master";
+    home-manager.url = "github:nix-community/home-manager/release-24.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     # sketchybar config
@@ -17,7 +17,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-unstable, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -48,7 +48,7 @@
           experimental-features = [ "nix-command" "flakes" ];
         };
         # pin the flake registry https://yusef.napora.org/blog/pinning-nixpkgs-flake/
-        registry.nixpkgs.flake = nixpkgs-stable;
+        registry.nixpkgs.flake = nixpkgs;
       };
       nixpkgs.config = nixpkgsConfig;
       nixpkgs.overlays = overlays;
@@ -125,6 +125,7 @@
         ./machines/general-server/configuration.nix
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
+        ./machines/general-server/auto-update.nix
         ./modules/simple-mail-server.nix
         home-manager.nixosModules.home-manager
         {

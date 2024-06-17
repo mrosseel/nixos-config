@@ -27,7 +27,7 @@
           X-Frame-Options "DENY"
 
           # Content Security Policy with Hash
-          Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"
+          Content-Security-Policy "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"
 
           # Referrer Policy
           Referrer-Policy "strict-origin-when-cross-origin"

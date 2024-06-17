@@ -19,7 +19,7 @@
     # nix-shell -p mkpasswd --run 'mkpasswd -sm bcrypt'
     loginAccounts = {
       "info@pifinder.eu" = {
-        hashedPassword = "$2b$05$B.0cSPkcIjkHwmOP02dxXu6fjW24WIvc9cpJfGzX/yvZ1o2KtBQ0W";
+        hashedPassword = "$2b$05$JPUpRnYe4HLFYMf5v13TJepsMM7WX0aAbdSKDK0rq5FFaTibLGN/i";
         aliases = ["postmaster@pifinder.eu"];
       };
     };

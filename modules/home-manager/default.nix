@@ -53,11 +53,6 @@
   programs.eza.enable = true;
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;
-  programs.git = {
-    enable = true;
-    userName = "Mike Rosseel";
-    userEmail = "mike.rosseel@gmail.com";
-  };
   programs.ripgrep.enable = true;
   programs.bash.enable = true;
   programs.zsh.enable = true;
@@ -144,10 +139,10 @@
       error_symbol = "[\\$](bright-red bold)";
     };
   };
-  programs.alacritty = {
-    enable = true;
-    settings.font.normal.family = "MesloLGS Nerd Font Mono";
-    settings.font.size = 16;
-  };
+  # programs.alacritty = {
+  #   enable = true;
+  #   settings.font.normal.family = "MesloLGS Nerd Font Mono";
+  #   settings.font.size = 16;
+  # };
   home.file.".inputrc".source = ./dotfiles/inputrc;
 }
