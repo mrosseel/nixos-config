@@ -118,6 +118,31 @@
         }
       ];
     };
+    # work in progress
+    nixosConfigurations."nixdesktop" = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./machines/nix270/configuration.nix
+        ./machines/nix270/hardware-configuration.nix
+	./modules/default-browser.nix
+	./modules/desktop.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            extraSpecialArgs = {};
+            users.${user} = {
+              imports = [ ./modules/home-manager ];
+              programs.tmux = {
+                enable = true;
+                shortcut = "a";  # Set your custom shortcut here
+              };
+            };
+          };
+        }
+      ];
+    };
     nixosConfigurations."general-server" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
