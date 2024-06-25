@@ -17,6 +17,7 @@
     less
     manix
     mc
+    ncurses # needed for ncdu, probably a build bug
     ncdu
     tldr
     neofetch
@@ -62,7 +63,7 @@
   programs.zsh.shellAliases = {
     ls = "eza -a --icons=auto";
     ll = "eza -1 -l -a --icons=auto";
-    nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
+    nixswmac = "darwin-rebuild switch --flake ~/nixos-config/.#";
     nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
     nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
     nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
