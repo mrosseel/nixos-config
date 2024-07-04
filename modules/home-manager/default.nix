@@ -17,7 +17,6 @@
     less
     manix
     mc
-    ncurses # needed for ncdu, probably a build bug
     ncdu
     tldr
     neofetch

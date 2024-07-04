@@ -5,7 +5,6 @@
     ./spacelauncher.nix
   ];
 
-
   # here go the darwin preferences and config items
   users.users.mike = {
         home = "/Users/mike";
@@ -47,7 +46,7 @@
     caskArgs.no_quarantine = true;
     onActivation.autoUpdate = false; 
     global.brewfile = true;
-    casks = [ "raycast" "amethyst" ];
+    casks = [ "raycast" ];
     #taps = [ "fujiapple852/trippy" ];
     #brews = [ "trippy" ];
   };}
