@@ -4,16 +4,15 @@
 
 {
   environment.systemPackages = with pkgs; [
-    ferdium
+    # ferdium
     discord
     obsidian
-    google-drive-ocamlfuse
-    vlc
+    # google-drive-ocamlfuse
+    # vlc
     spotify
-    veracrypt
+    # veracrypt
     orca-slicer
     libreoffice-qt
   ];
-  fonts.fontDir.enable = true; # DANGER
-  fonts.fonts = [ (pkgs.nerdfonts.override { fonts = [ "Meslo" ]; }) ];
+  fonts.packages = [ (pkgs.nerdfonts.override { fonts = [ "Meslo" ]; }) ];
 }

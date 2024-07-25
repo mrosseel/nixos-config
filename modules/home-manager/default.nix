@@ -19,7 +19,7 @@
     mc
     ncdu
     tldr
-    neofetch
+    fastfetch
     jq
     xclip
     htop-vim
@@ -69,7 +69,7 @@
     cd = "z";
     pbcopy="xclip -selection clipboard";
     pbpaste="xclip -selection clipboard -o";
-
+    neofetch="fastfetch";
   };
   programs.zsh.initExtra = ''
     #make sure brew is on the path for M1 

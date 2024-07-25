@@ -92,7 +92,7 @@
           };
         }
         ./modules/darwin
-	./modules/desktop.nix
+	# ./modules/desktop.nix
         ];
     };
     # Expose the package set, including overlays, for convenience.
