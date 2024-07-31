@@ -8,11 +8,12 @@
     discord
     obsidian
     # google-drive-ocamlfuse
-    # vlc
+    vlc-bin
     spotify
     # veracrypt
     orca-slicer
     libreoffice-qt
+    dropbox
   ];
   fonts.packages = [ (pkgs.nerdfonts.override { fonts = [ "Meslo" ]; }) ];
 }
