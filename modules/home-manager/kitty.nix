@@ -20,6 +20,10 @@
       # https://github.com/kovidgoyal/kitty/issues/847
       macos_option_as_alt = "yes";
     };
+    extraConfig = ''
+      cursor_blink_interval 0.5
+      cursor_shape underline
+      '';
   };
 }
 

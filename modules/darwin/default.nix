@@ -23,9 +23,6 @@
     pathsToLink = [ "/Applications" ];
     variables.LANG = "en_US.UTF-8";
   };
-  #nix.extraOptions = ''
-  #  experimental-features = nix-command flakes
-  #'';
   system.keyboard.enableKeyMapping = true;
   system.keyboard.remapCapsLockToEscape = true;
   security.pam.enableSudoTouchIdAuth = true;

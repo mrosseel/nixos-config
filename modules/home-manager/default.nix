@@ -81,11 +81,15 @@
   programs.starship.enableZshIntegration = true;
   programs.starship.settings = {
     add_newline = false;
-    format = "$shlvl$shell$username$hostname$nix_shell$git_branch$git_commit$git_state$git_status$directory$jobs$cmd_duration$character";
+    format = "$character";  # A minimal left prompt
+    # move the rest of the prompt to the right
+    right_format = "$shlvl$shell$username$hostname$nix_shell$git_branch$git_commit$git_state$git_status$directory$jobs$cmd_duration";
     shlvl = {
-      disabled = true;
+      disabled = false;
       symbol = "ﰬ";
       style = "bright-red bold";
+      threshold = 2;
+      # repeat_offset = 2;
     };
     shell = {
       disabled = false;
@@ -106,6 +110,7 @@
       symbol = "";
       format = "[$symbol$name]($style) ";
       style = "bright-purple bold";
+      heuristic = true;
     };
     git_branch = {
       only_attached = true;
