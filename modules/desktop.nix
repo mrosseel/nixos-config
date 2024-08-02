@@ -13,6 +13,7 @@
     # veracrypt
     orca-slicer
     libreoffice-qt
+    dropbox
   ];
   fonts.packages = [ (pkgs.nerdfonts.override { fonts = [ "Meslo" ]; }) ];
 }
