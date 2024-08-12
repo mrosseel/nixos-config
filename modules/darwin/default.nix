@@ -3,6 +3,7 @@
     #./yabai.nix
     #./sketchybar.nix
     ./spacelauncher.nix
+    ./flutter.nix
   ];
 
   # here go the darwin preferences and config items
@@ -43,7 +44,7 @@
     caskArgs.no_quarantine = true;
     onActivation.autoUpdate = false; 
     global.brewfile = true;
-    casks = [ "raycast" ];
+    casks = [ "raycast" "spacelauncher" ];
     #taps = [ "fujiapple852/trippy" ];
-    #brews = [ "trippy" ];
+    brews = [ "trippy" ];
   };}
