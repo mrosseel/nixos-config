@@ -144,7 +144,7 @@ return {
       },
       signs = {
         -- { CLOSED, OPENED }
-        hunk = { "", "" },
+        hunk = { "h", "h" },
         item = { ">", "v" },
         section = { ">", "v" },
       },
