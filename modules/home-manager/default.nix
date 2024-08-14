@@ -144,6 +144,12 @@
       error_symbol = "[\\$](bright-red bold)";
     };
   };
+  # direnv loads and unloads shell.nix files when you cd in and out of dirs
+  programs.direnv = {
+    enable = true;
+    enableZshIntegration = true; # see note on other shells below
+    nix-direnv.enable = true;
+  };
   # programs.alacritty = {
   #   enable = true;
   #   settings.font.normal.family = "MesloLGS Nerd Font Mono";
