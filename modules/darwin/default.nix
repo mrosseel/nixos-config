@@ -19,7 +19,10 @@
   environment = {
     shells = with pkgs; [ bash zsh ];
     loginShell = pkgs.zsh;
-    systemPackages = [ pkgs.coreutils ];
+    systemPackages = with pkgs; [ 
+      coreutils
+      xquartz
+    ];
     #systemPath = [ "/opt/homebrew/bin" ];
     pathsToLink = [ "/Applications" ];
     variables.LANG = "en_US.UTF-8";
