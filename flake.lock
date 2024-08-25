@@ -1,0 +1,104 @@
+{
+  "nodes": {
+    "home-manager": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1724412708,
+        "narHash": "sha256-tLr1k+UZLVumyqXRU8E5lBtLjsvHSy8e2NiamfkjpYg=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "b18f3ebc4029c22d437e3424014c8597a8b459a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "ref": "master",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "nix-darwin": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1724299755,
+        "narHash": "sha256-P5zMA17kD9tqiqMuNXwupkM7buM3gMNtoZ1VuJTRDE4=",
+        "owner": "LnL7",
+        "repo": "nix-darwin",
+        "rev": "a8968d88e5a537b0491f68ce910749cd870bdbef",
+        "type": "github"
+      },
+      "original": {
+        "owner": "LnL7",
+        "repo": "nix-darwin",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1724363052,
+        "narHash": "sha256-Nf/iQWamRVAwAPFccQMfm5Qcf+rLLnU1rWG3f9orDVE=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "5de1564aed415bf9d0f281461babc2d101dd49ff",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-unstable": {
+      "locked": {
+        "lastModified": 1724363052,
+        "narHash": "sha256-Nf/iQWamRVAwAPFccQMfm5Qcf+rLLnU1rWG3f9orDVE=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "5de1564aed415bf9d0f281461babc2d101dd49ff",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "home-manager": "home-manager",
+        "nix-darwin": "nix-darwin",
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-unstable": "nixpkgs-unstable",
+        "sketchybar": "sketchybar"
+      }
+    },
+    "sketchybar": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1710776977,
+        "narHash": "sha256-vo/PmrYlrg6kwBbFtrwbTZffLrQgzTSuqVxfNQba3YI=",
+        "owner": "FelixKratz",
+        "repo": "dotfiles",
+        "rev": "1589c769e28f110b1177f6a83fa145235c8f7bd6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "FelixKratz",
+        "repo": "dotfiles",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
