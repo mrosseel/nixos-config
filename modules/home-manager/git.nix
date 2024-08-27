@@ -21,7 +21,7 @@
     };
     difftastic.enable = true;
     extraConfig = {
-      init.defaultBranch = "master"; # https://srid.ca/unwoke
+      # init.defaultBranch = "master"; # https://srid.ca/unwoke
       core.editor = "nvim";
       pull.rebase = "false";
       # For supercede

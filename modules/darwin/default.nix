@@ -22,6 +22,7 @@
     systemPackages = with pkgs; [ 
       coreutils
       xquartz
+      trezor-agent
     ];
     #systemPath = [ "/opt/homebrew/bin" ];
     pathsToLink = [ "/Applications" ];
