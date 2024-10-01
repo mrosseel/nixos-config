@@ -51,6 +51,12 @@
   #   useXkbConfig = true; # use xkb.options in tty.
   # };
 
+  services.postfix = {
+    extraConfig = ''
+      inet_protocols = ipv4
+    '';
+  };
+
   # Enable the X11 windowing system.
   # services.xserver.enable = true;
   users.groups.mike = {};
