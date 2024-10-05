@@ -18,6 +18,7 @@
       b = "branch";
       # p = "pull --rebase";
       pu = "push";
+      r = "remote -v";
     };
     difftastic.enable = true;
     extraConfig = {

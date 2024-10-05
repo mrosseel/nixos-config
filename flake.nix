@@ -11,7 +11,11 @@
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     # home-manager.url = "github:nix-community/home-manager/release-24.05";
-    # home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    # home-manager.inputs.nixpkgs.follows   
+    pifinder = {
+      url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # sketchybar config
     sketchybar = {
@@ -92,6 +96,14 @@
           };
         }
         ./modules/darwin
+        # inputs.pifinder.darwinModules.default 
+        # {
+        #   services.pifinderWebServer = {
+        #     enable = true;
+        #     user = "mike";
+        #     workingDirectory = "/Users/mike/dev/business/pifinder.eu/website";
+        #   };
+        # }
 	# ./modules/desktop.nix
         ];
     };
