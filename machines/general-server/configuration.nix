@@ -19,6 +19,10 @@
   boot.tmp.cleanOnBoot = true;
   zramSwap.enable = true;
   networking.hostName = "general-server"; # Define your hostname.
+  networking.nameservers = [ "8.8.8.8" ];
+  environment.etc = {
+    "resolv.conf".text = "nameserver 8.8.8.8\n";
+  };
   #networking.hostName = "vmi1670642";
   #networking.domain = "contaboserver.net";
   services.openssh = {
@@ -52,6 +56,11 @@
   # };
 
   services.postfix = {
+    masterConfig = {
+      smtp = {
+        args = [ "-o" "smtp_helo_timeout=15" ];
+      };
+    };
     extraConfig = ''
       inet_protocols = ipv4
     '';
