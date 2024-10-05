@@ -11,8 +11,7 @@
       serverAliases = [ "www.pifinder.eu" ];
       extraConfig = ''
         encode gzip
-        file_server
-        root * /var/www
+        reverse_proxy localhost:5001
         header {
           # Strict Transport Security
           Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
@@ -26,8 +25,8 @@
           # Clickjacking Protection
           X-Frame-Options "DENY"
 
-          # Content Security Policy with Hash
-          Content-Security-Policy "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"
+          # Content Security Policy with updated directives
+          Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"
 
           # Referrer Policy
           Referrer-Policy "strict-origin-when-cross-origin"
@@ -40,7 +39,7 @@
 
           # Remove Server Header (if applicable)
           -Server
-      }
+        }
     '';
     };
     virtualHosts."mail.pifinder.eu".extraConfig = ''

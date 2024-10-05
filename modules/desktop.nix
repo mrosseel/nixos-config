@@ -8,7 +8,7 @@
     discord
     obsidian
     # google-drive-ocamlfuse
-    vlc-bin
+    vlc
     spotify
     # veracrypt
     orca-slicer
