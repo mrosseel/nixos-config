@@ -3,7 +3,7 @@
   programs.kitty = {
     enable = true;
     # Pick "name" from https://github.com/kovidgoyal/kitty-themes/blob/master/themes.json
-    theme = "Solarized Dark Higher Contrast";
+    themeFile = "Solarized_Dark_Higher_Contrast";
     #theme = "Solarized Dark";
     font = {
       name = "Hack Nerd Font";
