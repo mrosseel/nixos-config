@@ -2,8 +2,8 @@
   imports = [
     #./yabai.nix
     #./sketchybar.nix
-    ./spacelauncher.nix
     ./flutter.nix
+    ./aerospace.nix
   ];
 
   # here go the darwin preferences and config items
@@ -11,17 +11,12 @@
         home = "/Users/mike";
         shell = pkgs.zsh;
         };
-  #home = {
-  #  username = "mike";
-  #  homeDirectory = "/Users/mike";
-  #};
   programs.zsh.enable = true;
   environment = {
     shells = with pkgs; [ bash zsh ];
-    loginShell = pkgs.zsh;
     systemPackages = with pkgs; [ 
       coreutils
-      xquartz
+      # xquartz
       trezor-agent
     ];
     #systemPath = [ "/opt/homebrew/bin" ];
@@ -31,24 +26,29 @@
   system.keyboard.enableKeyMapping = true;
   system.keyboard.remapCapsLockToEscape = true;
   security.pam.enableSudoTouchIdAuth = true;
-  fonts.packages = [ (pkgs.nerdfonts.override { fonts = [ "Meslo" ]; }) ];
+  fonts.packages = [ pkgs.nerd-fonts.meslo-lg ];
+  
   services.nix-daemon.enable = true;
   system.defaults = {
     finder.AppleShowAllExtensions = true;
     finder._FXShowPosixPathInTitle = true;
-    dock.autohide = false;
+    dock.autohide = true;
     NSGlobalDomain.AppleShowAllExtensions = true;
-    NSGlobalDomain.InitialKeyRepeat = 14;
-    NSGlobalDomain.KeyRepeat = 1;
+    loginwindow.GuestEnabled = false;
+    NSGlobalDomain.AppleICUForce24HourTime = true;
+    NSGlobalDomain.AppleInterfaceStyle = "Dark";
+    # NSGlobalDomain.InitialKeyRepeat = 14;
+    NSGlobalDomain.KeyRepeat = 2;
   };
   # backwards compat; don't change
   system.stateVersion = 4;
   homebrew = {
     enable = true;
     caskArgs.no_quarantine = true;
-    onActivation.autoUpdate = false; 
+    onActivation.autoUpdate = true; 
+    onActivation.upgrade = true; 
     global.brewfile = true;
-    casks = [ "raycast" "spacelauncher" ];
+    casks = [ "raycast" ];
     #taps = [ "fujiapple852/trippy" ];
     brews = [ "trippy" ];
   };}

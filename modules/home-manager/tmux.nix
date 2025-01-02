@@ -2,6 +2,7 @@
 {
   programs.tmux = {
     enable = true;
+    # sensibleOnTop = true;
     baseIndex = 1;
     newSession = true;
     # Stop tmux+escape craziness.
@@ -9,8 +10,8 @@
     # Force tmux to use /tmp for sockets (WSL2 compat)
     secureSocket = false;
     clock24 = true;
-    shell = "${pkgs.zsh}/bin/zsh";
     terminal = "tmux-256color";
+    # shell = "${pkgs.zsh}/bin/zsh";
     historyLimit = 100000;
     keyMode = "vi";
     mouse = true;
@@ -87,7 +88,7 @@
       bind Escape copy-mode
 
       # Easier reload of config
-      #bind r source-file ~/.config/tmux/tmux.conf
+      bind r source-file ~/.config/tmux/tmux.conf
 
       #set-option -g status-position top
 
@@ -95,12 +96,9 @@
       #unbind p
       #bind p paste-buffer
 
-      # Bind Keys
-      # bind-key -T prefix C-g split-window \
-      #   "$SHELL --login -i -c 'navi --print | head -c -1 | tmux load-buffer -b tmp - ; tmux paste-buffer -p -t {last} -b tmp -d'"
-      # bind-key -T prefix C-l switch -t notes
-      # bind-key -T prefix C-d switch -t dotfiles
-      # bind-key e send-keys "tmux capture-pane -p -S - | nvim -c 'set buftype=nofile' +" Enter
+      # https://github.com/nix-community/home-manager/issues/5952
+      set -gu default-command "$SHELL"
+      set -g default-shell "$SHELL"
     '';
   };
 }

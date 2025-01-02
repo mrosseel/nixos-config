@@ -2,7 +2,7 @@
   description = "Darwin system flake";
 
   inputs = {
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     # nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     nix-darwin.url = "github:LnL7/nix-darwin";
@@ -24,7 +24,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-unstable, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -49,7 +49,7 @@
 
       nix = {
         # enable flakes per default
-        package = pkgs.nixFlakes;
+        package = pkgs.nix;
         settings = {
           allowed-users = [ user ];
           experimental-features = [ "nix-command" "flakes" ];
@@ -184,14 +184,14 @@
         }
       ];
     };
-    homeConfigurations."pifinder" = home-manager.lib.homeManagerConfiguration {
-        specialArgs = { inherit inputs; };
-        pkgs = nixpkgs.legacyPackages."aarch6 -linux";
-        defaultPackage."aarch64-linux" = home-manager.defaultPackage."aarch64-linux";
-        modules = [
-          ./modules/home-manager
-        ];
-    };
+    # homeConfigurations."pifinder" = home-manager.lib.homeManagerConfiguration {
+    #     specialArgs = { inherit inputs; };
+    #     pkgs = nixpkgs.legacyPackages."aarch6 -linux";
+    #     defaultPackage."aarch64-linux" = home-manager.defaultPackage."aarch64-linux";
+    #     modules = [
+    #       ./modules/home-manager
+    #     ];
+    # };
     homeManagerConfigurations."piDSC" = home-manager.lib.homeManagerConfiguration {
       specialArgs = { inherit inputs; };
       system = "aarch64-linux";
