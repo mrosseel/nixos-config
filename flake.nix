@@ -45,7 +45,7 @@
         ];
 
       # Auto upgrade nix package and the daemon service.
-      services.nix-daemon.enable = true;
+      nix.enable = true;
 
       nix = {
         # enable flakes per default

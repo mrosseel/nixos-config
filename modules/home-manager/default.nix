@@ -67,8 +67,8 @@
     nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
     nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
     cd = "z";
-    pbcopy="xclip -selection clipboard";
-    pbpaste="xclip -selection clipboard -o";
+    # pbcopy="xclip -selection clipboard";
+    # pbpaste="xclip -selection clipboard -o";
     neofetch="fastfetch";
   };
   programs.zsh.initExtra = ''

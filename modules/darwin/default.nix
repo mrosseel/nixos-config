@@ -3,7 +3,7 @@
     #./yabai.nix
     #./sketchybar.nix
     ./flutter.nix
-    ./aerospace.nix
+    # ./aerospace.nix
   ];
 
   # here go the darwin preferences and config items
@@ -25,10 +25,10 @@
   };
   system.keyboard.enableKeyMapping = true;
   system.keyboard.remapCapsLockToEscape = true;
-  security.pam.enableSudoTouchIdAuth = true;
+  security.pam.services.sudo_local.touchIdAuth = true;
   fonts.packages = [ pkgs.nerd-fonts.meslo-lg ];
   
-  services.nix-daemon.enable = true;
+  nix.enable = true;
   system.defaults = {
     finder.AppleShowAllExtensions = true;
     finder._FXShowPosixPathInTitle = true;
