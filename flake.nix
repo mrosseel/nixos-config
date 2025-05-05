@@ -12,10 +12,10 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     # home-manager.url = "github:nix-community/home-manager/release-24.05";
     # home-manager.inputs.nixpkgs.follows   
-    pifinder = {
-      url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # pifinder = {
+    #   url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
 
     # sketchybar config
     sketchybar = {

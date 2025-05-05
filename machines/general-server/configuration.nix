@@ -19,9 +19,9 @@
   boot.tmp.cleanOnBoot = true;
   zramSwap.enable = true;
   networking.hostName = "general-server"; # Define your hostname.
-  networking.nameservers = [ "8.8.8.8" ];
+  networking.nameservers = [ "8.8.8.8" "8.8.4.4" ];
   environment.etc = {
-    "resolv.conf".text = "nameserver 8.8.8.8\n";
+    "resolv.conf".text = "nameserver 8.8.8.8\nnameserver 8.8.4.4";
   };
   #networking.hostName = "vmi1670642";
   #networking.domain = "contaboserver.net";
@@ -68,6 +68,8 @@
 
   # Enable the X11 windowing system.
   # services.xserver.enable = true;
+  programs.zsh.enable = true;
+  environment.shells = with pkgs; [ bash zsh ];
   users.groups.mike = {};
   users.users.mike = {
         home = "/home/mike";

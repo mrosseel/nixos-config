@@ -1,4 +1,9 @@
-{ pkgs, ... }: {
+{ lib, pkgs, ... }: 
+
+let
+  isDarwin = pkgs.stdenv.isDarwin;
+  isNixOS = pkgs.stdenv.isLinux && builtins.pathExists "/etc/nixos";
+in {
   # Don't change this when you change package input. Leave it alone.
   home.stateVersion = "23.11";
   imports = [
@@ -71,12 +76,7 @@
     # pbpaste="xclip -selection clipboard -o";
     neofetch="fastfetch";
   };
-  programs.zsh.initExtra = ''
-    #make sure brew is on the path for M1 
-    if [[ $(uname -m) == 'arm64' ]]; then
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-    '';
+  home.activation.setLoginShell = lib.mkForce "";
   programs.starship.enable = true;
   programs.starship.enableZshIntegration = true;
   programs.starship.settings = {
