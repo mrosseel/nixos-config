@@ -166,6 +166,7 @@
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
+        ./machines/general-server/systemd.nix
         ./modules/simple-mail-server.nix
         home-manager.nixosModules.home-manager
         {
