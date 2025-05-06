@@ -45,6 +45,8 @@
     virtualHosts."mail.pifinder.eu".extraConfig = ''
     '';
   };
-  networking.firewall.allowedTCPPorts = [ 80 443];
+  networking.firewall = {
+    allowedTCPPorts = [ 80 443];
+    allowedUDPPorts = [ 53 ];
+  };
 }
-

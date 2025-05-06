@@ -12,10 +12,10 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     # home-manager.url = "github:nix-community/home-manager/release-24.05";
     # home-manager.inputs.nixpkgs.follows   
-    pifinder = {
-      url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # pifinder = {
+    #   url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
 
     # sketchybar config
     sketchybar = {
@@ -45,7 +45,7 @@
         ];
 
       # Auto upgrade nix package and the daemon service.
-      services.nix-daemon.enable = true;
+      nix.enable = true;
 
       nix = {
         # enable flakes per default
@@ -166,6 +166,7 @@
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
+        ./machines/general-server/systemd.nix
         ./modules/simple-mail-server.nix
         home-manager.nixosModules.home-manager
         {
