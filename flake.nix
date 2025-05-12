@@ -166,6 +166,7 @@
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
+        ./machines/general-server/python.nix
         ./machines/general-server/systemd.nix
         ./modules/simple-mail-server.nix
         home-manager.nixosModules.home-manager
@@ -185,14 +186,6 @@
         }
       ];
     };
-    # homeConfigurations."pifinder" = home-manager.lib.homeManagerConfiguration {
-    #     specialArgs = { inherit inputs; };
-    #     pkgs = nixpkgs.legacyPackages."aarch6 -linux";
-    #     defaultPackage."aarch64-linux" = home-manager.defaultPackage."aarch64-linux";
-    #     modules = [
-    #       ./modules/home-manager
-    #     ];
-    # };
     homeManagerConfigurations."piDSC" = home-manager.lib.homeManagerConfiguration {
       specialArgs = { inherit inputs; };
       system = "aarch64-linux";
