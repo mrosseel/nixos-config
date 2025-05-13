@@ -96,6 +96,7 @@
           };
         }
         ./modules/darwin
+        ./modules/python.nix
         # inputs.pifinder.darwinModules.default 
         # {
         #   services.pifinderWebServer = {
@@ -166,9 +167,9 @@
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
-        ./machines/general-server/python.nix
         ./machines/general-server/systemd.nix
         ./modules/simple-mail-server.nix
+        ./modules/python.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {

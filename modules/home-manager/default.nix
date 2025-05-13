@@ -55,6 +55,12 @@ in {
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
   programs.fzf.enableZshIntegration = true;
+  programs.zsh.initContent = ''
+    #make sure brew is on the path for M1 
+    if [[ $(uname -m) == 'arm64' ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+    '';
   programs.eza.enable = true;
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;

@@ -12,12 +12,6 @@
         shell = pkgs.zsh;
         };
   programs.zsh.enable = true;
-  programs.zsh.initContent = ''
-    #make sure brew is on the path for M1 
-    if [[ $(uname -m) == 'arm64' ]]; then
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-    '';
   environment = {
     shells = with pkgs; [ bash zsh ];
     systemPackages = with pkgs; [ 
