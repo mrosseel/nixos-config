@@ -3,7 +3,7 @@
     #./yabai.nix
     #./sketchybar.nix
     ./flutter.nix
-    # ./aerospace.nix
+    ./aerospace.nix
   ];
 
   # here go the darwin preferences and config items
@@ -11,6 +11,7 @@
         home = "/Users/mike";
         shell = pkgs.zsh;
         };
+  system.primaryUser = "mike";
   programs.zsh.enable = true;
   environment = {
     shells = with pkgs; [ bash zsh ];
