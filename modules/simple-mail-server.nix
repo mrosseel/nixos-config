@@ -12,13 +12,14 @@
       # To get the sha256, you can initially use all zeroes and then copy the correct hash from the error message:
       # sha256 = "0000000000000000000000000000000000000000000000000000";
       # Or use: nix-prefetch-url "https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/archive/master/nixos-mailserver-master.tar.gz" --unpack
-      sha256 = "0ixhbc3xrqy9jkz06zh7fk8dfghwb26252d7ayvsqa3xyxzrbpbh"; # This is a placeholder - you'll need to get the actual hash
+      sha256 = "14zhxa6ig7wf0pr1ya3hc4frbb8rpj5ac1pmpd28lh5cbqcnr2yf"; # This is a placeholder - you'll need to get the actual hash
     })
   ];
   # fixes dovecot2 bug in 23.11 release: https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/issues/275
   # services.dovecot2.sieve.extensions = [ "fileinto" ];
   mailserver = {
     enable = true;
+    stateVersion = 3;
     fqdn = "mail.pifinder.eu";
     domains = [ "pifinder.eu" ];
     enablePop3Ssl = true;
