@@ -12,7 +12,7 @@
     spotify
     # veracrypt
     orca-slicer
-    libreoffice-qt
+    #libreoffice-qt
     dropbox
   ];
   fonts.packages = [ pkgs.nerd-fonts.meslo-lg ];
