@@ -12,6 +12,7 @@
     spotify
     # veracrypt
     orca-slicer
+    bambu-studio
     #libreoffice-qt
     dropbox
   ];
