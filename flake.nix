@@ -8,6 +8,11 @@
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    omarchy-nix = {
+      url = "github:henrysipp/omarchy-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
     # pifinder = {
     #   url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
     #   inputs.nixpkgs.follows = "nixpkgs";
@@ -20,7 +25,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, omarchy-nix, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -131,7 +136,7 @@
         }
       ];
     };
-    # work in progress
+    # work in progress - now with omarchy-nix
     nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
@@ -140,14 +145,27 @@
 	./modules/default-browser.nix
 	./modules/desktop.nix
 	./modules/openssh.nix
+        omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
+          # Configure omarchy
+          omarchy = {
+            full_name = "Mike Rosseel";
+            email_address = "mike.rosseel@gmail.com";
+            theme = "tokyo-night";
+          };
+          
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = {};
+	    # stateVersion = "25.05";
             users.${user} = {
-              imports = [ ./modules/home-manager ];
+              imports = [ 
+                # ./modules/home-manager
+                omarchy-nix.homeManagerModules.default
+              ];
+	      home.stateVersion = "25.05";
               programs.tmux = {
                 enable = true;
                 shortcut = "a";  # Set your custom shortcut here

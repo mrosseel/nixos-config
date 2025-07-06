@@ -10,6 +10,7 @@
       ./hardware-configuration.nix
     ];
   nix.settings.experimental-features = ["nix-command" "flakes"]; 
+  boot.kernelParams = [ "radeon.cik_support=0" "amdgpu.cik_support=1" ];
   # Bootloader.
   boot.loader.grub.enable = true;
   boot.loader.grub.device = "/dev/sda";
