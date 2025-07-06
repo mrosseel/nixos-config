@@ -185,6 +185,7 @@
         ./machines/general-server/systemd.nix
         ./modules/simple-mail-server.nix
         ./modules/python.nix
+	./modules/openssh.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
