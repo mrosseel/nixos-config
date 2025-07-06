@@ -61,6 +61,17 @@ in {
       eval "$(/opt/homebrew/bin/brew shellenv)"
     fi
     '';
+  programs.ssh = {
+    enable = true;
+    addKeysToAgent = "yes";
+    extraConfig = ''
+      IdentityFile ~/.ssh/id_ed25519
+      IdentityFile ~/.ssh/id_rsa
+    '';
+  };
+
+  # Optional: Also enable SSH agent through home-manager
+  services.ssh-agent.enable = true;
   programs.eza.enable = true;
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;

@@ -136,13 +136,14 @@
       ];
     };
     # work in progress
-    nixosConfigurations."nixdesktop" = nixpkgs.lib.nixosSystem {
+    nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
-        ./machines/nix270/configuration.nix
-        ./machines/nix270/hardware-configuration.nix
+        ./machines/nixair/configuration.nix
+        ./machines/nixair/hardware-configuration.nix
 	./modules/default-browser.nix
 	./modules/desktop.nix
+	./modules/openssh.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
