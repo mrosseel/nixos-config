@@ -19,10 +19,13 @@ in {
     ripgrep
     fd
     curl
+    xh  # prettier curl
     less
     manix
     mc
     ncdu
+    dua  # faster ncdu
+    yazi # file manager
     tldr
     fastfetch
     jq
@@ -37,6 +40,9 @@ in {
     CLICLOLOR = 1;
     EDITOR = "neovim";
   };
+  home.sessionPath = [
+    "$HOME/.npm-packages/bin"
+  ];
   home = {
     username = "mike";
   };
@@ -75,15 +81,21 @@ in {
   programs.eza.enable = true;
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;
+  programs.zoxide.enableBashIntegration = false;
   programs.ripgrep.enable = true;
-  programs.bash.enable = true;
+  programs.bash = {
+    enable = true;
+    sessionVariables = {
+      SHELL = "${pkgs.bash}/bin/bash";
+    };
+  };
   programs.zsh.enable = true;
   programs.zsh.enableCompletion = true;
   programs.zsh.autosuggestion.enable = true;
   programs.zsh.syntaxHighlighting.enable = true;
   programs.zsh.shellAliases = {
     ls = "eza -a --icons=auto";
-    ll = "eza -1 -l -a --icons=auto";
+    ll = "eza -1 -l -a --icons=auto --group-directories-first ";
     nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
     nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
     nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";

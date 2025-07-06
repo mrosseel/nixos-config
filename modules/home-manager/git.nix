@@ -1,6 +1,9 @@
 { pkgs, config, ... }:
 {
-  home.packages = [ pkgs.git-lfs ];
+  home.packages = [ 
+    pkgs.git-lfs 
+    pkgs.tig  # pretty git log
+    ];
 
   programs.git = {
     package = pkgs.gitAndTools.gitFull;

@@ -4,14 +4,10 @@
   inputs = {
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
-    # Manages configs links things into your home directory
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
-    # home-manager.url = "github:nix-community/home-manager/release-24.05";
-    # home-manager.inputs.nixpkgs.follows   
     # pifinder = {
     #   url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
     #   inputs.nixpkgs.follows = "nixpkgs";
