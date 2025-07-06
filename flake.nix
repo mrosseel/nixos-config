@@ -162,9 +162,9 @@
             extraSpecialArgs = {};
 	    # stateVersion = "25.05";
             users.${user} = {
-              imports = [ 
-                # ./modules/home-manager
-                omarchy-nix.homeManagerModules.default
+              imports = [
+                ./modules/home-manager/omarchy.nix
+                ./modules/home-manager
               ];
 	      home.stateVersion = "25.05";
               programs.tmux = {
