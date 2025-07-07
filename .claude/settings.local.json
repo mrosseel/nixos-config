@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sudo loadkeys:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(starship:*)",
+      "Bash(nix-instantiate:*)",
+      "Bash(nix-build:*)",
+      "Bash(sudo systemctl restart:*)",
+      "Bash(nix flake lock:*)",
+      "Bash(hyprctl binds:*)"
+    ],
+    "deny": []
+  }
+}

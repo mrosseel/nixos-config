@@ -10,7 +10,8 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
       # url = "github:henrysipp/omarchy-nix";
-      url = "github:mrosseel/omarchy-nix";
+      # url = "github:mrosseel/omarchy-nix";
+      url = "path:/home/mike/dev/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -141,11 +142,15 @@
     nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+	{
+	  nixpkgs.config = nixpkgsConfig;
+	}
         ./machines/nixair/configuration.nix
         ./machines/nixair/hardware-configuration.nix
 	./modules/default-browser.nix
 	./modules/desktop.nix
 	./modules/openssh.nix
+	./modules/ai.nix
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
@@ -159,14 +164,15 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
+            backupFileExtension = "backup";
             extraSpecialArgs = {};
 	    # stateVersion = "25.05";
             users.${user} = {
               imports = [ 
-                # ./modules/home-manager
+                ./modules/home-manager
                 omarchy-nix.homeManagerModules.default
               ];
-	      home.stateVersion = "25.05";
+	      home.stateVersion = "23.11";
               programs.tmux = {
                 enable = true;
                 shortcut = "a";  # Set your custom shortcut here

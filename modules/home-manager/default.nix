@@ -47,10 +47,10 @@ in {
     username = "mike";
   };
   programs.btop = {
-    enable = true;
+    enable = lib.mkDefault true;
     settings = {
-      color_theme = "gruvbox-dark-v2";
-      vim_keys = true;
+      color_theme = lib.mkDefault "gruvbox-dark-v2";
+      vim_keys = lib.mkDefault true;
     };
   };
   #xdg.configFile.nvim = {
