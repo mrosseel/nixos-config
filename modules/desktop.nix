@@ -4,7 +4,7 @@
 
 {
   environment.systemPackages = with pkgs; [
-    # ferdium
+    ferdium
     discord
     obsidian
     # google-drive-ocamlfuse

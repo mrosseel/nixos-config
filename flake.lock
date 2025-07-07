@@ -193,11 +193,11 @@
         "xdph": "xdph"
       },
       "locked": {
-        "lastModified": 1751888078,
-        "narHash": "sha256-ihCfQtZz4FZrsWyxn3Qh+WjzenufSovGuWsJdjngmKU=",
+        "lastModified": 1751904574,
+        "narHash": "sha256-jXkava/9BRiY2JEVmB68mpkFd+JU3BnNbh2RtRBXfTA=",
         "owner": "hyprwm",
         "repo": "Hyprland",
-        "rev": "d23ed852fc6942d28f78006b01c9a853f8ff194e",
+        "rev": "bb958a9e139d6ae90d45fe360287d33e229f971e",
         "type": "github"
       },
       "original": {
@@ -435,11 +435,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1751786137,
-        "narHash": "sha256-lIlUKVGCGsh0Q2EA7/6xRtKUZjaQ/ur8uUyY+MynHXQ=",
+        "lastModified": 1751852175,
+        "narHash": "sha256-+MLlfTCCOvz4K6AcSPbaPiFM9MYi7fA2Wr1ibmRwIlM=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ceb24d94c6feaa4e8737a8e2bd3cf71c3a7eaaa0",
+        "rev": "2defa37146df235ef62f566cde69930a86f14df1",
         "type": "github"
       },
       "original": {
@@ -508,14 +508,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1751892678,
-        "narHash": "sha256-FVfI8h3kjsR55n2UN7T1W1TSsCZBiNhUN2uNLyHFx8o=",
-        "path": "/home/mike/dev/omarchy-nix",
-        "type": "path"
+        "lastModified": 1751923058,
+        "narHash": "sha256-VSxn1aAq8tbNbWko6GKBjy2dWjWoTXaut0pPWQWoqJs=",
+        "owner": "mrosseel",
+        "repo": "omarchy-nix",
+        "rev": "400061b4b15e8b3f03088fe8417dceb1875b4009",
+        "type": "github"
       },
       "original": {
-        "path": "/home/mike/dev/omarchy-nix",
-        "type": "path"
+        "owner": "mrosseel",
+        "repo": "omarchy-nix",
+        "type": "github"
       }
     },
     "pre-commit-hooks": {

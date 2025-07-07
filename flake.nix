@@ -159,6 +159,7 @@
             full_name = "Mike Rosseel";
             email_address = "mike.rosseel@gmail.com";
             theme = "tokyo-night";
+            scale = 1;
           };
           
           home-manager = {
