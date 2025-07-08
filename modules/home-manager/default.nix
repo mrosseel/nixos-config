@@ -88,9 +88,6 @@ in {
   programs.ripgrep.enable = true;
   programs.bash = {
     enable = true;
-    sessionVariables = {
-      SHELL = "${pkgs.bash}/bin/bash";
-    };
   };
   programs.zsh.enable = true;
   programs.zsh.enableCompletion = true;
