@@ -122,6 +122,7 @@
         ./machines/nix270/hardware-configuration.nix
 	./modules/default-browser.nix
 	./modules/desktop.nix
+	./modules/printing.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
@@ -152,6 +153,7 @@
 	./modules/desktop.nix
 	./modules/openssh.nix
 	./modules/ai.nix
+	./modules/printing.nix
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
