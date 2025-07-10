@@ -1,15 +1,20 @@
 { pkgs, config, ... }:
+let
+    userName = "Mike Rosseel";
+    userEmail = "mike.rosseel@gmail.com";
+in
 {
   home.packages = [ 
     pkgs.git-lfs 
     pkgs.tig  # pretty git log
+    pkgs.jujutsu # pretty git
     ];
 
   programs.git = {
-    package = pkgs.gitAndTools.gitFull;
+    package = pkgs.git;
     enable = true;
-    userName = "Mike Rosseel";
-    userEmail = "mike.rosseel@gmail.com";
+    userName = userName;
+    userEmail = userEmail;
     aliases = {
       co = "checkout";
       ci = "commit";
@@ -43,6 +48,15 @@
         activeBorderColor = [ "white" "bold" ];
         inactiveBorderColor = [ "white" ];
         selectedLineBgColor = [ "reverse" "white" ];
+      };
+    };
+  };
+  programs.jujutsu = {
+    enable = true;
+    settings = {
+      user = {
+        name = userName;
+        email = userEmail;
       };
     };
   };

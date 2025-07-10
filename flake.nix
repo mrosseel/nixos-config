@@ -152,6 +152,7 @@
 	./modules/default-browser.nix
 	./modules/desktop.nix
 	./modules/openssh.nix
+        ./modules/python.nix
 	./modules/ai.nix
 	./modules/printing.nix
         omarchy-nix.nixosModules.default
