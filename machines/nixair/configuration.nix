@@ -123,8 +123,10 @@
   #   enableSSHSupport = true;
   # };
 
-  # List services that you want to enable:
+  # for devenv caching
+  nix.settings.trusted-users = [ "root" "mike" ];
 
+  # List services that you want to enable:
   # Enable the OpenSSH daemon.
   services.openssh = {
     enable = true;

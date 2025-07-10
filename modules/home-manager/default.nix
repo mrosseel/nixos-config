@@ -34,6 +34,8 @@ in {
     htop-vim
     wormhole-william
     dust # du alternative
+    xsel # pbcopy alternative
+    killall
     # lnav # log file navigator
   ];
   home.sessionVariables = {
