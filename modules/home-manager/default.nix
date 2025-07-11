@@ -36,6 +36,7 @@ in {
     dust # du alternative
     xsel # pbcopy alternative
     killall
+    carapace # command options completion
     # lnav # log file navigator
   ];
   home.sessionVariables = {
@@ -64,12 +65,6 @@ in {
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
   programs.fzf.enableZshIntegration = true;
-  programs.zsh.initContent = ''
-    #make sure brew is on the path for M1 
-    if [[ $(uname -m) == 'arm64' ]]; then
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-    '';
   programs.ssh = {
     enable = true;
     addKeysToAgent = "yes";
@@ -91,21 +86,29 @@ in {
   programs.bash = {
     enable = true;
   };
-  programs.zsh.enable = true;
-  programs.zsh.enableCompletion = true;
-  programs.zsh.autosuggestion.enable = true;
-  programs.zsh.syntaxHighlighting.enable = true;
-  programs.zsh.shellAliases = {
-    ls = "eza -a --icons=auto";
-    ll = "eza -1 -l -a --icons=auto --group-directories-first ";
-    nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
-    nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
-    nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
-    nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
-    cd = "z";
-    # pbcopy="xclip -selection clipboard";
-    # pbpaste="xclip -selection clipboard -o";
-    neofetch="fastfetch";
+  programs.zsh = {
+    enable = true;
+    enableCompletion = true;
+    autosuggestion.enable = true;
+    syntaxHighlighting.enable = true;
+    shellAliases = {
+      ls = "eza -a --icons=auto";
+      ll = "eza -1 -l -a --icons=auto --group-directories-first ";
+      nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
+      nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
+      nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
+      nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
+      cd = "z";
+      # pbcopy="xclip -selection clipboard";
+      # pbpaste="xclip -selection clipboard -o";
+      neofetch="fastfetch";
+    };
+    initContent = ''
+      #make sure brew is on the path for M1 
+      if [[ $(uname -m) == 'arm64' ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+      fi
+      '';
   };
   home.activation.setLoginShell = lib.mkForce "";
   # direnv loads and unloads shell.nix files when you cd in and out of dirs
