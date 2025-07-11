@@ -93,6 +93,7 @@
     #  thunderbird
     ];
   };
+  programs.xwayland.enable = true;
 
   # Enable automatic login for the user.
   services.displayManager.autoLogin.enable = true;
