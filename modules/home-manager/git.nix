@@ -58,6 +58,10 @@ in
         name = userName;
         email = userEmail;
       };
+      ui = {
+        default-command =  ["log" "--reversed"];
+        pager = "bat";
+      };
     };
   };
 }
