@@ -60,7 +60,7 @@ in
       };
       ui = {
         default-command =  ["log" "--reversed"];
-        pager = "bat";
+        pager = "cat";
       };
     };
   };
