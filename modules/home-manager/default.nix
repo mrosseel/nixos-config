@@ -42,7 +42,7 @@ in {
   home.sessionVariables = {
     PAGER = "less";
     CLICLOLOR = 1;
-    EDITOR = "neovim";
+    EDITOR = "nvim";
   };
   home.sessionPath = [
     "$HOME/.npm-packages/bin"
