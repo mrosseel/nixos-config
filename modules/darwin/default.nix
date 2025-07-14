@@ -33,7 +33,7 @@
   system.defaults = {
     loginwindow.GuestEnabled = false;
     CustomUserPreferences = {
-      NSGlobalDomain."com.apple.mouse.linear" = true;
+      NSGlobalDomain."com.apple.mouse.linear" = false;
     };
     NSGlobalDomain = {
       AppleInterfaceStyle = "Dark";
