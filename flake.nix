@@ -123,6 +123,7 @@
 	./modules/default-browser.nix
 	./modules/desktop.nix
 	./modules/printing.nix
+        ./modules/linux/avahi.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
