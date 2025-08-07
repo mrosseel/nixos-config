@@ -24,7 +24,7 @@
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/pifinder_shopping/";
-      ExecStart = "uv run python shop_page.py --prod";
+      ExecStart = "${pkgs.uv}/bin/uv run python shop_page.py --prod";
       Restart = "on-failure";
     };
   };

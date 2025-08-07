@@ -15,6 +15,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
+    nixos-mailserver = {
+      url = "gitlab:simple-nixos-mailserver/nixos-mailserver/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # home-manager.url = "github:nix-community/home-manager/release-24.05";
+    # home-manager.inputs.nixpkgs.follows   
     # pifinder = {
     #   url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
     #   inputs.nixpkgs.follows = "nixpkgs";
@@ -27,7 +33,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, omarchy-nix, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -191,6 +197,7 @@
     nixosConfigurations."general-server" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+        nixos-mailserver.nixosModules.mailserver
         ./machines/general-server/configuration.nix
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix

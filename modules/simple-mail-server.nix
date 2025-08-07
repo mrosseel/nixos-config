@@ -1,20 +1,4 @@
 { config, pkgs, ... }: {
-  imports = [
-    # (builtins.fetchTarball {
-    #   # Pick a release version you are interested in and set its hash, e.g.
-    #   url = "https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/archive/nixos-24.11/nixos-mailserver-nixos-24.11.tar.gz";
-    #   # To get the sha256 of the nixos-mailserver tarball, we can use the nix-prefetch-url command:
-    #   # release="nixos-23.05"; nix-prefetch-url "https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/archive/${release}/nixos-mailserver-${release}.tar.gz" --unpack
-    #   sha256 = "05k4nj2cqz1c5zgqa0c6b8sp3807ps385qca74fgs6cdc415y3qw";
-    # })
-    (builtins.fetchTarball {
-      url = "https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/archive/master/nixos-mailserver-master.tar.gz";
-      # To get the sha256, you can initially use all zeroes and then copy the correct hash from the error message:
-      # sha256 = "0000000000000000000000000000000000000000000000000000";
-      # Or use: nix-prefetch-url "https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/archive/master/nixos-mailserver-master.tar.gz" --unpack
-      sha256 = "14zhxa6ig7wf0pr1ya3hc4frbb8rpj5ac1pmpd28lh5cbqcnr2yf"; # This is a placeholder - you'll need to get the actual hash
-    })
-  ];
   # fixes dovecot2 bug in 23.11 release: https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/issues/275
   # services.dovecot2.sieve.extensions = [ "fileinto" ];
   mailserver = {
