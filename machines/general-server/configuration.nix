@@ -61,9 +61,11 @@
         args = [ "-o" "smtp_helo_timeout=15" ];
       };
     };
-    extraConfig = ''
-      inet_protocols = ipv4
-    '';
+    settings = {
+      main = {
+        inet_protocols = "ipv4";
+      };
+    };
   };
 
   # Enable the X11 windowing system.
