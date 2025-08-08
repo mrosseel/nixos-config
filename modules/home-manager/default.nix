@@ -69,7 +69,7 @@ in {
     enable = true;
     addKeysToAgent = "yes";
     extraConfig = ''
-      IdentityFile ~/.ssh/id_ed25519
+      # IdentityFile ~/.ssh/id_ed25519
       IdentityFile ~/.ssh/id_rsa
     '';
   };
@@ -109,6 +109,13 @@ in {
         eval "$(/opt/homebrew/bin/brew shellenv)"
       fi
       '';
+    plugins = [
+      {
+          name = "vi-mode";
+          src = pkgs.zsh-vi-mode;
+          file = "share/zsh-vi-mode/zsh-vi-mode.plugin.zsh";
+      }
+    ];
   };
   home.activation.setLoginShell = lib.mkForce "";
   # direnv loads and unloads shell.nix files when you cd in and out of dirs
