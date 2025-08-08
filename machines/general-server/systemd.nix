@@ -1,20 +1,5 @@
-
 { pkgs, inputs, ... }:
-
 {
-  # systemd.services.pifinderhtmlold = {
-  #   description = "PiFinder old FastHTML website";
-  #   wantedBy = [ "multi-user.target" ];
-  #   after = [ "network.target" ];
-  #   serviceConfig = {
-  #     Type = "simple";
-  #     User = "mike";
-  #     Group = "mike";
-  #     WorkingDirectory = "/home/mike/pifinder-eu-fasthtml/";
-  #     ExecStart = "${pkgs.poetry}/bin/poetry run python main.py";
-  #     Restart = "on-failure";
-  #   };
-  # };
   systemd.services.pifinderhtml = {
     description = "PiFinder FastHTML website";
     wantedBy = [ "multi-user.target" ];
@@ -24,8 +9,12 @@
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/pifinder_shopping/";
-      ExecStart = "${pkgs.uv}/bin/uv run python shop_page.py --prod";
+      ExecStart = "${pkgs.uv}/bin/uv run --python ${pkgs.python313}/bin/python3 shop_page.py --prod";
       Restart = "on-failure";
+    };
+    environment = {
+      # Allow dynamic linking
+      LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.glibc}/lib";
     };
   };
 }
