@@ -11,7 +11,7 @@ in
     themeFile = "Solarized_Dark_Higher_Contrast";
     #theme = "Solarized Dark";
     font = {
-      name = "Hack Nerd Font";
+      name = "Hack Nerd Font mono";
       size = 16;
     };
     keybindings = {
