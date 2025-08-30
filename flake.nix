@@ -10,8 +10,8 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
       # url = "github:henrysipp/omarchy-nix";
-      url = "github:mrosseel/omarchy-nix";
-      # url = "path:/home/mike/dev/omarchy-nix";
+      # url = "github:mrosseel/omarchy-nix";
+      url = "path:/home/mike/dev/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -164,6 +164,11 @@
             email_address = "mike.rosseel@gmail.com";
             theme = "tokyo-night";
             scale = 1;
+            browser = "brave";
+            seamless_boot = {
+              enable=true;
+              username = "mike";
+              };
           };
           
           home-manager = {

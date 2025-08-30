@@ -9,7 +9,17 @@
       "Bash(nix-build:*)",
       "Bash(sudo systemctl restart:*)",
       "Bash(nix flake lock:*)",
-      "Bash(hyprctl binds:*)"
+      "Bash(hyprctl binds:*)",
+      "Bash(systemctl:*)",
+      "Bash(hostname)",
+      "Bash(journalctl:*)",
+      "Bash(find:*)",
+      "Bash(uwsm select:*)",
+      "Bash(cat:*)",
+      "Bash(who)",
+      "Bash(sudo -u mike uwsm start:*)",
+      "Bash(nix flake check:*)",
+      "Bash(nix flake update:*)"
     ],
     "deny": []
   }
