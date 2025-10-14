@@ -9,7 +9,9 @@
       "Bash(nix-build:*)",
       "Bash(sudo systemctl restart:*)",
       "Bash(nix flake lock:*)",
-      "Bash(hyprctl binds:*)"
+      "Bash(hyprctl binds:*)",
+      "Bash(nix build:*)",
+      "Bash(nix flake show:*)"
     ],
     "deny": []
   }
