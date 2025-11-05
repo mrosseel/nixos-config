@@ -11,7 +11,8 @@
       "Bash(nix flake lock:*)",
       "Bash(hyprctl binds:*)",
       "Bash(nix build:*)",
-      "Bash(nix flake show:*)"
+      "Bash(nix flake show:*)",
+      "Bash(nixup)"
     ],
     "deny": []
   }

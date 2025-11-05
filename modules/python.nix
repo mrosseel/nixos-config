@@ -4,6 +4,6 @@
 {
   environment.systemPackages = [
     pkgs.uv
-    pkgs.python313Full
+    pkgs.python313
   ];
 }

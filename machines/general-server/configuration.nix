@@ -56,12 +56,12 @@
   # };
 
   services.postfix = {
-    masterConfig = {
-      smtp = {
-        args = [ "-o" "smtp_helo_timeout=15" ];
-      };
-    };
     settings = {
+      master = {
+        smtp = {
+          args = [ "-o" "smtp_helo_timeout=15" ];
+        };
+      };
       main = {
         inet_protocols = "ipv4";
       };
