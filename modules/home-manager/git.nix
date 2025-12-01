@@ -4,10 +4,11 @@ let
     userEmail = "mike.rosseel@gmail.com";
 in
 {
-  home.packages = [ 
-    pkgs.git-lfs 
+  home.packages = [
+    pkgs.git-lfs
     pkgs.tig  # pretty git log
     pkgs.jujutsu # pretty git
+    pkgs.delta # better git diffs
     ];
 
   programs.git = {
@@ -35,16 +36,25 @@ in
       core = {
         editor = "nvim";
         symlinks = true;
+        pager = "delta";
+      };
+      interactive.diffFilter = "delta --color-only";
+      delta = {
+        navigate = true;
+        line-numbers = true;
+        side-by-side = true;
+        syntax-theme = "Nord";
       };
       pull.rebase = "false";
     };
     ignores = import ./dotfiles/gitignore_mac.nix;
   };
 
-  programs.difftastic = {
-    enable = true;
-    git.enable = true;
-  };
+  # Using delta instead of difftastic for better interactive diffs
+  # programs.difftastic = {
+  #   enable = true;
+  #   git.enable = true;
+  # };
 
   programs.lazygit = {
     enable = true;

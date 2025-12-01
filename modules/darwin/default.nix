@@ -15,10 +15,10 @@
   programs.zsh.enable = true;
   environment = {
     shells = with pkgs; [ bash zsh ];
-    systemPackages = with pkgs; [ 
+    systemPackages = with pkgs; [
       coreutils
       # xquartz
-      trezor-agent
+      # trezor-agent  # Broken: trezor 0.13.10 requires click<8.2, nixpkgs has 8.2.1
     ];
     #systemPath = [ "/opt/homebrew/bin" ];
     pathsToLink = [ "/Applications" ];
