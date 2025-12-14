@@ -11,7 +11,7 @@
     secureSocket = false;
     clock24 = true;
     terminal = "tmux-256color";
-    # shell = "${pkgs.zsh}/bin/zsh";
+    shell = "${pkgs.zsh}/bin/zsh";
     historyLimit = 100000;
     keyMode = "vi";
     mouse = true;
@@ -96,9 +96,9 @@
       #unbind p
       #bind p paste-buffer
 
-      # https://github.com/nix-community/home-manager/issues/5952
-      set -gu default-command "$SHELL"
-      set -g default-shell "$SHELL"
+      # Ensure shells are started properly to source .zshrc
+      set -g default-command "${pkgs.zsh}/bin/zsh"
+      set -g default-shell "${pkgs.zsh}/bin/zsh"
     '';
   };
 }

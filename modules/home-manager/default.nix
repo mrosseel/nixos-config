@@ -82,10 +82,13 @@ in {
   programs.eza.enable = true;
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;
-  programs.zoxide.enableBashIntegration = false;
+  programs.zoxide.enableBashIntegration = true;
   programs.ripgrep.enable = true;
   programs.bash = {
     enable = true;
+    shellAliases = {
+      cd = "z";
+    };
   };
   programs.zsh = {
     enable = true;
