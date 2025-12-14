@@ -216,6 +216,7 @@
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix
+	./modules/fail2ban.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
