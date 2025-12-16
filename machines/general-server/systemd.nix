@@ -13,8 +13,17 @@
       Restart = "on-failure";
     };
     environment = {
-      # Allow dynamic linking
-      LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.glibc}/lib";
+      # Allow dynamic linking - includes libraries needed for WeasyPrint
+      LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+        pkgs.stdenv.cc.cc.lib
+        pkgs.glib
+        pkgs.pango
+        pkgs.cairo
+        pkgs.gdk-pixbuf
+        pkgs.harfbuzz
+        pkgs.fontconfig
+        pkgs.freetype
+      ];
     };
   };
 }
