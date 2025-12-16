@@ -108,10 +108,16 @@ in {
       neofetch="fastfetch";
     };
     initContent = ''
-      #make sure brew is on the path for M1 
+      #make sure brew is on the path for M1
       if [[ $(uname -m) == 'arm64' ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
       fi
+
+      # Fix fzf keybindings after zsh-vi-mode loads
+      function zvm_after_init() {
+        # Re-bind fzf keybindings that zsh-vi-mode overrides
+        bindkey '^R' fzf-history-widget
+      }
       '';
     plugins = [
       {
