@@ -612,8 +612,8 @@
         ]
       },
       "locked": {
-        "lastModified": 1766758595,
-        "narHash": "sha256-JEqOTpjZJX4EiXbTcAup9G6Pfv+rqRuL6dYm/js/2ac=",
+        "lastModified": 1766758652,
+        "narHash": "sha256-IxrqcVtR8J3pQLK3dlZoVSzG2VaGSABwBmEKa3RfDGs=",
         "path": "/home/mike/dev/omarchy-nix",
         "type": "path"
       },
