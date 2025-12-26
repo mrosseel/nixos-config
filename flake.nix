@@ -38,6 +38,9 @@
     nixpkgsConfig = {
       allowUnfree = true;
       allowUnsupportedSystem = false;
+      permittedInsecurePackages = [
+        "libsoup-2.74.3"
+      ];
       vivaldi = {
         proprietaryCodecs = true;
         enableWideVine = true;
@@ -124,10 +127,14 @@
     nixosConfigurations."nix270" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+        {
+          nixpkgs.config = nixpkgsConfig;
+        }
         ./machines/nix270/configuration.nix
         ./machines/nix270/hardware-configuration.nix
 	./modules/default-browser.nix
 	./modules/desktop.nix
+	./modules/openssh.nix
 	./modules/printing.nix
         ./modules/linux/avahi.nix
         home-manager.nixosModules.home-manager
@@ -135,9 +142,13 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
+            backupFileExtension = "backup";
             extraSpecialArgs = {};
             users.${user} = {
-              imports = [ ./modules/home-manager ];
+              imports = [ 
+                ./modules/home-manager
+              ];
+              home.stateVersion = "23.11";
               programs.tmux = {
                 enable = true;
                 shortcut = "a";  # Set your custom shortcut here
@@ -183,13 +194,12 @@
             useUserPackages = true;
             backupFileExtension = "backup";
             extraSpecialArgs = {};
-	    # stateVersion = "25.05";
             users.${user} = {
               imports = [ 
                 ./modules/home-manager
                 omarchy-nix.homeManagerModules.default
               ];
-	      home.stateVersion = "23.11";
+              home.stateVersion = "23.11";
               programs.tmux = {
                 enable = true;
                 shortcut = "a";  # Set your custom shortcut here
@@ -211,6 +221,7 @@
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix
+	./modules/fail2ban.nix
         home-manager.nixosModules.home-manager
         {
           home-manager = {
@@ -229,22 +240,13 @@
       ];
     };
     homeManagerConfigurations."piDSC" = home-manager.lib.homeManagerConfiguration {
-      specialArgs = { inherit inputs; };
-      system = "aarch64-linux";
       pkgs = nixpkgs.legacyPackages."aarch64-linux";
       modules = [
-        configuration
-        home-manager.nixosModules.home-manager
+        ./modules/home-manager
         {
-          home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            extraSpecialArgs = {};
-            users.mike.imports = [ ./modules/home-manager ];
-            users.pifinder.imports = [ ./modules/home-manager ];
-          };
+          home.stateVersion = "23.11";
         }
-        ];
+      ];
     };
   };
 }

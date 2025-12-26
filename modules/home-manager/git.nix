@@ -4,40 +4,57 @@ let
     userEmail = "mike.rosseel@gmail.com";
 in
 {
-  home.packages = [ 
-    pkgs.git-lfs 
+  home.packages = [
+    pkgs.git-lfs
     pkgs.tig  # pretty git log
     pkgs.jujutsu # pretty git
+    pkgs.delta # better git diffs
     ];
 
   programs.git = {
     package = pkgs.git;
     enable = true;
-    userName = userName;
-    userEmail = userEmail;
-    aliases = {
-      co = "checkout";
-      ci = "commit";
-      cia = "commit --amend";
-      cam = "commit -a";
-      d = "diff";
-      s = "status";
-      st = "status";
-      b = "branch";
-      # p = "pull --rebase";
-      pu = "push";
-      r = "remote -v";
-    };
-    difftastic.enable = true;
-    extraConfig = {
+    settings = {
+      user = {
+        name = userName;
+        email = userEmail;
+      };
+      alias = {
+        co = "checkout";
+        ci = "commit";
+        cia = "commit --amend";
+        cam = "commit -a";
+        d = "diff";
+        s = "status";
+        st = "status";
+        b = "branch";
+        # p = "pull --rebase";
+        pu = "push";
+        r = "remote -v";
+      };
       # init.defaultBranch = "master"; # https://srid.ca/unwoke
-      core.editor = "nvim";
+      core = {
+        editor = "nvim";
+        symlinks = true;
+        pager = "delta";
+      };
+      interactive.diffFilter = "delta --color-only";
+      delta = {
+        navigate = true;
+        line-numbers = true;
+        side-by-side = true;
+        syntax-theme = "Nord";
+      };
       pull.rebase = "false";
-      # For supercede
-      core.symlinks = true;
     };
-    ignores = import ./dotfiles/gitignore_mac.nix; 
+    ignores = import ./dotfiles/gitignore_mac.nix;
   };
+
+  # Using delta instead of difftastic for better interactive diffs
+  # programs.difftastic = {
+  #   enable = true;
+  #   git.enable = true;
+  # };
 
   programs.lazygit = {
     enable = true;
