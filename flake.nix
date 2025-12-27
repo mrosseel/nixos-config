@@ -160,7 +160,7 @@
     };
     # work in progress - now with omarchy-nix
     nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
-      specialArgs = { inherit inputs; };
+      specialArgs = { inherit inputs nixpkgs-stable; };
       modules = [
 	{
 	  nixpkgs.config = nixpkgsConfig;

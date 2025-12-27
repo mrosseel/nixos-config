@@ -2,15 +2,22 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, nixpkgs-stable, ... }:
 
 {
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
     ];
-  nix.settings.experimental-features = ["nix-command" "flakes"]; 
+  nix.settings.experimental-features = ["nix-command" "flakes"];
   boot.kernelParams = [ "radeon.cik_support=0" "amdgpu.cik_support=1" ];
+
+  # AMD GPU hardware acceleration (updated for NixOS 26.05)
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+  };
+
   # Bootloader.
   boot.loader.grub.enable = true;
   boot.loader.grub.device = "/dev/sda";
@@ -88,21 +95,13 @@
   users.users.mike = {
     isNormalUser = true;
     description = "Mike Rosseel";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "video" "input" "render" ];
     shell = pkgs.zsh ;
     packages = with pkgs; [
     #  thunderbird
     ];
   };
   programs.xwayland.enable = true;
-
-  # Enable automatic login for the user.
-  services.displayManager.autoLogin.enable = true;
-  services.displayManager.autoLogin.user = "mike";
-
-  # Workaround for GNOME autologin: https://github.com/NixOS/nixpkgs/issues/103746#issuecomment-945091229
-  systemd.services."getty@tty1".enable = false;
-  systemd.services."autovt@tty1".enable = false;
 
   # Install firefox.
   programs.firefox.enable = true;
