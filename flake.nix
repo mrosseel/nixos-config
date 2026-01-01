@@ -10,8 +10,8 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
       # url = "github:henrysipp/omarchy-nix";
-      url = "github:mrosseel/omarchy-nix";
-      # url = "path:/home/mike/dev/omarchy-nix";
+      # url = "github:mrosseel/omarchy-nix";
+      url = "path:/home/mike/dev/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -160,7 +160,7 @@
     };
     # work in progress - now with omarchy-nix
     nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
-      specialArgs = { inherit inputs; };
+      specialArgs = { inherit inputs nixpkgs-stable; };
       modules = [
 	{
 	  nixpkgs.config = nixpkgsConfig;
@@ -182,6 +182,11 @@
             email_address = "mike.rosseel@gmail.com";
             theme = "tokyo-night";
             scale = 1;
+            browser = "brave";
+            seamless_boot = {
+              enable=true;
+              username = "mike";
+              };
           };
           
           home-manager = {
