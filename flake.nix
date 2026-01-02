@@ -10,8 +10,8 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
       # url = "github:henrysipp/omarchy-nix";
-      url = "github:mrosseel/omarchy-nix";
-      # url = "path:/home/mike/dev/omarchy-nix";
+      # url = "github:mrosseel/omarchy-nix";
+      url = "path:/home/mike/dev/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -259,11 +259,13 @@
         ./modules/python.nix
         ./modules/ai.nix
         ./modules/printing.nix
+        ./modules/linux/avahi.nix
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
           # Configure omarchy
           omarchy = {
+            username = "mike";
             full_name = "Mike Rosseel";
             email_address = "mike.rosseel@gmail.com";
             theme = "tokyo-night";
