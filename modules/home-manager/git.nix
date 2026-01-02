@@ -9,6 +9,8 @@ in
     pkgs.tig  # pretty git log
     pkgs.jujutsu # pretty git
     pkgs.delta # better git diffs
+    pkgs.mergiraf # language-aware merging
+    pkgs.meld # merge tool
     ];
 
   programs.git = {
@@ -32,6 +34,21 @@ in
         pu = "push";
         r = "remote -v";
       };
+      merge = {
+        conflictStyle = "diff3";
+        tool = "meld";
+      };
+      mergetool = {
+        meld = {
+          cmd = "meld $LOCAL $MERGED $REMOTE --output $MERGED";
+        };
+        keepBackup = false;
+        prompt = false;
+      };
+      "merge \"mergiraf\"" = {
+         name = "mergiraf";
+         driver = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L";
+      };
       # init.defaultBranch = "master"; # https://srid.ca/unwoke
       core = {
         editor = "nvim";
@@ -48,6 +65,9 @@ in
       pull.rebase = "false";
     };
     ignores = import ./dotfiles/gitignore_mac.nix;
+    attributes = [
+      "* merge=mergiraf"
+    ];
   };
 
   # Using delta instead of difftastic for better interactive diffs

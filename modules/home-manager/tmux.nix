@@ -90,6 +90,10 @@
       # Easier reload of config
       bind r source-file ~/.config/tmux/tmux.conf
 
+      # Swap windows left/right
+      bind -r "<" swap-window -d -t -1
+      bind -r ">" swap-window -d -t +1
+
       #set-option -g status-position top
 
       # make Prefix p paste the buffer.

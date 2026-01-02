@@ -10,8 +10,8 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
       # url = "github:henrysipp/omarchy-nix";
-      # url = "github:mrosseel/omarchy-nix";
-      url = "path:/home/mike/dev/omarchy-nix";
+      url = "github:mrosseel/omarchy-nix";
+      # url = "path:/home/mike/dev/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -19,8 +19,13 @@
       url = "gitlab:simple-nixos-mailserver/nixos-mailserver/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     # home-manager.url = "github:nix-community/home-manager/release-24.05";
-    # home-manager.inputs.nixpkgs.follows   
+    # home-manager.inputs.nixpkgs.follows
     # pifinder = {
     #   url = "/Users/mike/dev/business/pifinder.eu/website";  # or use a git URL if it's in a repository
     #   inputs.nixpkgs.follows = "nixpkgs";
@@ -33,7 +38,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, disko, nixos-hardware, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -233,6 +238,52 @@
               programs.tmux = {
                 enable = true;
                 shortcut = "b";  # Set your custom shortcut here
+              };
+            };
+          };
+        }
+      ];
+    };
+    nixosConfigurations."nixtop" = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        {
+          nixpkgs.config = nixpkgsConfig;
+        }
+        ./machines/nixtop/configuration.nix
+        disko.nixosModules.disko
+        nixos-hardware.nixosModules.framework-desktop-amd-ai-max-300-series
+        ./modules/default-browser.nix
+        ./modules/desktop.nix
+        ./modules/openssh.nix
+        ./modules/python.nix
+        ./modules/ai.nix
+        ./modules/printing.nix
+        omarchy-nix.nixosModules.default
+        home-manager.nixosModules.home-manager
+        {
+          # Configure omarchy
+          omarchy = {
+            full_name = "Mike Rosseel";
+            email_address = "mike.rosseel@gmail.com";
+            theme = "tokyo-night";
+            scale = 1;
+          };
+
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            backupFileExtension = "backup";
+            extraSpecialArgs = {};
+            users.${user} = {
+              imports = [
+                ./modules/home-manager
+                omarchy-nix.homeManagerModules.default
+              ];
+              home.stateVersion = "23.11";
+              programs.tmux = {
+                enable = true;
+                shortcut = "a";
               };
             };
           };
