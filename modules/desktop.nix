@@ -5,7 +5,7 @@
 {
   environment.systemPackages = with pkgs; [
     ferdium
-    webcord # discord alternative
+    # webcord # discord alternative - temporarily disabled due to build failure
     obsidian
     # google-drive-ocamlfuse
     vlc
