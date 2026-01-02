@@ -15,6 +15,14 @@
     bambu-studio
     #libreoffice-qt
     dropbox
+    keepassxc
   ];
   fonts.packages = [ pkgs.nerd-fonts.meslo-lg ];
+
+  # Steam
+  programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    dedicatedServer.openFirewall = true;
+  };
 }

@@ -68,6 +68,10 @@
   # Enable Wayland support
   programs.xwayland.enable = true;
 
+  # Bluetooth
+  hardware.bluetooth.enable = true;
+  hardware.bluetooth.powerOnBoot = true;
+
   # User configuration
   programs.zsh.enable = true;
   users.users.mike = {
