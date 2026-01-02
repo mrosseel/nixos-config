@@ -268,6 +268,11 @@
             email_address = "mike.rosseel@gmail.com";
             theme = "tokyo-night";
             scale = 1;
+            browser = "brave";
+            seamless_boot = {
+              enable=true;
+              username = "mike";
+              };
           };
 
           home-manager = {

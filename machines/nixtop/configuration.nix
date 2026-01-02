@@ -41,15 +41,15 @@
     LC_TIME = "nl_BE.UTF-8";
   };
 
-  # Enable X11 and display manager
-  services.xserver.enable = true;
-  services.displayManager.gdm.enable = true;
+  # Enable X11 and display manager (handled by omarchy)
+  # services.xserver.enable = true;
+  # services.displayManager.gdm.enable = true;
 
-  # Keyboard layout
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "dvorak";
-  };
+  # Keyboard layout (X11 config handled by omarchy)
+  # services.xserver.xkb = {
+  #   layout = "us";
+  #   variant = "dvorak";
+  # };
   console.keyMap = "dvorak";
 
   # Sound with pipewire
@@ -70,17 +70,17 @@
   users.users.mike = {
     isNormalUser = true;
     description = "Mike Rosseel";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "video" "input" "render" ];
     shell = pkgs.zsh;
   };
 
-  # Auto-login
-  services.displayManager.autoLogin.enable = true;
-  services.displayManager.autoLogin.user = "mike";
+  # Auto-login (handled by omarchy seamless_boot)
+  # services.displayManager.autoLogin.enable = true;
+  # services.displayManager.autoLogin.user = "mike";
 
   # Workaround for GNOME autologin
-  systemd.services."getty@tty1".enable = false;
-  systemd.services."autovt@tty1".enable = false;
+  # systemd.services."getty@tty1".enable = false;
+  # systemd.services."autovt@tty1".enable = false;
 
   # Firefox
   programs.firefox.enable = true;
