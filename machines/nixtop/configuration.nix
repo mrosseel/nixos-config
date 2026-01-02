@@ -5,6 +5,9 @@
     ./disko-config.nix
   ];
 
+  # Set the system platform
+  nixpkgs.hostPlatform = "x86_64-linux";
+
   # Enable flakes
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
