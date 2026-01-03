@@ -18,6 +18,10 @@
   # Latest kernel for Framework Desktop
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
+  # AMD Ryzen AI 395 iGPU - Allocate 8GB VRAM (8192 MB)
+  # Adjust value as needed: 2048 (2GB), 4096 (4GB), 8192 (8GB), 16384 (16GB)
+  boot.kernelParams = [ "amdgpu.gttsize=8192" ];
+
   # zram swap - 5% of 128GB RAM (~6.4GB)
   zramSwap = {
     enable = true;
@@ -72,6 +76,9 @@
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
 
+  # Enable firmware for MediaTek MT7925 and other devices
+  hardware.enableRedistributableFirmware = true;
+
   # User configuration
   programs.zsh.enable = true;
   users.users.mike = {
@@ -114,6 +121,19 @@
 
   # Trusted users for devenv caching
   nix.settings.trusted-users = [ "root" "mike" ];
+
+  # Allow passwordless sudo for GPU VRAM management
+  security.sudo.extraRules = [
+    {
+      users = [ "mike" ];
+      commands = [
+        {
+          command = "${pkgs.kmod}/bin/modprobe";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }
+  ];
 
   # Firewall
   networking.firewall.allowedTCPPorts = [ 24800 ]; # Barrier

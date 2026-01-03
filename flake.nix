@@ -11,7 +11,7 @@
     omarchy-nix = {
       # url = "github:henrysipp/omarchy-nix";
       # url = "github:mrosseel/omarchy-nix";
-      url = "path:/home/mike/dev/omarchy-nix";
+      url = "path:/home/mike/dev/omacom/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -260,6 +260,8 @@
         ./modules/ai.nix
         ./modules/printing.nix
         ./modules/linux/avahi.nix
+        ./modules/rclone-gdrive.nix
+        ./modules/dropbox.nix
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
