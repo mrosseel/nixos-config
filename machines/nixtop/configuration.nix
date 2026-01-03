@@ -3,6 +3,7 @@
 {
   imports = [
     ./disko-config.nix
+    ./streamdeck.nix
   ];
 
   # Set the system platform

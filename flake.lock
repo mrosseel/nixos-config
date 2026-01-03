@@ -799,8 +799,8 @@
         "walker": "walker"
       },
       "locked": {
-        "lastModified": 1767447976,
-        "narHash": "sha256-epqJrtDu9GVfztp5Mjlf/T1Ie8PaZFEIWa/NVJpjIOU=",
+        "lastModified": 1767454462,
+        "narHash": "sha256-k80zMMe05C7Feb6YRDJi9B8pq8MUgY+GdJ5+if9hC24=",
         "path": "/home/mike/dev/omacom/omarchy-nix",
         "type": "path"
       },
