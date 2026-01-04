@@ -18,7 +18,9 @@ This is a NixOS configuration repository using flakes to manage multiple machine
   - `darwin/`: macOS-specific configurations
   - `home-manager/`: User environment and dotfiles
   - Various service modules (openssh, mail server, etc.)
-- **nvim/**: Neovim configuration using lazy.nvim
+- **config/**: Application configurations (symlinked via home-manager)
+  - `nvim/`: Neovim configuration using lazy.nvim
+  - `streamdeck/`: StreamDeck UI button configurations
 
 ## Common Commands
 
@@ -63,9 +65,9 @@ nixupmac   # macOS update and rebuild
 ## Key Configuration Details
 
 ### User Configuration
-- Primary user: `mike` 
+- Primary user: `mike`
 - Shell: zsh with starship prompt
-- Editor: neovim (custom configuration in nvim/)
+- Editor: neovim (custom configuration in config/nvim/)
 
 ### System Features
 - Home-manager integration for all systems

@@ -13,6 +13,7 @@ in {
     ./astro.nix
     ./neovim.nix
     ./starship.nix
+    ./streamdeck.nix
 #    ./gc.nix
   ];
   # specify my home-manager configs
@@ -58,7 +59,7 @@ in {
     };
   };
   #xdg.configFile.nvim = {
-  #    source = ./nvim;
+  #    source = ../../config/nvim;
   #    recursive = true;
   #  };
   programs.bat.enable = true;

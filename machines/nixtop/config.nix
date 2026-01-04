@@ -75,6 +75,8 @@
     mullvad-browser
     anydesk
     lm_sensors
+    darktable
+    playerctl
   ];
 
   # Mullvad VPN (requires systemd-resolved)
