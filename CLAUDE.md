@@ -11,6 +11,7 @@ This is a NixOS configuration repository using flakes to manage multiple machine
   - `airelon` (Darwin/macOS ARM64)
   - `nix270` (NixOS desktop)
   - `nixair` (NixOS desktop with omarchy-nix)
+  - `nixtop` (NixOS desktop - Framework Desktop with AMD Ryzen AI 395, 128GB RAM, 4TB disk, AI workload optimized)
   - `general-server` (NixOS server)
   - `piDSC` (home-manager only for ARM64 Linux)
 - **modules/**: Reusable configuration modules

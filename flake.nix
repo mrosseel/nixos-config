@@ -251,6 +251,7 @@
           nixpkgs.config = nixpkgsConfig;
         }
         ./machines/nixtop/configuration.nix
+        ./machines/nixtop/config.nix
         disko.nixosModules.disko
         nixos-hardware.nixosModules.framework-desktop-amd-ai-max-300-series
         ./modules/default-browser.nix
