@@ -9,11 +9,11 @@ return {
         },
 
         config = function()
-            local capabalities = require('blink.cmp').get_lsp_capabilities()
+            local capabilities = require('blink.cmp').get_lsp_capabilities()
             require("fidget").setup()
             require("mason").setup()
             require("mason-lspconfig").setup({
-                capabilities = capabalities,
+                capabilities = capabilities,
                 ensured_installed = {
                     "bashls",
                     "lua_ls",
@@ -29,6 +29,7 @@ return {
                     end
                 }
             })
+            local opts = { buffer = 0 }
             vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
             vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
             vim.keymap.set("n", "<leader>vws", vim.lsp.buf.workspace_symbol, opts)

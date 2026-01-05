@@ -19,6 +19,20 @@ This directory contains the StreamDeck UI configuration for nixtop.
 - **Button 5**: Living Room light toggle
 - **Button 6**: Good Night script
 - **Button 7**: All Lights Off
+- **Button 14**: HA Spotify remote control (Home Assistant integration)
+
+### Spotify Controls
+- **Button 8**: Spotify Volume - (via Home Assistant)
+- **Button 9**: Spotify Volume + (via Home Assistant)
+- **Button 14**: Spotify Play/Pause (local)
+
+### Home Assistant Blinds
+- **Button 13**: Office blinds toggle
+
+### System Controls
+- **Button 10**: Screenshot (Wayland - grim + slurp)
+- **Button 11**: Lock screen
+- **Button 12**: Mute microphone
 
 ## Setting Up Home Assistant
 
@@ -38,7 +52,7 @@ After editing the config:
 
 ```bash
 # Rebuild to apply symlink
-nixsw
+home-manager switch --flake ~/nixos-config/.#nixtop
 
 # Restart StreamDeck UI
 pkill streamdeck-ui && streamdeck-ui &
@@ -53,5 +67,24 @@ Edit `streamdeck_ui.json` directly. The structure is:
 
 Each button has:
 - `text`: Display text (use `\n` for line breaks)
+- `icon`: Path to PNG icon file (96x96px recommended)
 - `command`: Shell command to execute
 - `keys`: Keyboard keys to simulate (alternative to command)
+
+## Icons
+
+Icons are stored in `icons/` directory (96x96px PNG files from Icons8):
+- `playpause.png` - Media play/pause
+- `volume.png` - Volume control
+- `vol_down.png` / `vol_up.png` - Volume down/up
+- `mute.png` - Mute
+- `light.png` - Light controls
+- `blinds.png` - Blinds/curtains
+- `sleep.png` - Good night
+- `off.png` - Power off
+- `spotify.png` - Spotify
+- `screenshot.png` - Screenshot
+- `lock.png` - Lock screen
+- `microphone.png` - Microphone/mute mic
+
+Icons are deployed to `~/.local/share/streamdeck-icons/` via home-manager.

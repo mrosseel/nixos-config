@@ -7,20 +7,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Play/\nPause",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Play/Pause",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/playpause.png",
+                            "keys": "",
                                 "write": "",
                                 "command": "playerctl play-pause",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#1e88e5"
                             }
                         }
                     },
@@ -28,20 +28,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Vol -",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Vol -",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/volume.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "pactl set-sink-volume @DEFAULT_SINK@ -5%",
+                                "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#1e88e5"
                             }
                         }
                     },
@@ -49,20 +49,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Vol +",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Vol +",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/volume.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
+                                "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#1e88e5"
                             }
                         }
                     },
@@ -70,20 +70,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Mute",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Mute",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/mute.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+                                "command": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#e53935"
                             }
                         }
                     },
@@ -91,20 +91,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Office\nLight",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Office",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/light.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer YOUR_TOKEN_HERE' -H 'Content-Type: application/json' -d '{\"entity_id\": \"light.office\"}' https://ha.miker.be/api/services/light/toggle",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"light.office\"}' https://ha.miker.be/api/services/light/toggle",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#fbc02d"
                             }
                         }
                     },
@@ -112,20 +112,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Living\nRoom",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Living",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/light.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer YOUR_TOKEN_HERE' -H 'Content-Type: application/json' -d '{\"entity_id\": \"light.living_room\"}' https://ha.miker.be/api/services/light/toggle",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"light.living_room\"}' https://ha.miker.be/api/services/light/toggle",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#fbc02d"
                             }
                         }
                     },
@@ -133,20 +133,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "Good\nNight",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Good Night",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/sleep.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer YOUR_TOKEN_HERE' -H 'Content-Type: application/json' -d '{\"entity_id\": \"script.good_night\"}' https://ha.miker.be/api/services/script/turn_on",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"script.good_night\"}' https://ha.miker.be/api/services/script/turn_on",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#3949ab"
                             }
                         }
                     },
@@ -154,20 +154,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "All\nLights\nOff",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Lights Off",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/off.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer YOUR_TOKEN_HERE' -H 'Content-Type: application/json' -d '{\"entity_id\": \"all\"}' https://ha.miker.be/api/services/light/turn_off",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"all\"}' https://ha.miker.be/api/services/light/turn_off",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#c62828"
                             }
                         }
                     },
@@ -175,20 +175,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Spotify -",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/vol_down.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"media_player.spotify_mike_rosseel\"}' https://ha.miker.be/api/services/media_player/volume_down",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#1db954"
                             }
                         }
                     },
@@ -196,20 +196,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Spotify +",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/vol_up.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"media_player.spotify_mike_rosseel\"}' https://ha.miker.be/api/services/media_player/volume_up",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#1db954"
                             }
                         }
                     },
@@ -217,20 +217,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Screenshot",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/screenshot.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "grim -g \"$(slurp)\" - | wl-copy",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#5e35b1"
                             }
                         }
                     },
@@ -238,20 +238,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Lock",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/lock.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "loginctl lock-session",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#00695c"
                             }
                         }
                     },
@@ -259,20 +259,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Mic Mute",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/microphone.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "/run/current-system/sw/bin/wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#e53935"
                             }
                         }
                     },
@@ -280,20 +280,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Blinds",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/blinds.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"cover.curtain_3_3fb4\"}' https://ha.miker.be/api/services/cover/toggle",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#f57f17"
                             }
                         }
                     },
@@ -301,337 +301,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
+                            "text": "Spotify",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/spotify.png",
+                            "keys": "",
                                 "write": "",
-                                "command": "",
+                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"media_player.spotify_mike_rosseel\"}' https://ha.miker.be/api/services/media_player/media_play_pause",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    }
-                },
-                "1": {
-                    "0": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "1": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "2": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "3": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "4": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "5": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "6": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "7": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "8": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "9": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "10": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "11": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "12": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "13": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
-                            }
-                        }
-                    },
-                    "14": {
-                        "state": 0,
-                        "states": {
-                            "0": {
-                                "text": "",
-                                "icon": "",
-                                "keys": "",
-                                "write": "",
-                                "command": "",
-                                "brightness_change": 0,
-                                "switch_page": 0,
-                                "switch_state": 0,
-                                "text_vertical_align": "",
-                                "text_horizontal_align": "",
-                                "font": "",
-                                "font_color": "",
-                                "font_size": 0,
-                                "background_color": ""
+                                "text_vertical_align": "bottom",
+                                "text_horizontal_align": "center",
+                                "font": "Arial",
+                                "font_color": "#ffffff",
+                                "font_size": 16,
+                                "background_color": "#1db954"
                             }
                         }
                     }

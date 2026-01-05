@@ -12,7 +12,9 @@
       "Bash(hyprctl binds:*)",
       "Bash(nix build:*)",
       "Bash(nix flake show:*)",
-      "Bash(nixup)"
+      "Bash(nixup)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
