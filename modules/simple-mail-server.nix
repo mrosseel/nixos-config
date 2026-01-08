@@ -7,6 +7,7 @@
     fqdn = "mail.pifinder.eu";
     domains = [ "pifinder.eu" ];
     enablePop3Ssl = true;
+    enableSubmission = true;
 
     # A list of all login accounts. To create the password hashes, use
     # nix-shell -p mkpasswd --run 'mkpasswd -sm bcrypt'
