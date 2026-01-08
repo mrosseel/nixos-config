@@ -90,6 +90,8 @@
     playerctl
     grim
     slurp
+    ventoy
+    popsicle
   ];
 
   # Mullvad VPN (requires systemd-resolved)
@@ -157,6 +159,7 @@
   networking.firewall.allowedTCPPorts = [
     24800  # Barrier
     22000  # Syncthing sync
+    8888   # Jupyter notebook
   ];
   networking.firewall.allowedUDPPorts = [
     21027  # Syncthing discovery

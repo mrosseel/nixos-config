@@ -17,6 +17,7 @@
       LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
         pkgs.stdenv.cc.cc.lib
         pkgs.glib
+        pkgs.gobject-introspection
         pkgs.pango
         pkgs.cairo
         pkgs.gdk-pixbuf

@@ -47,6 +47,7 @@ in {
   };
   home.sessionPath = [
     "$HOME/.npm-packages/bin"
+    "$HOME/.local/bin"
   ];
   home = {
     username = "mike";
@@ -89,6 +90,13 @@ in {
     enable = true;
     shellAliases = {
       cd = "z";
+      # Hyprland session management
+      hsave = "~/.local/bin/hypr-save-session";
+      hrestore = "~/.local/bin/hypr-restore-session";
+      hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
+      hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
+      hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+      hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
     };
   };
   programs.zsh = {
@@ -108,6 +116,13 @@ in {
       # pbcopy="xclip -selection clipboard";
       # pbpaste="xclip -selection clipboard -o";
       neofetch="fastfetch";
+      # Hyprland session management
+      hsave = "~/.local/bin/hypr-save-session";
+      hrestore = "~/.local/bin/hypr-restore-session";
+      hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
+      hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
+      hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+      hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
     };
     initContent = ''
       #make sure brew is on the path for M1

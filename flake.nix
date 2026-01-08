@@ -45,6 +45,7 @@
       allowUnsupportedSystem = false;
       permittedInsecurePackages = [
         "libsoup-2.74.3"
+        "ventoy-1.1.07"
       ];
       vivaldi = {
         proprietaryCodecs = true;
@@ -94,9 +95,9 @@
     # Build darwin flake using:
     # $ darwin-rebuild build --flake .#airelon
     darwinConfigurations.airelon = nix-darwin.lib.darwinSystem {
-      system = "aarch64-darwin";
       specialArgs = { inherit inputs home-manager;};
-      modules = [ 
+      modules = [
+        { nixpkgs.hostPlatform = "aarch64-darwin"; }
         configuration
         home-manager.darwinModules.home-manager
         {
@@ -260,6 +261,7 @@
         ./modules/python.nix
         ./modules/ai.nix
         ./modules/printing.nix
+        ./modules/games.nix
         ./modules/linux/avahi.nix
         ./modules/rclone-gdrive.nix
         ./modules/dropbox.nix

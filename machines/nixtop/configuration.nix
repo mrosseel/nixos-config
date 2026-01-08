@@ -24,13 +24,16 @@
   # Based on: https://strixhalo.wiki/AI/AI_Capabilities_Overview#memory-limits
   # 64GB allocation: pages_limit=16777216 (64 * 1024 * 1024 * 1024 / 4096)
   # 120GB allocation: pages_limit=31457280 (120GB with headroom)
+  # VRAM: vramlimit in MB (65536 MB = 64GB for AI/GPU workloads)
   boot.extraModprobeConfig = ''
-    options amdgpu vm_fragment_size=8
+    options amdgpu vm_fragment_size=8 vramlimit=65536
     options ttm pages_limit=16777216
   '';
 
   # Optional: disable IOMMU for ~6% memory read performance gain
   # boot.kernelParams = [ "amd_iommu=off" ];
+  # Optional: Increase VRAM allocation (if BIOS doesn't expose setting)
+  # boot.kernelParams = [ "amdgpu.umafbsize=4096M" ];  # 4GB VRAM
   boot.kernelParams = [];
 
   # zram swap - 5% of 128GB RAM (~6.4GB)
