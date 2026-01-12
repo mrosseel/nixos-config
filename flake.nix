@@ -45,7 +45,7 @@
       allowUnsupportedSystem = false;
       permittedInsecurePackages = [
         "libsoup-2.74.3"
-        "ventoy-1.1.07"
+        "ventoy-1.1.10"
       ];
       vivaldi = {
         proprietaryCodecs = true;
@@ -297,6 +297,11 @@
                 enable = true;
                 shortcut = "a";
               };
+
+              # Hyprwhspr speech-to-text keybinding
+              wayland.windowManager.hyprland.extraConfig = ''
+                bindd = SUPER ALT, D, Speech-to-text, exec, bash -c 'if [[ -f ~/.config/hyprwhspr/recording_status && $(cat ~/.config/hyprwhspr/recording_status) == "true" ]]; then echo stop > ~/.config/hyprwhspr/recording_control; else echo start > ~/.config/hyprwhspr/recording_control; fi'
+              '';
 
               # Thunderbird email client
               programs.thunderbird = {

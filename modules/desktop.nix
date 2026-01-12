@@ -13,6 +13,7 @@
     # veracrypt
     orca-slicer
     bambu-studio
+    bitwarden-desktop
     #libreoffice-qt
     dropbox
     keepassxc

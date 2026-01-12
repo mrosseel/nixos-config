@@ -25,6 +25,8 @@ in
       # https://github.com/kovidgoyal/kitty/issues/847
       macos_option_as_alt = "yes";
       shell = "${pkgs.zsh}/bin/zsh";
+      # Disable "potentially unsafe paste" warning
+      paste_actions = "quote-urls-at-prompt";
     };
     extraConfig = ''
       cursor_blink_interval 0.5

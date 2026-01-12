@@ -74,6 +74,15 @@
     description = "StreamDeck UI";
     after = [ "graphical-session.target" ];
     wantedBy = [ "graphical-session.target" ];
+    path = with pkgs; [
+      curl
+      playerctl
+      wireplumber
+      grim
+      slurp
+      wl-clipboard
+      systemd
+    ];
     serviceConfig = {
       ExecStart = "${pkgs.streamdeck-ui}/bin/streamdeck --no-ui";
       Restart = "on-failure";
@@ -83,6 +92,7 @@
 
   # System packages
   environment.systemPackages = with pkgs; [
+    azure-cli
     mullvad-browser
     anydesk
     lm_sensors
@@ -92,6 +102,9 @@
     slurp
     ventoy
     popsicle
+    pulseaudio   # for pactl (hyprwhspr needs this)
+    wtype        # for text input with Dvorak support (hyprwhspr needs this)
+    wl-clipboard # for wl-copy/wl-paste (hyprwhspr needs this)
   ];
 
   # Mullvad VPN (requires systemd-resolved)
