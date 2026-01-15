@@ -64,14 +64,10 @@
   # Firefox
   programs.firefox.enable = true;
 
-  # StreamDeck
-  programs.streamdeck-ui = {
-    enable = true;
-  };
-
-  # systemd user service for StreamDeck UI
-  systemd.user.services.streamdeck-ui = {
-    description = "StreamDeck UI";
+  # StreamDeck custom daemon with HA integration
+  # Direct hardware control with real-time Home Assistant updates via websocket
+  systemd.user.services.streamdeck-daemon = {
+    description = "StreamDeck Daemon";
     after = [ "graphical-session.target" ];
     wantedBy = [ "graphical-session.target" ];
     path = with pkgs; [
@@ -82,9 +78,10 @@
       slurp
       wl-clipboard
       systemd
+      libnotify
     ];
     serviceConfig = {
-      ExecStart = "${pkgs.streamdeck-ui}/bin/streamdeck --no-ui";
+      ExecStart = "${pkgs.python3.withPackages (ps: [ ps.aiohttp ps.pillow ps.streamdeck ])}/bin/python3 /home/mike/.local/bin/streamdeck-daemon.py";
       Restart = "on-failure";
       RestartSec = 5;
     };
@@ -105,6 +102,8 @@
     pulseaudio   # for pactl (hyprwhspr needs this)
     wtype        # for text input with Dvorak support (hyprwhspr needs this)
     wl-clipboard # for wl-copy/wl-paste (hyprwhspr needs this)
+    vulkan-loader
+    vulkan-tools # vulkaninfo, vkcube
   ];
 
   # Mullvad VPN (requires systemd-resolved)

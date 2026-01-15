@@ -1,7 +1,18 @@
 { config, pkgs, ... }:
 {
-  # StreamDeck configuration - symlink to repo config
-  home.file.".streamdeck_ui.json" = {
-    source = ../../config/streamdeck/streamdeck_ui.json;
+  # StreamDeck scripts
+  home.file.".local/bin/toggle-office-trv.sh" = {
+    source = ../../config/scripts/toggle-office-trv.sh;
+    executable = true;
+  };
+
+  home.file.".local/bin/ha-call.sh" = {
+    source = ../../config/scripts/ha-call.sh;
+    executable = true;
+  };
+
+  home.file.".local/bin/streamdeck-daemon.py" = {
+    source = ../../config/scripts/streamdeck-daemon.py;
+    executable = true;
   };
 }

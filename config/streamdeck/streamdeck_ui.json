@@ -95,7 +95,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/light.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"light.office\"}' https://ha.miker.be/api/services/light/toggle",
+                                "command": "/home/mike/.local/bin/ha-call.sh light/toggle light.office",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -112,20 +112,20 @@
                         "state": 0,
                         "states": {
                             "0": {
-                            "text": "Living",
-                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/light.png",
+                            "text": "Office TRV",
+                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/radiator.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"light.living_room\"}' https://ha.miker.be/api/services/light/toggle",
+                                "command": "/home/mike/.local/bin/toggle-office-trv.sh",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
-                                "text_vertical_align": "bottom",
+                                "text_vertical_align": "middle",
                                 "text_horizontal_align": "center",
                                 "font": "Arial",
                                 "font_color": "#ffffff",
-                                "font_size": 16,
-                                "background_color": "#fbc02d"
+                                "font_size": 14,
+                                "background_color": "#e65100"
                             }
                         }
                     },
@@ -137,7 +137,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/sleep.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"script.good_night\"}' https://ha.miker.be/api/services/script/turn_on",
+                                "command": "/home/mike/.local/bin/ha-call.sh script/turn_on script.good_night",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -158,7 +158,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/off.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"all\"}' https://ha.miker.be/api/services/light/turn_off",
+                                "command": "/home/mike/.local/bin/ha-call.sh light/turn_off all",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -179,7 +179,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/vol_down.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"media_player.spotify_mike_rosseel\"}' https://ha.miker.be/api/services/media_player/volume_down",
+                                "command": "/home/mike/.local/bin/ha-call.sh media_player/volume_down media_player.spotify_mike_rosseel",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -200,7 +200,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/vol_up.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"media_player.spotify_mike_rosseel\"}' https://ha.miker.be/api/services/media_player/volume_up",
+                                "command": "/home/mike/.local/bin/ha-call.sh media_player/volume_up media_player.spotify_mike_rosseel",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -284,7 +284,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/blinds.png",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"cover.curtain_3_3fb4\"}' https://ha.miker.be/api/services/cover/toggle",
+                                "command": "/home/mike/.local/bin/ha-call.sh cover/toggle cover.curtain_3_3fb4",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -301,11 +301,11 @@
                         "state": 0,
                         "states": {
                             "0": {
-                            "text": "Spotify",
-                            "icon": "/home/mike/nixos-config/config/streamdeck/icons/spotify.png",
+                            "text": "",
+                            "icon": "",
                             "keys": "",
                                 "write": "",
-                                "command": "curl -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNTM1YzRkOWZmZjY0ZjlkYjQ0ZGI4Yzk4NGU3MDhhNSIsImlhdCI6MTc2NzU2NDUzNSwiZXhwIjoyMDgyOTI0NTM1fQ.qiILGVlLp9RONhJDw_f7leOgYNpwSLEtOvbdUVWdJDs' -H 'Content-Type: application/json' -d '{\"entity_id\": \"media_player.spotify_mike_rosseel\"}' https://ha.miker.be/api/services/media_player/media_play_pause",
+                                "command": "",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,
@@ -314,7 +314,7 @@
                                 "font": "Arial",
                                 "font_color": "#ffffff",
                                 "font_size": 16,
-                                "background_color": "#1db954"
+                                "background_color": "#000000"
                             }
                         }
                     }
