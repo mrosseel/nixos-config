@@ -36,6 +36,12 @@
   # boot.kernelParams = [ "amdgpu.umafbsize=4096M" ];  # 4GB VRAM
   boot.kernelParams = [];
 
+  # AMD GPU - Vulkan and OpenGL (RADV is enabled by default)
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;  # For 32-bit applications/games
+  };
+
   # zram swap - 5% of 128GB RAM (~6.4GB)
   zramSwap = {
     enable = true;
