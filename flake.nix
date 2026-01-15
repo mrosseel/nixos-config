@@ -277,9 +277,10 @@
             scale = 1;
             browser = "brave";
             seamless_boot = {
-              enable=true;
+              enable = true;
               username = "mike";
-              };
+            };
+            voxtype.enable = true;
           };
 
           home-manager = {
