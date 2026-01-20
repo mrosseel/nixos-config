@@ -9,22 +9,9 @@
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/pifinder_shopping/";
-      ExecStart = "${pkgs.uv}/bin/uv run --python ${pkgs.python313}/bin/python3 shop_page.py --prod";
+      # Run inside the flake's dev shell - same environment as local dev
+      ExecStart = "${pkgs.nix}/bin/nix develop --command uv run shop_page.py --prod";
       Restart = "on-failure";
-    };
-    environment = {
-      # Allow dynamic linking - includes libraries needed for WeasyPrint
-      LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
-        pkgs.stdenv.cc.cc.lib
-        pkgs.glib
-        pkgs.gobject-introspection
-        pkgs.pango
-        pkgs.cairo
-        pkgs.gdk-pixbuf
-        pkgs.harfbuzz
-        pkgs.fontconfig
-        pkgs.freetype
-      ];
     };
   };
 }

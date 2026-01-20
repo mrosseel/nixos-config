@@ -49,6 +49,9 @@ def get_ha_token() -> str:
 
 class Button:
     """Base button class."""
+    # Class-level flag to suppress display updates during screensaver
+    _display_suspended = False
+
     def __init__(self, key: int, text: str = "", icon: str = "", bg_color: str = "#000000"):
         self.key = key
         self.text = text
@@ -98,7 +101,7 @@ class Button:
 
     def update_display(self):
         """Update the physical button display."""
-        if self.deck is None:
+        if self.deck is None or Button._display_suspended:
             return
         image = self.render()
         if image:
@@ -388,31 +391,47 @@ def main():
         button.update_display()
 
     # Screensaver state: "awake", "dimmed", "off"
+    # Lock protects screensaver state and deck operations
+    deck_lock = threading.Lock()
     screensaver = {"state": "awake", "last_activity": time.time()}
 
     def wake_screen():
         """Wake from screensaver and restore display."""
-        if screensaver["state"] != "awake":
-            screensaver["state"] = "awake"
-            deck.set_brightness(100)
-            for button in buttons.values():
-                button.update_display()
-        screensaver["last_activity"] = time.time()
+        with deck_lock:
+            if screensaver["state"] != "awake":
+                try:
+                    Button._display_suspended = False  # Allow display updates
+                    deck.set_brightness(100)
+                    for button in buttons.values():
+                        button.update_display()
+                    screensaver["state"] = "awake"  # Only set after success
+                except Exception as e:
+                    print(f"Wake failed: {e}", file=sys.stderr)
+            screensaver["last_activity"] = time.time()
 
     def dim_screen():
         """Dim the screen."""
-        if screensaver["state"] == "awake":
-            screensaver["state"] = "dimmed"
-            deck.set_brightness(30)
+        with deck_lock:
+            if screensaver["state"] == "awake":
+                try:
+                    deck.set_brightness(30)
+                    screensaver["state"] = "dimmed"
+                except Exception as e:
+                    print(f"Dim failed: {e}", file=sys.stderr)
 
     def screen_off():
         """Turn screen off - blank all keys and kill backlight."""
-        if screensaver["state"] != "off":
-            screensaver["state"] = "off"
-            deck.set_brightness(0)
-            # Set all keys to black for LCD longevity
-            for key in range(deck.key_count()):
-                deck.set_key_image(key, black_native)
+        with deck_lock:
+            if screensaver["state"] != "off":
+                try:
+                    Button._display_suspended = True  # Prevent HA updates drawing over black
+                    deck.set_brightness(0)
+                    # Set all keys to black for LCD longevity
+                    for key in range(deck.key_count()):
+                        deck.set_key_image(key, black_native)
+                    screensaver["state"] = "off"  # Only set after success
+                except Exception as e:
+                    print(f"Screen off failed: {e}", file=sys.stderr)
 
     # Button callback
     def key_callback(deck, key, state):

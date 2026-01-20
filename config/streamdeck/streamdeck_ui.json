@@ -221,7 +221,7 @@
                             "icon": "/home/mike/nixos-config/config/streamdeck/icons/screenshot.png",
                             "keys": "",
                                 "write": "",
-                                "command": "grim -g \"$(slurp)\" - | wl-copy",
+                                "command": "hyprshot -m region -o ~/Downloads",
                                 "brightness_change": 0,
                                 "switch_page": 0,
                                 "switch_state": 0,

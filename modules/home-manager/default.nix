@@ -28,6 +28,7 @@ in {
     ncdu
     dua  # faster ncdu
     yazi # file manager
+    poppler-utils # PDF preview for yazi
     tldr
     fastfetch
     jq

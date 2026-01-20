@@ -25,11 +25,13 @@
       Type = "notify";
       ExecStart = ''
         ${pkgs.rclone}/bin/rclone mount gdrive: /home/mike/GoogleDrive \
-          --vfs-cache-mode writes \
+          --vfs-cache-mode full \
           --vfs-cache-max-age 24h \
           --vfs-read-chunk-size 128M \
           --vfs-read-chunk-size-limit off \
           --buffer-size 64M \
+          --dir-cache-time 30m \
+          --attr-timeout 1m \
           --allow-other \
           --poll-interval 15s \
           --drive-acknowledge-abuse \

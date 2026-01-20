@@ -21,6 +21,10 @@
   # Console keyboard
   console.keyMap = "dvorak";
 
+  # Increase inotify limits for Electron apps (Obsidian, Claude Code, Spotify, etc.)
+  boot.kernel.sysctl."fs.inotify.max_user_watches" = 1048576;
+  boot.kernel.sysctl."fs.inotify.max_user_instances" = 8192;
+
   # Sound with pipewire
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
@@ -82,10 +86,22 @@
     ];
     serviceConfig = {
       ExecStart = "${pkgs.python3.withPackages (ps: [ ps.aiohttp ps.pillow ps.streamdeck ])}/bin/python3 /home/mike/.local/bin/streamdeck-daemon.py";
-      Restart = "on-failure";
+      Restart = "always";
       RestartSec = 5;
     };
   };
+
+  # Restart services after resume from suspend (USB audio and streamdeck reconnects)
+  powerManagement.resumeCommands = ''
+    sleep 2
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ restart pipewire pipewire-pulse wireplumber || true
+    sleep 1
+    # Reset Elgato Wave 3 profile to fix mic capture after suspend
+    ${pkgs.pulseaudio}/bin/pactl set-card-profile alsa_card.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00 off || true
+    sleep 0.5
+    ${pkgs.pulseaudio}/bin/pactl set-card-profile alsa_card.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00 output:analog-stereo+input:mono-fallback || true
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ restart streamdeck-daemon || true
+  '';
 
   # System packages
   environment.systemPackages = with pkgs; [
@@ -166,6 +182,11 @@
       ];
     }
   ];
+
+  # Disable USB autosuspend for Elgato Wave:3 (fixes mic randomly stopping)
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0fd9", ATTR{idProduct}=="0070", ATTR{power/autosuspend}="-1"
+  '';
 
   # Firewall
   networking.firewall.allowedTCPPorts = [
