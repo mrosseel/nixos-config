@@ -60,6 +60,9 @@
         tmuxPlugins.better-mouse-mode
       ];
     extraConfig = ''
+      # Reduce status refresh rate (helps with weather API rate limiting)
+      set -g status-interval 300
+
       # Change splits to match nvim and easier to remember
  
       # act like vim

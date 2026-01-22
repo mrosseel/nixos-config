@@ -117,6 +117,9 @@ in {
       # pbcopy="xclip -selection clipboard";
       # pbpaste="xclip -selection clipboard -o";
       neofetch="fastfetch";
+      # rsync dev directory to other machines
+      "2air" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@airelon.local:~/dev/ 2>/dev/null";
+      "2nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@nixtop:~/dev/ 2>/dev/null";
       # Hyprland session management
       hsave = "~/.local/bin/hypr-save-session";
       hrestore = "~/.local/bin/hypr-restore-session";
