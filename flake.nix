@@ -143,6 +143,8 @@
 	./modules/openssh.nix
 	./modules/printing.nix
         ./modules/linux/avahi.nix
+        ./modules/automatic-nix-gc.nix
+        { services.automatic-nix-gc.enable = true; }
         home-manager.nixosModules.home-manager
         {
           home-manager = {
@@ -179,6 +181,8 @@
         ./modules/python.nix
 	./modules/ai.nix
 	./modules/printing.nix
+        ./modules/automatic-nix-gc.nix
+        { services.automatic-nix-gc.enable = true; }
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
@@ -228,6 +232,8 @@
         ./modules/python.nix
 	./modules/openssh.nix
 	./modules/fail2ban.nix
+        ./modules/automatic-nix-gc.nix
+        { services.automatic-nix-gc.enable = true; }
         home-manager.nixosModules.home-manager
         {
           home-manager = {
@@ -265,6 +271,8 @@
         ./modules/linux/avahi.nix
         ./modules/rclone-gdrive.nix
         ./modules/dropbox.nix
+        ./modules/automatic-nix-gc.nix
+        { services.automatic-nix-gc.enable = true; }
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {

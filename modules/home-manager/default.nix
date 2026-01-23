@@ -48,6 +48,8 @@ in {
     killall
     carapace # command options completion
     # lnav # log file navigator
+  ] ++ lib.optionals (!isDarwin) [
+    nh # nix helper - better UX for nix commands (Linux/NixOS only)
   ];
   home.sessionVariables = {
     PAGER = "less";
