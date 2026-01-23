@@ -34,3 +34,21 @@ When adding new features:
 2. Create a new module file if it's a self-contained feature
 3. Add to flake.nix modules if it should be shared across machines
 4. Only touch configuration.nix for hardware/boot changes
+
+## Elgato USB Devices
+
+Power-cycled USB devices need udev rules to restart their services on reconnect.
+
+| Device | USB ID | Restarts |
+|--------|--------|----------|
+| Wave:3 | 0fd9:0070 | wireplumber (+ `node.always-process` rule) |
+| StreamDeck MK.2 | 0fd9:0080 | streamdeck-daemon |
+
+Config in `config.nix`: `services.udev.extraRules` triggers `systemd.user.services.*-restart`.
+
+**Troubleshooting:**
+```bash
+systemctl --user restart wireplumber   # mic issues
+systemctl --user restart streamdeck-daemon  # streamdeck issues
+pactl list sources short | grep elgato  # check mic (want RUNNING/IDLE)
+```

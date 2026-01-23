@@ -33,6 +33,21 @@
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
+    # Fix Elgato Wave 3: keep mic processing active to prevent silence when playback starts first
+    wireplumber.extraConfig."51-elgato-wave" = {
+      "monitor.alsa.rules" = [
+        {
+          matches = [
+            { "node.name" = "~alsa_input.usb-Elgato_Systems_Elgato_Wave_3_*"; }
+          ];
+          actions = {
+            update-props = {
+              "node.always-process" = true;
+            };
+          };
+        }
+      ];
+    };
   };
 
   # Enable Wayland support
@@ -65,6 +80,9 @@
   # Trusted users for devenv caching
   nix.settings.trusted-users = [ "root" "mike" ];
 
+  # Suppress "channels does not exist" warning (using flakes, not channels)
+  nix.nixPath = [];
+
   # Firefox
   programs.firefox.enable = true;
 
@@ -91,15 +109,32 @@
     };
   };
 
-  # Restart services after resume from suspend (USB audio and streamdeck reconnects)
+  # COMMENTED OUT: Script-based Elgato fix - replaced by WirePlumber config above
+  # Uncomment if WirePlumber fix alone is insufficient
+  #
+  # systemd.user.services.elgato-audio-fix = {
+  #   description = "Elgato Wave Audio Fix";
+  #   after = [ "pipewire.service" "wireplumber.service" ];
+  #   wantedBy = [ "graphical-session.target" ];
+  #   path = [ pkgs.pulseaudio pkgs.gawk ];
+  #   serviceConfig = {
+  #     Type = "oneshot";
+  #     ExecStart = "/home/mike/.local/share/omarchy/bin/omarchy-fix-usb-audio";
+  #   };
+  # };
+  #
+  # systemd.services.elgato-audio-fix-trigger = {
+  #   description = "Trigger Elgato Audio Fix for user";
+  #   serviceConfig = {
+  #     Type = "oneshot";
+  #     ExecStart = "${pkgs.systemd}/bin/systemctl --user -M mike@ restart elgato-audio-fix.service";
+  #   };
+  # };
+
+  # Restart services after resume from suspend
   powerManagement.resumeCommands = ''
     sleep 2
     ${pkgs.systemd}/bin/systemctl --user -M mike@ restart pipewire pipewire-pulse wireplumber || true
-    sleep 1
-    # Reset Elgato Wave 3 profile to fix mic capture after suspend
-    ${pkgs.pulseaudio}/bin/pactl set-card-profile alsa_card.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00 off || true
-    sleep 0.5
-    ${pkgs.pulseaudio}/bin/pactl set-card-profile alsa_card.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00 output:analog-stereo+input:mono-fallback || true
     ${pkgs.systemd}/bin/systemctl --user -M mike@ restart streamdeck-daemon || true
   '';
 
@@ -110,6 +145,8 @@
     anydesk
     lm_sensors
     darktable
+    gimp
+    image_optim
     playerctl
     grim
     slurp
@@ -183,10 +220,38 @@
     }
   ];
 
-  # Disable USB autosuspend for Elgato Wave:3 (fixes mic randomly stopping)
+  # Elgato device udev rules (both Wave:3 and StreamDeck MK.2)
+  # - Disable USB autosuspend to prevent random disconnects
+  # - Restart services when devices are reconnected after power cycle
   services.udev.extraRules = ''
+    # Elgato Wave:3 (0fd9:0070)
     ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0fd9", ATTR{idProduct}=="0070", ATTR{power/autosuspend}="-1"
+    ACTION=="add", SUBSYSTEM=="sound", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0070", TAG+="systemd", ENV{SYSTEMD_USER_WANTS}="elgato-audio-restart.service"
+
+    # StreamDeck MK.2 (0fd9:0080)
+    ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0fd9", ATTR{idProduct}=="0080", ATTR{power/autosuspend}="-1"
+    ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", TAG+="systemd", ENV{SYSTEMD_USER_WANTS}="streamdeck-restart.service"
   '';
+
+  # Service to restart WirePlumber when Elgato Wave 3 is connected
+  systemd.user.services.elgato-audio-restart = {
+    description = "Restart WirePlumber for Elgato Wave 3";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStartPre = "${pkgs.coreutils}/bin/sleep 2";
+      ExecStart = "${pkgs.systemd}/bin/systemctl --user restart wireplumber";
+    };
+  };
+
+  # Service to restart StreamDeck daemon when device is connected
+  systemd.user.services.streamdeck-restart = {
+    description = "Restart StreamDeck daemon";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStartPre = "${pkgs.coreutils}/bin/sleep 2";
+      ExecStart = "${pkgs.systemd}/bin/systemctl --user restart streamdeck-daemon";
+    };
+  };
 
   # Firewall
   networking.firewall.allowedTCPPorts = [
