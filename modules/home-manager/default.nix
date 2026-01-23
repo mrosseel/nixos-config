@@ -1,8 +1,16 @@
-{ lib, pkgs, ... }: 
+{ lib, pkgs, hostname ? "", ... }:
 
 let
   isDarwin = pkgs.stdenv.isDarwin;
   isNixOS = pkgs.stdenv.isLinux && builtins.pathExists "/etc/nixos";
+  rsyncAliases = {
+    "airelon" = {
+      "2nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@nixtop:~/dev/ 2>/dev/null";
+    };
+    "nixtop" = {
+      "2air" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@airelon.local:~/dev/ 2>/dev/null";
+    };
+  };
 in {
   # Don't change this when you change package input. Leave it alone.
   home.stateVersion = "23.11";
@@ -117,9 +125,6 @@ in {
       # pbcopy="xclip -selection clipboard";
       # pbpaste="xclip -selection clipboard -o";
       neofetch="fastfetch";
-      # rsync dev directory to other machines
-      "2air" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@airelon.local:~/dev/ 2>/dev/null";
-      "2nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@nixtop:~/dev/ 2>/dev/null";
       # Hyprland session management
       hsave = "~/.local/bin/hypr-save-session";
       hrestore = "~/.local/bin/hypr-restore-session";
@@ -127,7 +132,7 @@ in {
       hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
       hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
       hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
-    };
+    } // (rsyncAliases.${hostname} or {});
     initContent = ''
       #make sure brew is on the path for M1
       if [[ $(uname -m) == 'arm64' ]]; then

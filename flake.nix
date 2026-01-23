@@ -2,7 +2,7 @@
   description = "Darwin system flake";
 
   inputs = {
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -104,7 +104,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            extraSpecialArgs = { inherit inputs;};
+            extraSpecialArgs = { inherit inputs; hostname = "airelon"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
               programs.tmux = {
@@ -287,7 +287,7 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = {};
+            extraSpecialArgs = { hostname = "nixtop"; };
             users.${user} = {
               imports = [
                 ./modules/home-manager
