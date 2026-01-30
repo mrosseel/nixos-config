@@ -86,6 +86,12 @@ in {
         "~/.ssh/id_ed25519"
       ];
     };
+    "airelon airelon.local" = {
+      hostname = "airelon.local";
+      setEnv = {
+        TERM = "xterm-256color";
+      };
+    };
   };
 
   # Optional: Also enable SSH agent through home-manager
@@ -139,6 +145,12 @@ in {
       #make sure brew is on the path for M1
       if [[ $(uname -m) == 'arm64' ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
+      fi
+
+      # Invert terminal colors when SSHed into airelon
+      if [[ -n "$SSH_CONNECTION" && "$(hostname)" == "airelon" ]]; then
+        printf '\e[?5h'  # Enable reverse video mode
+        trap 'printf "\e[?5l"' EXIT  # Restore on exit
       fi
 
       # Fix fzf keybindings after zsh-vi-mode loads

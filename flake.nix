@@ -270,6 +270,7 @@
         ./modules/games.nix
         ./modules/linux/avahi.nix
         ./modules/rclone-gdrive.nix
+        ./modules/anydesk.nix
         ./modules/dropbox.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }

@@ -139,10 +139,12 @@
   '';
 
   # System packages
+  programs.mosh.enable = true;
+
   environment.systemPackages = with pkgs; [
     azure-cli
     mullvad-browser
-    anydesk
+
     lm_sensors
     darktable
     gimp
