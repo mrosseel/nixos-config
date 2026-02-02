@@ -405,7 +405,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            extraSpecialArgs = {};
+            extraSpecialArgs = { hostname = "proxnix"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
               programs.tmux = {
