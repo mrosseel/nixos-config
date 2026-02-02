@@ -16,6 +16,8 @@
     ignoreShellProgramCheck = true;
   };
 
+  security.sudo.wheelNeedsPassword = false;
+
   # Docker
   virtualisation.docker.enable = true;
 
