@@ -391,6 +391,32 @@
         }
       ];
     };
+    nixosConfigurations."proxnix" = nixpkgs.lib.nixosSystem {
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./machines/proxnix/configuration.nix
+        ./machines/proxnix/config.nix
+        ./modules/openssh.nix
+        ./modules/fail2ban.nix
+        ./modules/automatic-nix-gc.nix
+        { services.automatic-nix-gc.enable = true; }
+        home-manager.nixosModules.home-manager
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            extraSpecialArgs = {};
+            users.${user} = {
+              imports = [ ./modules/home-manager ];
+              programs.tmux = {
+                enable = true;
+                shortcut = "b";
+              };
+            };
+          };
+        }
+      ];
+    };
     homeManagerConfigurations."piDSC" = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages."aarch64-linux";
       modules = [
