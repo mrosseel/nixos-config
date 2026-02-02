@@ -18,18 +18,6 @@
 
   security.sudo.wheelNeedsPassword = false;
 
-  # mDNS for .local resolution
-  services.avahi = {
-    enable = true;
-    nssmdns4 = true;
-    publish = {
-      enable = true;
-      addresses = true;
-      workstation = true;
-    };
-    openFirewall = true;
-  };
-
   # Docker
   virtualisation.docker.enable = true;
 

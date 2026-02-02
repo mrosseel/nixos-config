@@ -398,6 +398,7 @@
         ./machines/proxnix/config.nix
         ./modules/openssh.nix
         ./modules/fail2ban.nix
+        ./modules/linux/avahi.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }
         home-manager.nixosModules.home-manager
