@@ -62,5 +62,6 @@
     git
     rsync
     nfs-utils
+    tcpdump
   ];
 }
