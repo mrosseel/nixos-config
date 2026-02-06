@@ -11,6 +11,10 @@ let
       "2air" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@airelon.local:~/dev/ 2>/dev/null";
     };
   };
+  nushellRsyncAliases = rsyncAliases.${hostname} or {};
+  nushellRsyncConfig = lib.concatStringsSep "\n" (
+    lib.mapAttrsToList (name: cmd: "alias ${name} = ${cmd}") nushellRsyncAliases
+  );
 in {
   # Don't change this when you change package input. Leave it alone.
   home.stateVersion = "23.11";
@@ -102,6 +106,7 @@ in {
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;
   programs.zoxide.enableBashIntegration = true;
+  programs.zoxide.enableNushellIntegration = true;
   programs.ripgrep.enable = true;
   programs.bash = {
     enable = true;
@@ -169,10 +174,99 @@ in {
     ];
   };
   home.activation.setLoginShell = lib.mkForce "";
+
+  # Nushell configuration
+  programs.nushell = {
+    enable = true;
+    settings = {
+      show_banner = false;
+      edit_mode = "vi";
+      cursor_shape = {
+        vi_insert = "line";
+        vi_normal = "block";
+      };
+      completions = {
+        algorithm = "fuzzy";
+      };
+      history = {
+        file_format = "sqlite";
+      };
+    };
+    shellAliases = {
+      ls = "eza -a --icons=auto";
+      ll = "eza -1 -l -a --icons=auto --group-directories-first";
+      neofetch = "fastfetch";
+      nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
+      nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
+      hsave = "~/.local/bin/hypr-save-session";
+      hrestore = "~/.local/bin/hypr-restore-session";
+      hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
+      hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
+      hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+      hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+    };
+    extraConfig = ''
+      # Functions that need def instead of alias
+      def nixup [] {
+        cd ~/nixos-config
+        nix flake update
+        sudo nixos-rebuild switch --flake ~/nixos-config/.#
+      }
+
+      def nixupmac [] {
+        cd ~/nixos-config
+        nix flake update
+        sudo darwin-rebuild switch --flake ~/nixos-config/.#
+      }
+
+      def cc [...args] {
+        with-env { SHELL: "/bin/bash" } { claude ...$args }
+      }
+
+      ${nushellRsyncConfig}
+    '';
+    environmentVariables = {
+      PAGER = "less";
+      CLICOLOR = "1";
+      EDITOR = "nvim";
+    };
+    extraEnv = ''
+      # Add to PATH
+      $env.PATH = ($env.PATH | split row (char esep) | prepend $"($env.HOME)/.npm-packages/bin" | prepend $"($env.HOME)/.local/bin")
+
+      # Homebrew setup for M1 Macs
+      if (sys host | get name) == "Darwin" and ((sys host | get arch) == "aarch64") {
+        $env.PATH = ($env.PATH | split row (char esep) | prepend "/opt/homebrew/bin")
+      }
+
+      # Vi mode indicators (empty - let starship handle it)
+      $env.PROMPT_INDICATOR_VI_INSERT = ""
+      $env.PROMPT_INDICATOR_VI_NORMAL = ""
+    '';
+  };
+
+  # Carapace for enhanced completions
+  programs.carapace = {
+    enable = true;
+    enableNushellIntegration = true;
+  };
+
+  # Atuin for history search (replaces fzf Ctrl+R)
+  programs.atuin = {
+    enable = true;
+    enableNushellIntegration = true;
+    enableZshIntegration = true;
+    settings = {
+      style = "compact";
+      search_mode = "fuzzy";
+    };
+  };
+
   # direnv loads and unloads shell.nix files when you cd in and out of dirs
   programs.direnv = {
     enable = true;
-    enableZshIntegration = true; # see note on other shells below
+    enableZshIntegration = true;
+    enableNushellIntegration = true;
     nix-direnv.enable = true;
   };
   # programs.alacritty = {

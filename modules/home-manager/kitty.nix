@@ -1,7 +1,7 @@
 { pkgs, lib, ... }:
 
 let
-  zshPath = lib.getExe pkgs.zsh;
+  nuPath = lib.getExe pkgs.nushell;
 in
 {
   # Better terminal, with good rendering.
@@ -24,7 +24,7 @@ in
       confirm_os_window_close = "0";
       # https://github.com/kovidgoyal/kitty/issues/847
       macos_option_as_alt = "yes";
-      shell = "${pkgs.zsh}/bin/zsh";
+      shell = "${pkgs.nushell}/bin/nu -l";
       # Disable "potentially unsafe paste" warning
       paste_actions = "quote-urls-at-prompt";
     };
@@ -36,9 +36,9 @@ in
 
   home.activation = {
     setLoginShell = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      if [ "$SHELL" != "${zshPath}" ]; then
-        echo "Changing login shell to ${zshPath}"
-        ${pkgs.util-linux}/bin/chsh -s ${zshPath} $USER
+      if [ "$SHELL" != "${nuPath}" ]; then
+        echo "Changing login shell to ${nuPath}"
+        ${pkgs.util-linux}/bin/chsh -s ${nuPath} $USER
       fi
     '';
   };

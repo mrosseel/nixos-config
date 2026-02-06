@@ -21,6 +21,9 @@
   # Console keyboard
   console.keyMap = "dvorak";
 
+  # Enable aarch64 emulation for cross-building RPi images
+  boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
+
   # Increase inotify limits for Electron apps (Obsidian, Claude Code, Spotify, etc.)
   boot.kernel.sysctl."fs.inotify.max_user_watches" = 1048576;
   boot.kernel.sysctl."fs.inotify.max_user_instances" = 8192;
@@ -34,6 +37,7 @@
     alsa.support32Bit = true;
     pulse.enable = true;
     # Fix Elgato Wave 3: keep mic processing active to prevent silence when playback starts first
+    # Also set pro-audio profile so mic works on connect
     wireplumber.extraConfig."51-elgato-wave" = {
       "monitor.alsa.rules" = [
         {
@@ -43,6 +47,54 @@
           actions = {
             update-props = {
               "node.always-process" = true;
+            };
+          };
+        }
+      ];
+    };
+    # Audio output priorities: XM4 highest, HD Audio low, Elgato output lowest
+    wireplumber.extraConfig."50-audio-priorities" = {
+      "monitor.alsa.rules" = [
+        {
+          matches = [
+            { "node.name" = "~alsa_output.pci-*"; }
+          ];
+          actions = {
+            update-props = {
+              "priority.session" = 100;
+            };
+          };
+        }
+        {
+          matches = [
+            { "node.name" = "~alsa_output.usb-Elgato*"; }
+          ];
+          actions = {
+            update-props = {
+              "priority.session" = 50;
+            };
+          };
+        }
+      ];
+      "monitor.bluez.rules" = [
+        {
+          matches = [
+            { "device.name" = "~bluez_card.80_99_E7_8E_77_37"; }
+          ];
+          actions = {
+            update-props = {
+              "bluez5.auto-connect" = [ "a2dp_sink" ];
+              "bluez5.profile" = "a2dp-sink";
+            };
+          };
+        }
+        {
+          matches = [
+            { "node.name" = "~bluez_output.80_99_E7_8E_77_37*"; }
+          ];
+          actions = {
+            update-props = {
+              "priority.session" = 2000;
             };
           };
         }
@@ -61,12 +113,13 @@
   hardware.enableRedistributableFirmware = true;
 
   # User configuration
-  programs.zsh.enable = true;
+  programs.zsh.enable = true;  # Keep as fallback
+  environment.shells = with pkgs; [ nushell zsh bash ];
   users.users.mike = {
     isNormalUser = true;
     description = "Mike Rosseel";
     extraGroups = [ "networkmanager" "wheel" "video" "input" "render" "plugdev" ];
-    shell = pkgs.zsh;
+    shell = pkgs.nushell;
     openssh.authorizedKeys.keys = [
       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCh8r6wZSXIWftEm6FvYVU0dk0lLo4yC5iw0gink9VCEyGEgS90D5T6s3CQb42HTssCoUdzRn0lv7fSfU4vPyEa6fAbAIIC0YYChP5y9uvttqo5GIjf/+OrpP79PF90/auKuaHUs41fjEYK7w2h6ZDY8+oQdDWvtGpjkG0PQBOC4GPLEwX95tBOZK3BsxnLXCMIdFrCrOb4RoJY45u1C8MtZZ5Zh4g6wzGz543LcX40kuprhgmqqskR7FkrZUL6Jch1GHQSQsK8O1RCcAivXWMilcrmGAvPUk+cR6oP6PAzt1jRbgEnoYxCjvo5AJHFXxg/Z+eSmx6y/x0mLOGItwi5 mike@Macintosh-2.local"
     ];
@@ -79,6 +132,12 @@
 
   # Trusted users for devenv caching
   nix.settings.trusted-users = [ "root" "mike" ];
+
+  # Limit nix-daemon memory to prevent OOM during large builds (e.g. aarch64 cross-compilation)
+  systemd.services.nix-daemon.serviceConfig = {
+    MemoryMax = "64G";
+    MemoryHigh = "48G";
+  };
 
   # Suppress "channels does not exist" warning (using flakes, not channels)
   nix.nixPath = [];
@@ -133,8 +192,34 @@
 
   # Restart services after resume from suspend
   powerManagement.resumeCommands = ''
+    # Wait for USB devices to settle
+    sleep 3
+
+    # Reset Elgato USB devices (Wave:3 and StreamDeck) to recover from bad state
+    for dev in /sys/bus/usb/devices/*/idVendor; do
+      dir=$(dirname "$dev")
+      if [ -f "$dir/idVendor" ] && [ "$(cat "$dir/idVendor" 2>/dev/null)" = "0fd9" ]; then
+        echo 0 > "$dir/authorized" 2>/dev/null || true
+        sleep 0.5
+        echo 1 > "$dir/authorized" 2>/dev/null || true
+      fi
+    done
+
     sleep 2
-    ${pkgs.systemd}/bin/systemctl --user -M mike@ restart pipewire pipewire-pulse wireplumber || true
+
+    # Stop audio services cleanly first
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ stop pipewire-pulse wireplumber pipewire 2>/dev/null || true
+    sleep 1
+
+    # Start in correct order
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ start pipewire || true
+    sleep 1
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ start wireplumber || true
+    sleep 1
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ start pipewire-pulse || true
+
+    # Restart StreamDeck daemon
+    sleep 1
     ${pkgs.systemd}/bin/systemctl --user -M mike@ restart streamdeck-daemon || true
   '';
 
@@ -210,12 +295,13 @@
   };
 
   # Allow passwordless sudo for GPU VRAM management
+  # Also allow ALL for mike (needed for migration testing with loop devices)
   security.sudo.extraRules = [
     {
       users = [ "mike" ];
       commands = [
         {
-          command = "${pkgs.kmod}/bin/modprobe";
+          command = "ALL";
           options = [ "NOPASSWD" ];
         }
       ];
@@ -235,13 +321,26 @@
     ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", TAG+="systemd", ENV{SYSTEMD_USER_WANTS}="streamdeck-restart.service"
   '';
 
-  # Service to restart WirePlumber when Elgato Wave 3 is connected
+  # Service to fix Elgato Wave 3 audio on connect (follows omarchy-fix-usb-audio pattern)
   systemd.user.services.elgato-audio-restart = {
-    description = "Restart WirePlumber for Elgato Wave 3";
+    description = "Fix Elgato Wave 3 audio";
+    path = [ pkgs.pulseaudio pkgs.alsa-utils pkgs.coreutils ];
     serviceConfig = {
       Type = "oneshot";
-      ExecStartPre = "${pkgs.coreutils}/bin/sleep 2";
-      ExecStart = "${pkgs.systemd}/bin/systemctl --user restart wireplumber";
+      ExecStart = pkgs.writeShellScript "fix-elgato-audio" ''
+        sleep 2
+        # Reset profile like omarchy-fix-usb-audio
+        for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk '{print $2}'); do
+          pactl set-card-profile "$card" off 2>/dev/null
+          sleep 0.3
+          pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null
+        done
+        sleep 0.5
+        # Set mic volume
+        amixer -c Wave3 sset Mic 80% 2>/dev/null
+        # Set as default source
+        pactl set-default-source alsa_input.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00.mono-fallback 2>/dev/null
+      '';
     };
   };
 
@@ -254,6 +353,10 @@
       ExecStart = "${pkgs.systemd}/bin/systemctl --user restart streamdeck-daemon";
     };
   };
+
+  # Tailscale VPN
+  services.tailscale.enable = true;
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
 
   # Firewall
   networking.firewall.allowedTCPPorts = [
