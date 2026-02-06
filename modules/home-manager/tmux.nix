@@ -11,7 +11,7 @@
     secureSocket = false;
     clock24 = true;
     terminal = "tmux-256color";
-    shell = "${pkgs.zsh}/bin/zsh";
+    shell = "${pkgs.nushell}/bin/nu";
     historyLimit = 100000;
     keyMode = "vi";
     mouse = true;
@@ -103,9 +103,9 @@
       #unbind p
       #bind p paste-buffer
 
-      # Ensure shells are started properly to source .zshrc
-      set -g default-command "${pkgs.zsh}/bin/zsh"
-      set -g default-shell "${pkgs.zsh}/bin/zsh"
+      # Ensure shells are started properly
+      set -g default-command "${pkgs.nushell}/bin/nu"
+      set -g default-shell "${pkgs.nushell}/bin/nu"
     '';
   };
 }

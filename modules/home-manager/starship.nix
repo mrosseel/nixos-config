@@ -1,8 +1,8 @@
-
 { pkgs, ... }:
 {
   programs.starship.enable = true;
   programs.starship.enableZshIntegration = true;
+  programs.starship.enableNushellIntegration = true;
   programs.starship.settings = {
     add_newline = false;
     format = "$character";  # A minimal left prompt
@@ -21,6 +21,7 @@
       fish_indicator = "";
       bash_indicator = "[BASH](bright-white) ";
       zsh_indicator = "";
+      nu_indicator = "";
     };
     username = {
       style_user = "bright-white bold";

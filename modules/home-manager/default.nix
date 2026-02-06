@@ -269,10 +269,34 @@ in {
     enableNushellIntegration = true;
     nix-direnv.enable = true;
   };
-  # programs.alacritty = {
-  #   enable = true;
-  #   settings.font.normal.family = "MesloLGS Nerd Font Mono";
-  #   settings.font.size = 16;
-  # };
+
+  # Zellij terminal multiplexer
+  programs.zellij = {
+    enable = true;
+    settings = {
+      default_shell = "nu";
+      pane_frames = false;
+      default_layout = "default";
+      default_mode = "normal";
+      mouse_mode = true;
+      copy_on_select = true;
+      scrollback_editor = "nvim";
+      themes.tokyo-night = {
+        fg = "#c0caf5";
+        bg = "#1a1b26";
+        black = "#15161e";
+        red = "#f7768e";
+        green = "#9ece6a";
+        yellow = "#e0af68";
+        blue = "#7aa2f7";
+        magenta = "#bb9af7";
+        cyan = "#7dcfff";
+        white = "#a9b1d6";
+        orange = "#ff9e64";
+      };
+      theme = "tokyo-night";
+    };
+  };
+
   home.file.".inputrc".source = ./dotfiles/inputrc;
 }

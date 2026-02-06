@@ -92,3 +92,4 @@ When modifying configurations:
 2. Each machine has its own configuration file but shares common modules
 3. Home-manager configurations are shared across all systems
 4. The omarchy-nix input is used for the nixair machine configuration
+5. **NEVER make direct config changes to ~/.config or other dotfiles** - always add configs to this repo via home-manager so they're declarative and persist across rebuilds
