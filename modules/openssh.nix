@@ -3,10 +3,12 @@
   services.openssh = {
     enable = true;
     # require public key authentication for better security
-    settings.PasswordAuthentication = false;
+    settings.PasswordAuthentication = lib.mkDefault false;
     settings.KbdInteractiveAuthentication = false;
     settings.X11Forwarding = lib.mkDefault false;
     settings.PermitRootLogin = lib.mkDefault "no";
+    settings.ClientAliveInterval = 30;
+    settings.ClientAliveCountMax = 10;
   };
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOvpuaWhiyWISrRYXtOpBLo6Fo/+NzZ0812RHlorSuNF mike.rosseel@gmail.com"
