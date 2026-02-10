@@ -29,13 +29,28 @@ HA_TOKEN_FILE = Path.home() / ".config/home-assistant/token"
 ICONS_DIR = Path.home() / "nixos-config/config/streamdeck/icons"
 
 # Font for button text (fallback to default if not found)
-FONT_PATH = "/run/current-system/sw/share/X11/fonts/TTF/DejaVuSans.ttf"
+FONT_PATH = None  # Resolved at startup via fc-match
 FONT_SIZE = 14
 FONT_SIZE_SMALL = 12
 
 # Screensaver settings
 SCREENSAVER_DIM_TIMEOUT = 150    # 2.5 minutes - dim to 30%
 SCREENSAVER_OFF_TIMEOUT = 300    # 5 minutes - screen off
+
+
+def _find_font() -> str:
+    """Find a usable TTF font on the system."""
+    import subprocess as _sp
+    try:
+        result = _sp.run(["fc-match", "-f", "%{file}", "DejaVuSans"], capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout and Path(result.stdout).exists():
+            return result.stdout
+    except FileNotFoundError:
+        pass
+    # Fallback: search common NixOS paths
+    for p in Path("/nix/store").glob("*dejavu-fonts*/share/fonts/truetype/DejaVuSans.ttf"):
+        return str(p)
+    return ""
 
 
 def get_ha_token() -> str:
@@ -103,9 +118,12 @@ class Button:
         """Update the physical button display."""
         if self.deck is None or Button._display_suspended:
             return
-        image = self.render()
-        if image:
-            self.deck.set_key_image(self.key, PILHelper.to_native_format(self.deck, image))
+        try:
+            image = self.render()
+            if image:
+                self.deck.set_key_image(self.key, PILHelper.to_native_format(self.deck, image))
+        except Exception as e:
+            print(f"Display error key {self.key}: {e}", file=sys.stderr, flush=True)
 
     def on_press(self):
         """Called when button is pressed."""
@@ -243,6 +261,38 @@ class TRVButton(Button):
 
         self.update_display()
 
+    def render(self) -> Image.Image:
+        """Custom render with smaller icon to fit label + temperature."""
+        if self.deck is None:
+            return None
+
+        image = PILHelper.create_image(self.deck, background=self.bg_color)
+        draw = ImageDraw.Draw(image)
+
+        # Smaller icon at top
+        if self.icon and Path(self.icon).exists():
+            icon_img = Image.open(self.icon).convert("RGBA")
+            icon_img = icon_img.resize((32, 32), Image.Resampling.LANCZOS)
+            x = (image.width - 32) // 2
+            image.paste(icon_img, (x, 2), icon_img)
+
+        # Two lines of text below icon
+        try:
+            font = ImageFont.truetype(FONT_PATH, FONT_SIZE_SMALL)
+        except OSError:
+            font = ImageFont.load_default()
+
+        lines = self.text.split("\n")
+        y = 36
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=font)
+            text_width = bbox[2] - bbox[0]
+            x = (image.width - text_width) // 2
+            draw.text((x, y), line, font=font, fill="white")
+            y += 16
+
+        return image
+
     def on_press(self):
         """Toggle heating via input_boolean."""
         super().on_press()
@@ -256,7 +306,8 @@ class TRVButton(Button):
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def on_release(self):
-        super().on_release()
+        # Re-render with current HA state instead of restoring old bg
+        self._refresh_display()
 
 
 # === Button Layout ===
@@ -313,7 +364,7 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
     while True:
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.ws_connect(HA_URL) as ws:
+                async with session.ws_connect(HA_URL, max_msg_size=0) as ws:
                     print("Connected to Home Assistant")
 
                     # Auth
@@ -372,6 +423,8 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
 
         except aiohttp.ClientError as e:
             print(f"Connection error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}", file=sys.stderr)
 
         print("Reconnecting in 10s...")
         await asyncio.sleep(10)
@@ -380,6 +433,10 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
 # === Main ===
 
 def main():
+    global FONT_PATH
+    FONT_PATH = _find_font()
+    print(f"Font: {FONT_PATH or 'default'}")
+
     # Find StreamDeck
     streamdecks = DeviceManager().enumerate()
     if not streamdecks:
