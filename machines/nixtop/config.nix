@@ -168,28 +168,6 @@
     };
   };
 
-  # COMMENTED OUT: Script-based Elgato fix - replaced by WirePlumber config above
-  # Uncomment if WirePlumber fix alone is insufficient
-  #
-  # systemd.user.services.elgato-audio-fix = {
-  #   description = "Elgato Wave Audio Fix";
-  #   after = [ "pipewire.service" "wireplumber.service" ];
-  #   wantedBy = [ "graphical-session.target" ];
-  #   path = [ pkgs.pulseaudio pkgs.gawk ];
-  #   serviceConfig = {
-  #     Type = "oneshot";
-  #     ExecStart = "/home/mike/.local/share/omarchy/bin/omarchy-fix-usb-audio";
-  #   };
-  # };
-  #
-  # systemd.services.elgato-audio-fix-trigger = {
-  #   description = "Trigger Elgato Audio Fix for user";
-  #   serviceConfig = {
-  #     Type = "oneshot";
-  #     ExecStart = "${pkgs.systemd}/bin/systemctl --user -M mike@ restart elgato-audio-fix.service";
-  #   };
-  # };
-
   # Restart services after resume from suspend
   powerManagement.resumeCommands = ''
     # Wait for USB devices to settle
@@ -221,6 +199,10 @@
     # Restart StreamDeck daemon
     sleep 1
     ${pkgs.systemd}/bin/systemctl --user -M mike@ restart streamdeck-daemon || true
+
+    # Re-run Elgato audio fix now that pipewire is fully up
+    sleep 2
+    ${pkgs.systemd}/bin/systemctl --user -M mike@ start elgato-audio-restart || true
   '';
 
   # System packages
@@ -244,6 +226,11 @@
     wl-clipboard # for wl-copy/wl-paste (hyprwhspr needs this)
     vulkan-loader
     vulkan-tools # vulkaninfo, vkcube
+
+    # ROCm for AMD GPU compute (voxtype parakeet, etc.)
+    rocmPackages.rocminfo
+    rocmPackages.rocm-smi
+    rocmPackages.clr  # HIP runtime
   ];
 
   # Mullvad VPN (requires systemd-resolved)
