@@ -40,6 +40,9 @@
   hardware.graphics = {
     enable = true;
     enable32Bit = true;  # For 32-bit applications/games
+    extraPackages = with pkgs; [
+      rocmPackages.clr.icd  # ROCm OpenCL
+    ];
   };
 
   # zram swap - 5% of 128GB RAM (~6.4GB)

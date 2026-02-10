@@ -311,6 +311,9 @@
               # Hyprwhspr speech-to-text keybinding
               wayland.windowManager.hyprland.extraConfig = ''
                 bindd = SUPER ALT, D, Speech-to-text, exec, bash -c 'if [[ -f ~/.config/hyprwhspr/recording_status && $(cat ~/.config/hyprwhspr/recording_status) == "true" ]]; then echo stop > ~/.config/hyprwhspr/recording_control; else echo start > ~/.config/hyprwhspr/recording_control; fi'
+
+                # Override voxtype stop to reset Elgato mic profile after (ready for next recording)
+                binddr = SUPER CTRL, X, Stop dictation, exec, bash -c 'voxtype record stop; for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk "{print \$2}"); do pactl set-card-profile "$card" off 2>/dev/null; sleep 0.1; pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null; done'
               '';
 
               # Thunderbird email client

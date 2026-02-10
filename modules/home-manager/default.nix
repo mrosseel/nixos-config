@@ -134,7 +134,8 @@ in {
       nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
       nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
       cd = "z";
-      cc = "SHELL=/bin/bash claude";
+      clc = "SHELL=/bin/bash claude";
+      clcd = "SHELL=/bin/bash claude --dangerously-skip-permissions";
       # pbcopy="xclip -selection clipboard";
       # pbpaste="xclip -selection clipboard -o";
       neofetch="fastfetch";
@@ -219,8 +220,12 @@ in {
         sudo darwin-rebuild switch --flake ~/nixos-config/.#
       }
 
-      def cc [...args] {
+      def --wrapped clc [...args] {
         with-env { SHELL: "/bin/bash" } { claude ...$args }
+      }
+
+      def --wrapped clcd [...args] {
+        with-env { SHELL: "/bin/bash" } { claude --dangerously-skip-permissions ...$args }
       }
 
       ${nushellRsyncConfig}
