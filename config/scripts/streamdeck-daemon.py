@@ -206,45 +206,53 @@ class VolumeButton(Button):
 
 
 class TRVButton(Button):
-    """Climate TRV button with real-time state updates."""
-    def __init__(self, key: int, entity_id: str, **kwargs):
+    """Climate TRV button with real-time state updates via input_boolean + temp sensor."""
+    def __init__(self, key: int, toggle_entity: str, temp_entity: str, label: str = "Office", **kwargs):
         super().__init__(key, **kwargs)
-        self.entity_id = entity_id
+        self.toggle_entity = toggle_entity
+        self.temp_entity = temp_entity
+        self.label = label
         self.state = "unknown"
         self.current_temp = None
         self.icon = str(ICONS_DIR / "radiator.png")
+        # Entities this button watches
+        self.watched_entities = {toggle_entity, temp_entity}
 
-    def update_from_ha(self, state_data: dict):
-        """Update button state from HA data."""
-        self.state = state_data.get("state", "unknown")
-        attrs = state_data.get("attributes", {})
-        self.current_temp = attrs.get("current_temperature")
+    def update_entity(self, entity_id: str, state_data: dict):
+        """Update button from a single entity's state change."""
+        if entity_id == self.toggle_entity:
+            self.state = state_data.get("state", "unknown")
+        elif entity_id == self.temp_entity:
+            try:
+                self.current_temp = float(state_data.get("state", "unknown"))
+            except (ValueError, TypeError):
+                self.current_temp = None
+        self._refresh_display()
 
-        # Update text
+    def _refresh_display(self):
+        """Update text and color from current state."""
         if self.current_temp is not None:
-            self.text = f"Office\n{self.current_temp:.1f}°C"
+            self.text = f"{self.label}\n{self.current_temp:.1f}°C"
         else:
-            self.text = "Office\n--°C"
+            self.text = f"{self.label}\n--°C"
 
-        # Update color based on state
-        if self.state == "heat":
-            self.bg_color = "#e65100"  # Orange
+        if self.state == "on":
+            self.bg_color = "#e65100"  # Orange when heating
         else:
-            self.bg_color = "#616161"  # Gray
+            self.bg_color = "#37474f"  # Blue-grey when off
 
         self.update_display()
 
     def on_press(self):
-        """Toggle TRV between heat and off."""
+        """Toggle heating via input_boolean."""
         super().on_press()
         token = get_ha_token()
-        new_mode = "off" if self.state == "heat" else "heat"
         subprocess.Popen([
             "curl", "-s", "-X", "POST",
             "-H", f"Authorization: Bearer {token}",
             "-H", "Content-Type: application/json",
-            "-d", json.dumps({"entity_id": self.entity_id, "hvac_mode": new_mode}),
-            f"{HA_REST_URL}/api/services/climate/set_hvac_mode"
+            "-d", json.dumps({"entity_id": self.toggle_entity}),
+            f"{HA_REST_URL}/api/services/input_boolean/toggle"
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def on_release(self):
@@ -266,7 +274,8 @@ def create_buttons() -> dict[int, Button]:
                         text="Mute", icon=str(ICONS_DIR / "mute.png"), bg_color="#e53935"),
         4: HAButton(4, "light/toggle", "light.office",
                    text="Office", icon=str(ICONS_DIR / "light.png"), bg_color="#fbc02d"),
-        5: TRVButton(5, "climate.shellytrv_office"),
+        5: TRVButton(5, toggle_entity="input_boolean.climate_office_toggle",
+                    temp_entity="sensor.awair_element_54484_temperature", label="Office"),
         6: HAButton(6, "script/turn_on", "script.good_night",
                    text="Good Night", icon=str(ICONS_DIR / "sleep.png"), bg_color="#3949ab"),
         7: HAButton(7, "light/turn_off", "all",
@@ -294,8 +303,12 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
     token = get_ha_token()
     msg_id = 1
 
-    # Find TRV buttons to update
-    trv_buttons = {b.entity_id: b for b in buttons.values() if isinstance(b, TRVButton)}
+    # Build entity -> button mapping for reactive updates
+    entity_button_map = {}  # entity_id -> list of TRVButton
+    for b in buttons.values():
+        if isinstance(b, TRVButton):
+            for eid in b.watched_entities:
+                entity_button_map.setdefault(eid, []).append(b)
 
     while True:
         try:
@@ -339,8 +352,9 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
                                 if isinstance(result, list):
                                     for state in result:
                                         entity_id = state.get("entity_id")
-                                        if entity_id in trv_buttons:
-                                            trv_buttons[entity_id].update_from_ha(state)
+                                        if entity_id in entity_button_map:
+                                            for btn in entity_button_map[entity_id]:
+                                                btn.update_entity(entity_id, state)
 
                             # Handle state change events
                             elif data.get("type") == "event":
@@ -348,9 +362,10 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
                                 if event.get("event_type") == "state_changed":
                                     event_data = event.get("data", {})
                                     entity_id = event_data.get("entity_id")
-                                    if entity_id in trv_buttons:
+                                    if entity_id in entity_button_map:
                                         new_state = event_data.get("new_state", {})
-                                        trv_buttons[entity_id].update_from_ha(new_state)
+                                        for btn in entity_button_map[entity_id]:
+                                            btn.update_entity(entity_id, new_state)
 
                         elif msg.type == aiohttp.WSMsgType.ERROR:
                             break
