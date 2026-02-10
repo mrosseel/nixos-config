@@ -134,8 +134,8 @@ in {
       nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
       nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
       cd = "z";
-      clc = "SHELL=/bin/bash claude";
-      clcd = "SHELL=/bin/bash claude --dangerously-skip-permissions";
+      clc = "NODE_OPTIONS=--max-old-space-size=8192 SHELL=/bin/bash claude";
+      clcd = "NODE_OPTIONS=--max-old-space-size=8192 SHELL=/bin/bash claude --dangerously-skip-permissions";
       # pbcopy="xclip -selection clipboard";
       # pbpaste="xclip -selection clipboard -o";
       neofetch="fastfetch";
@@ -221,11 +221,11 @@ in {
       }
 
       def --wrapped clc [...args] {
-        with-env { SHELL: "/bin/bash" } { claude ...$args }
+        with-env { SHELL: "/bin/bash", NODE_OPTIONS: "--max-old-space-size=8192" } { claude ...$args }
       }
 
       def --wrapped clcd [...args] {
-        with-env { SHELL: "/bin/bash" } { claude --dangerously-skip-permissions ...$args }
+        with-env { SHELL: "/bin/bash", NODE_OPTIONS: "--max-old-space-size=8192" } { claude --dangerously-skip-permissions ...$args }
       }
 
       ${nushellRsyncConfig}
