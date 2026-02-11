@@ -44,6 +44,23 @@
     };
     virtualHosts."mail.pifinder.eu".extraConfig = ''
     '';
+    virtualHosts."blog.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/blog
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+        @static path *.css *.js *.png *.jpg *.jpeg *.gif *.webp *.avif *.woff2
+        header @static Cache-Control "public, max-age=31536000, immutable"
+      '';
+    };
     virtualHosts."test.pifinder.eu" = {
       extraConfig = ''
           encode gzip
