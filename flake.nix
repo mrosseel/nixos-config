@@ -31,6 +31,8 @@
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
 
+    copyparty.url = "github:9001/copyparty";
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -395,10 +397,12 @@
       ];
     };
     nixosConfigurations."proxnix" = nixpkgs.lib.nixosSystem {
-      specialArgs = { inherit inputs; };
+      specialArgs = { inherit inputs; copyparty = inputs.copyparty; };
       modules = [
         ./machines/proxnix/configuration.nix
         ./machines/proxnix/config.nix
+        ./machines/proxnix/copyparty.nix
+        ./machines/proxnix/couchdb.nix
         ./modules/openssh.nix
         ./modules/fail2ban.nix
         ./modules/linux/avahi.nix
