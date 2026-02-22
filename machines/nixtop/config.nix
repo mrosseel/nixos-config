@@ -162,6 +162,7 @@
       libnotify
     ];
     serviceConfig = {
+      Environment = "PYTHONUNBUFFERED=1";
       ExecStart = "${pkgs.python3.withPackages (ps: [ ps.aiohttp ps.pillow ps.streamdeck ])}/bin/python3 /home/mike/.local/bin/streamdeck-daemon.py";
       Restart = "always";
       RestartSec = 5;
@@ -209,6 +210,7 @@
   programs.mosh.enable = true;
 
   environment.systemPackages = with pkgs; [
+    cifs-utils
     azure-cli
     mullvad-browser
 
@@ -339,6 +341,24 @@
       ExecStartPre = "${pkgs.coreutils}/bin/sleep 2";
       ExecStart = "${pkgs.systemd}/bin/systemctl --user restart streamdeck-daemon";
     };
+  };
+
+  # OpenClaw Samba share automount
+  fileSystems."/mnt/openclaw" = {
+    device = "//openclaw.local/openclaw";
+    fsType = "cifs";
+    options = [
+      "noauto"
+      "x-systemd.automount"
+      "x-systemd.idle-timeout=60"
+      "x-systemd.device-timeout=5s"
+      "x-systemd.mount-timeout=5s"
+      "guest"
+      "uid=1000"
+      "gid=100"
+      "file_mode=0664"
+      "dir_mode=0775"
+    ];
   };
 
   # Tailscale VPN

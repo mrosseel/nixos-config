@@ -6,14 +6,12 @@ Replaces streamdeck-ui with direct hardware control and real-time HA updates.
 
 import asyncio
 import json
-import os
 import signal
 import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
-from typing import Callable
 
 from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.DeviceManager import DeviceManager
@@ -24,7 +22,6 @@ import aiohttp
 # === Configuration ===
 
 HA_URL = "wss://ha.miker.be/api/websocket"
-HA_REST_URL = "https://ha.miker.be"
 HA_TOKEN_FILE = Path.home() / ".config/home-assistant/token"
 ICONS_DIR = Path.home() / "nixos-config/config/streamdeck/icons"
 
@@ -58,6 +55,22 @@ def get_ha_token() -> str:
         print(f"ERROR: Token file missing: {HA_TOKEN_FILE}", file=sys.stderr)
         sys.exit(1)
     return HA_TOKEN_FILE.read_text().strip()
+
+
+# === WS Command Queue ===
+# Button presses from the StreamDeck callback thread put service calls here.
+# The async WS loop drains and sends them over the open connection.
+_ws_queue: asyncio.Queue | None = None
+_ws_loop: asyncio.AbstractEventLoop | None = None
+
+
+def call_ha_service(domain: str, service: str, **service_data):
+    """Queue a service call to be sent over the WS connection."""
+    if _ws_loop and _ws_queue is not None:
+        _ws_loop.call_soon_threadsafe(
+            _ws_queue.put_nowait,
+            {"domain": domain, "service": service, "service_data": service_data},
+        )
 
 
 # === Button Definitions ===
@@ -166,58 +179,34 @@ class CommandButton(Button):
 
 
 class HAButton(Button):
-    """Button that calls Home Assistant service."""
+    """Button that calls Home Assistant service via WS."""
     def __init__(self, key: int, service: str, entity_id: str, **kwargs):
         super().__init__(key, **kwargs)
-        self.service = service
+        # service is "domain/service" e.g. "light/toggle"
+        domain, _, svc = service.partition("/")
+        self.domain = domain
+        self.svc = svc
         self.entity_id = entity_id
 
     def on_press(self):
         super().on_press()
-        token = get_ha_token()
-        subprocess.Popen([
-            "curl", "-s", "-X", "POST",
-            "-H", f"Authorization: Bearer {token}",
-            "-H", "Content-Type: application/json",
-            "-d", json.dumps({"entity_id": self.entity_id}),
-            f"{HA_REST_URL}/api/services/{self.service}"
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        call_ha_service(self.domain, self.svc, entity_id=self.entity_id)
 
     def on_release(self):
         super().on_release()
 
 
 class VolumeButton(Button):
-    """Volume button with configurable step size."""
-    def __init__(self, key: int, entity_id: str, step: float = 0.1, **kwargs):
+    """Volume button via WS."""
+    def __init__(self, key: int, entity_id: str, direction: str = "up", **kwargs):
         super().__init__(key, **kwargs)
         self.entity_id = entity_id
-        self.step = step  # +0.1 for up, -0.1 for down
+        self.direction = direction
 
     def on_press(self):
         super().on_press()
-        token = get_ha_token()
-        # Get current volume and adjust
-        try:
-            import urllib.request
-            req = urllib.request.Request(
-                f"{HA_REST_URL}/api/states/{self.entity_id}",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            with urllib.request.urlopen(req, timeout=2) as resp:
-                data = json.loads(resp.read())
-                current = data.get("attributes", {}).get("volume_level", 0.5)
-                new_vol = max(0.0, min(1.0, current + self.step))
-                # Set new volume
-                subprocess.Popen([
-                    "curl", "-s", "-X", "POST",
-                    "-H", f"Authorization: Bearer {token}",
-                    "-H", "Content-Type: application/json",
-                    "-d", json.dumps({"entity_id": self.entity_id, "volume_level": new_vol}),
-                    f"{HA_REST_URL}/api/services/media_player/volume_set"
-                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass  # Fail silently
+        svc = "volume_up" if self.direction == "up" else "volume_down"
+        call_ha_service("media_player", svc, entity_id=self.entity_id)
 
     def on_release(self):
         super().on_release()
@@ -294,16 +283,9 @@ class TRVButton(Button):
         return image
 
     def on_press(self):
-        """Toggle heating via input_boolean."""
+        """Toggle heating via input_boolean over WS."""
         super().on_press()
-        token = get_ha_token()
-        subprocess.Popen([
-            "curl", "-s", "-X", "POST",
-            "-H", f"Authorization: Bearer {token}",
-            "-H", "Content-Type: application/json",
-            "-d", json.dumps({"entity_id": self.toggle_entity}),
-            f"{HA_REST_URL}/api/services/input_boolean/toggle"
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        call_ha_service("input_boolean", "toggle", entity_id=self.toggle_entity)
 
     def on_release(self):
         # Re-render with current HA state instead of restoring old bg
@@ -331,9 +313,9 @@ def create_buttons() -> dict[int, Button]:
                    text="Good Night", icon=str(ICONS_DIR / "sleep.png"), bg_color="#3949ab"),
         7: HAButton(7, "light/turn_off", "all",
                    text="Lights Off", icon=str(ICONS_DIR / "off.png"), bg_color="#c62828"),
-        8: VolumeButton(8, "media_player.bureau", step=-0.1,
+        8: VolumeButton(8, "media_player.bureau", direction="down",
                        text="Sonos -", icon=str(ICONS_DIR / "vol_down.png"), bg_color="#1db954"),
-        9: VolumeButton(9, "media_player.bureau", step=0.1,
+        9: VolumeButton(9, "media_player.bureau", direction="up",
                        text="Sonos +", icon=str(ICONS_DIR / "vol_up.png"), bg_color="#1db954"),
         10: CommandButton(10, 'grim -g "$(slurp)" /home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png',
                          text="Screenshot", icon=str(ICONS_DIR / "screenshot.png"), bg_color="#5e35b1"),
@@ -351,8 +333,11 @@ def create_buttons() -> dict[int, Button]:
 
 async def ha_websocket_loop(buttons: dict[int, Button]):
     """Connect to HA websocket and update buttons in real-time."""
+    global _ws_queue, _ws_loop
+    _ws_loop = asyncio.get_event_loop()
+    _ws_queue = asyncio.Queue()
+
     token = get_ha_token()
-    msg_id = 1
 
     # Build entity -> button mapping for reactive updates
     entity_button_map = {}  # entity_id -> list of TRVButton
@@ -362,23 +347,36 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
                 entity_button_map.setdefault(eid, []).append(b)
 
     while True:
+        # Drain stale commands from previous broken connection
+        while not _ws_queue.empty():
+            try:
+                _ws_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.ws_connect(HA_URL, max_msg_size=0) as ws:
-                    print("Connected to Home Assistant")
+                async with session.ws_connect(
+                    HA_URL, max_msg_size=0, heartbeat=30, receive_timeout=60,
+                ) as ws:
+                    print("Connected to Home Assistant", flush=True)
 
                     # Auth
                     msg = await ws.receive_json()
                     if msg.get("type") != "auth_required":
+                        print(f"Unexpected initial message: {msg}", flush=True)
                         continue
                     await ws.send_json({"type": "auth", "access_token": token})
                     msg = await ws.receive_json()
                     if msg.get("type") != "auth_ok":
-                        print(f"Auth failed: {msg}")
+                        print(f"Auth failed: {msg}", flush=True)
                         await asyncio.sleep(10)
                         continue
 
-                    print("Authenticated with Home Assistant")
+                    print("Authenticated with Home Assistant", flush=True)
+
+                    # Fresh msg_id per connection
+                    msg_id = 1
 
                     # Get initial states
                     await ws.send_json({"id": msg_id, "type": "get_states"})
@@ -392,41 +390,79 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
                     })
                     msg_id += 1
 
-                    # Process messages
-                    async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            data = json.loads(msg.data)
+                    async def send_queued_commands():
+                        """Send queued service calls over WS."""
+                        nonlocal msg_id
+                        while True:
+                            cmd = await _ws_queue.get()
+                            await ws.send_json({
+                                "id": msg_id,
+                                "type": "call_service",
+                                "domain": cmd["domain"],
+                                "service": cmd["service"],
+                                "service_data": cmd["service_data"],
+                            })
+                            msg_id += 1
 
-                            # Handle get_states response
-                            if data.get("type") == "result" and data.get("success"):
-                                result = data.get("result", [])
-                                if isinstance(result, list):
-                                    for state in result:
-                                        entity_id = state.get("entity_id")
+                    async def receive_messages():
+                        """Process incoming WS messages."""
+                        async for msg in ws:
+                            if msg.type == aiohttp.WSMsgType.TEXT:
+                                data = json.loads(msg.data)
+
+                                if data.get("type") == "result" and data.get("success"):
+                                    result = data.get("result", [])
+                                    if isinstance(result, list):
+                                        for state in result:
+                                            entity_id = state.get("entity_id")
+                                            if entity_id in entity_button_map:
+                                                for btn in entity_button_map[entity_id]:
+                                                    btn.update_entity(entity_id, state)
+
+                                elif data.get("type") == "event":
+                                    event = data.get("event", {})
+                                    if event.get("event_type") == "state_changed":
+                                        event_data = event.get("data", {})
+                                        entity_id = event_data.get("entity_id")
                                         if entity_id in entity_button_map:
+                                            new_state = event_data.get("new_state", {})
                                             for btn in entity_button_map[entity_id]:
-                                                btn.update_entity(entity_id, state)
+                                                btn.update_entity(entity_id, new_state)
 
-                            # Handle state change events
-                            elif data.get("type") == "event":
-                                event = data.get("event", {})
-                                if event.get("event_type") == "state_changed":
-                                    event_data = event.get("data", {})
-                                    entity_id = event_data.get("entity_id")
-                                    if entity_id in entity_button_map:
-                                        new_state = event_data.get("new_state", {})
-                                        for btn in entity_button_map[entity_id]:
-                                            btn.update_entity(entity_id, new_state)
+                            elif msg.type in (
+                                aiohttp.WSMsgType.ERROR,
+                                aiohttp.WSMsgType.CLOSED,
+                                aiohttp.WSMsgType.CLOSING,
+                            ):
+                                print(f"WS closed: {msg.type}", flush=True)
+                                return
 
-                        elif msg.type == aiohttp.WSMsgType.ERROR:
-                            break
+                    # Run sender and receiver concurrently; if either exits, reconnect
+                    done, pending = await asyncio.wait(
+                        [
+                            asyncio.create_task(send_queued_commands()),
+                            asyncio.create_task(receive_messages()),
+                        ],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for task in pending:
+                        task.cancel()
+                    for task in done:
+                        if task.exception():
+                            print(f"WS task error: {task.exception()}", flush=True)
+
+                    print("WS loop exited", flush=True)
 
         except aiohttp.ClientError as e:
-            print(f"Connection error: {e}")
+            print(f"Connection error: {e}", flush=True)
+        except asyncio.TimeoutError:
+            print("WS receive timed out", flush=True)
         except Exception as e:
-            print(f"Unexpected error: {e}", file=sys.stderr)
+            import traceback
+            print(f"Unexpected error: {e}", flush=True)
+            traceback.print_exc()
 
-        print("Reconnecting in 10s...")
+        print("Reconnecting in 10s...", flush=True)
         await asyncio.sleep(10)
 
 
@@ -461,6 +497,7 @@ def main():
     for button in buttons.values():
         button.deck = deck
         button.update_display()
+
 
     # Screensaver state: "awake", "dimmed", "off"
     # Lock protects screensaver state and deck operations
