@@ -222,6 +222,8 @@ class TRVButton(Button):
         self.state = "unknown"
         self.current_temp = None
         self.icon = str(ICONS_DIR / "radiator.png")
+        self.bg_color = "#37474f"  # Blue-grey (off state) instead of black
+        self.text = f"{label}\n--°C"
         # Entities this button watches
         self.watched_entities = {toggle_entity, temp_entity}
 
@@ -347,13 +349,6 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
                 entity_button_map.setdefault(eid, []).append(b)
 
     while True:
-        # Drain stale commands from previous broken connection
-        while not _ws_queue.empty():
-            try:
-                _ws_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.ws_connect(
@@ -462,8 +457,8 @@ async def ha_websocket_loop(buttons: dict[int, Button]):
             print(f"Unexpected error: {e}", flush=True)
             traceback.print_exc()
 
-        print("Reconnecting in 10s...", flush=True)
-        await asyncio.sleep(10)
+        print("Reconnecting in 5s...", flush=True)
+        await asyncio.sleep(5)
 
 
 # === Main ===
@@ -584,8 +579,11 @@ def main():
     # Handle shutdown
     def shutdown(sig, frame):
         print("\nShutting down...")
-        deck.reset()
-        deck.close()
+        try:
+            deck.reset()
+            deck.close()
+        except Exception:
+            pass
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown)
