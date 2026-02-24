@@ -9,9 +9,26 @@
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/pifinder_shopping/";
-      # Run inside the flake's dev shell - same environment as local dev
       ExecStart = "${pkgs.nix}/bin/nix develop --command uv run shop_page.py --prod";
       Restart = "on-failure";
+    };
+  };
+
+  systemd.services.starnightsshop = {
+    description = "StarNights Shop";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    environment = {
+      NODE_ENV = "production";
+    };
+    serviceConfig = {
+      Type = "simple";
+      User = "mike";
+      Group = "mike";
+      WorkingDirectory = "/home/mike/starnights_shop/";
+      ExecStart = "${pkgs.nodejs}/bin/npm start";
+      Restart = "on-failure";
+      RestartSec = 5;
     };
   };
 }

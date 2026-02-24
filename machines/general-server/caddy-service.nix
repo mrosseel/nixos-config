@@ -88,6 +88,32 @@
           }
         '';
     };
+    virtualHosts."starnightshop.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        reverse_proxy localhost:5003
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
+    virtualHosts."shop.starnights.be" = {
+      extraConfig = ''
+        encode gzip
+        reverse_proxy localhost:5003
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
   };
   networking.firewall = {
     allowedTCPPorts = [ 80 443];
