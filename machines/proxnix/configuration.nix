@@ -7,7 +7,10 @@
 
   nixpkgs.hostPlatform = "x86_64-linux";
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings = {
+    experimental-features = [ "nix-command" "flakes" ];
+    trusted-users = [ "root" "mike" ];
+  };
 
   boot.loader.grub.enable = true;
   boot.loader.grub.device = "/dev/sda";

@@ -54,6 +54,8 @@
     };
   };
 
+  systemd.services.copyparty.serviceConfig.AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
+
   systemd.tmpfiles.rules = [
     "d /srv/copyparty 0755 copyparty copyparty -"
     "d /srv/copyparty/public 0755 copyparty copyparty -"

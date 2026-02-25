@@ -269,6 +269,7 @@
         ./modules/python.nix
         ./modules/ai.nix
         ./modules/printing.nix
+        ./modules/scanning.nix
         ./modules/games.nix
         ./modules/linux/avahi.nix
         ./modules/rclone-gdrive.nix

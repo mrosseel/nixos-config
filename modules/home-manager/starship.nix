@@ -35,7 +35,7 @@
       symbol = "";
       format = "[$symbol$name]($style) ";
       style = "bright-purple bold";
-      heuristic = true;
+      heuristic = false;
     };
     git_branch = {
       only_attached = true;

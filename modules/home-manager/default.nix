@@ -106,7 +106,7 @@ in {
   programs.zoxide.enable = true;
   programs.zoxide.enableZshIntegration = true;
   programs.zoxide.enableBashIntegration = true;
-  programs.zoxide.enableNushellIntegration = true;
+  programs.zoxide.enableNushellIntegration = false;
   programs.ripgrep.enable = true;
   programs.bash = {
     enable = true;
@@ -206,7 +206,12 @@ in {
       hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
       hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
     };
-    extraConfig = ''
+    extraConfig = lib.mkAfter ''
+      # zoxide with --cmd cd: replaces builtin cd with zoxide-powered cd
+      source ${pkgs.runCommand "zoxide-nushell-cmd-cd" {} ''
+        ${pkgs.zoxide}/bin/zoxide init nushell --cmd cd > $out
+      ''}
+
       # Functions that need def instead of alias
       def nixup [] {
         cd ~/nixos-config
@@ -221,11 +226,11 @@ in {
       }
 
       def --wrapped clc [...args] {
-        with-env { SHELL: "/bin/bash", NODE_OPTIONS: "--max-old-space-size=8192" } { claude ...$args }
+        with-env { SHELL: "/bin/bash", NODE_OPTIONS: "--max-old-space-size=8192", LD_LIBRARY_PATH: "" } { claude ...$args }
       }
 
       def --wrapped clcd [...args] {
-        with-env { SHELL: "/bin/bash", NODE_OPTIONS: "--max-old-space-size=8192" } { claude --dangerously-skip-permissions ...$args }
+        with-env { SHELL: "/bin/bash", NODE_OPTIONS: "--max-old-space-size=8192", LD_LIBRARY_PATH: "" } { claude --dangerously-skip-permissions ...$args }
       }
 
       ${nushellRsyncConfig}
