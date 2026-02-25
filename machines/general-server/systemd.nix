@@ -21,6 +21,7 @@
     environment = {
       NODE_ENV = "production";
     };
+    path = [ pkgs.bash pkgs.nodejs ];
     serviceConfig = {
       Type = "simple";
       User = "mike";
