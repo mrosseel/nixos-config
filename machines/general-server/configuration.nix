@@ -74,6 +74,7 @@
 
   # Enable the X11 windowing system.
   # services.xserver.enable = true;
+  environment.systemPackages = with pkgs; [ gnumake gcc ];
   programs.zsh.enable = true;
   environment.shells = with pkgs; [ bash zsh ];
   users.groups.mike = {};
