@@ -27,7 +27,7 @@
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/starnights_shop/";
-      ExecStart = "${pkgs.bash}/bin/bash -c '${pkgs.nodejs}/bin/npm start'";
+      ExecStart = "${pkgs.nodejs}/bin/node node_modules/.bin/tsx src/server/index.ts";
       Restart = "on-failure";
       RestartSec = 5;
     };
