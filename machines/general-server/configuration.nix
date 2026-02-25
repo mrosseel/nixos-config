@@ -85,6 +85,15 @@
         shell = pkgs.zsh;  # Set zsh as the default shell
         ignoreShellProgramCheck = true;
   };
+  security.sudo.extraRules = [{
+    users = [ "mike" ];
+    commands = [
+      { command = "/run/current-system/sw/bin/nix-store *"; options = [ "NOPASSWD" ]; }
+      { command = "/run/current-system/sw/bin/nix-env *"; options = [ "NOPASSWD" ]; }
+      { command = "/nix/store/*/bin/switch-to-configuration *"; options = [ "NOPASSWD" ]; }
+    ];
+  }];
+
   system.stateVersion = "23.11"; # Did you read the comment?
 
 }
