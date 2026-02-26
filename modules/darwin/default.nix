@@ -88,6 +88,7 @@ in
     systemPackages = with pkgs; [
       coreutils
       ghostty-terminfo
+      lan-mouse
       # xquartz
       # trezor-agent  # Broken: trezor 0.13.10 requires click<8.2, nixpkgs has 8.2.1
     ];

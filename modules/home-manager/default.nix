@@ -5,7 +5,7 @@ let
   isNixOS = pkgs.stdenv.isLinux && builtins.pathExists "/etc/nixos";
   rsyncAliases = {
     "airelon" = {
-      "2nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@nixtop:~/dev/ 2>/dev/null";
+      "2nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.nox' --exclude='.venv' ~/dev/ mike@nixtop:~/dev/ 2>/dev/null";
     };
     "nixtop" = {
       "2air" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@airelon.local:~/dev/ 2>/dev/null";
@@ -51,6 +51,7 @@ in {
     xsel # pbcopy alternative
     killall
     carapace # command options completion
+    mosh
     # lnav # log file navigator
   ] ++ lib.optionals (!isDarwin) [
     nh # nix helper - better UX for nix commands (Linux/NixOS only)
@@ -74,10 +75,10 @@ in {
       vim_keys = lib.mkDefault true;
     };
   };
-  #xdg.configFile.nvim = {
-  #    source = ../../config/nvim;
-  #    recursive = true;
-  #  };
+  xdg.configFile.nvim = {
+    source = ../../config/nvim;
+    recursive = true;
+  };
   programs.bat.enable = true;
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;

@@ -19,7 +19,17 @@
   boot.tmp.cleanOnBoot = true;
   zramSwap.enable = true;
   networking.hostName = "general-server"; # Define your hostname.
-  networking.nameservers = [ "8.8.8.8" "8.8.4.4" ];
+  networking.nameservers = [ "8.8.8.8" "8.8.4.4" "2001:4860:4860::8888" ];
+
+  # IPv6 configuration for Contabo VPS
+  networking.interfaces.ens18.ipv6.addresses = [{
+    address = "2a02:c207:2167:642::1";
+    prefixLength = 64;
+  }];
+  networking.defaultGateway6 = {
+    address = "fe80::1";
+    interface = "ens18";
+  };
   environment.etc = {
     "resolv.conf".text = "nameserver 8.8.8.8\nnameserver 8.8.4.4";
   };
@@ -67,7 +77,7 @@
         };
       };
       main = {
-        inet_protocols = "ipv4";
+        inet_protocols = "all";
       };
     };
   };
