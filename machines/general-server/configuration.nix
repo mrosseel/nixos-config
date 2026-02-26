@@ -21,10 +21,10 @@
   networking.hostName = "general-server"; # Define your hostname.
   networking.nameservers = [ "8.8.8.8" "8.8.4.4" "2001:4860:4860::8888" ];
 
-  # IPv6 configuration for Contabo VPS
+  # IPv6 configuration for Contabo VPS (Contabo uses /112 prefix)
   networking.interfaces.ens18.ipv6.addresses = [{
     address = "2a02:c207:2167:642::1";
-    prefixLength = 64;
+    prefixLength = 112;
   }];
   networking.defaultGateway6 = {
     address = "fe80::1";
