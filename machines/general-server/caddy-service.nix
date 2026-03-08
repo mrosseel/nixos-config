@@ -44,6 +44,47 @@
     };
     virtualHosts."mail.pifinder.eu".extraConfig = ''
     '';
+    virtualHosts."catalogs.pifinder.eu" = {
+      extraConfig = ''
+        encode gzip
+
+        handle /api/* {
+          reverse_proxy localhost:8100
+        }
+
+        handle /catalog_images/* {
+          root * /var/www/pifinder-catalogs
+          file_server
+
+          @hotlink not header Referer *catalogs.pifinder.eu*
+          respond @hotlink 403
+
+          header Cache-Control "public, max-age=86400"
+        }
+
+        handle {
+          root * /var/www/pifinder-catalogs
+          @file file
+          handle @file {
+            file_server
+          }
+          handle {
+            reverse_proxy localhost:8100
+          }
+        }
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-XSS-Protection "1; mode=block"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=15, must-revalidate"
+          -Server
+        }
+      '';
+    };
     virtualHosts."blog.miker.be" = {
       extraConfig = ''
         encode gzip
