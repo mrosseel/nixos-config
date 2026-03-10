@@ -5,7 +5,7 @@
 {
   environment.systemPackages = with pkgs; [
     ferdium
-    # webcord # discord alternative - temporarily disabled due to build failure
+    vesktop
     (let
       epipeFixScript = pkgs.writeText "obsidian-epipe-fix.js" ''
         process.on('uncaughtException', (err) => {

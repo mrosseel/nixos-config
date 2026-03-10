@@ -153,9 +153,9 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = {};
+            extraSpecialArgs = { hostname = "nix270"; };
             users.${user} = {
-              imports = [ 
+              imports = [
                 ./modules/home-manager
               ];
               home.stateVersion = "23.11";
@@ -205,9 +205,9 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = {};
+            extraSpecialArgs = { hostname = "nixair"; };
             users.${user} = {
-              imports = [ 
+              imports = [
                 ./modules/home-manager
                 omarchy-nix.homeManagerModules.default
               ];
@@ -241,7 +241,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            extraSpecialArgs = {};
+            extraSpecialArgs = { hostname = "general-server"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
               programs.tmux = {
@@ -310,6 +310,10 @@
                 enable = true;
                 shortcut = "a";
               };
+
+              # Override keyboard layout to Dvorak (omarchy-nix defaults to us)
+              wayland.windowManager.hyprland.settings.input.kb_layout = "us";
+              wayland.windowManager.hyprland.settings.input.kb_variant = "dvorak";
 
               # Hyprwhspr speech-to-text keybinding
               wayland.windowManager.hyprland.extraConfig = ''
