@@ -3,6 +3,7 @@
 let
   isDarwin = pkgs.stdenv.isDarwin;
   isNixOS = pkgs.stdenv.isLinux && builtins.pathExists "/etc/nixos";
+  isHyprland = builtins.elem hostname [ "nixtop" ];
   rsyncAliases = {
     "airelon" = {
       "2nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.nox' --exclude='.venv' ~/dev/ mike@nixtop:~/dev/ 2>/dev/null";
@@ -15,6 +16,14 @@ let
   nushellRsyncConfig = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (name: cmd: "alias ${name} = ${cmd}") nushellRsyncAliases
   );
+  hyprSessionAliases = lib.optionalAttrs isHyprland {
+    hsave = "~/.local/bin/hypr-save-session";
+    hrestore = "~/.local/bin/hypr-restore-session";
+    hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
+    hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
+    hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+    hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+  };
 in {
   # Don't change this when you change package input. Leave it alone.
   home.stateVersion = "23.11";
@@ -113,13 +122,7 @@ in {
     enable = true;
     shellAliases = {
       cd = "z";
-      # Hyprland session management
-      hsave = "~/.local/bin/hypr-save-session";
-      hrestore = "~/.local/bin/hypr-restore-session";
-      hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
-      hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
-      hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
-      hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
+    } // hyprSessionAliases;
     };
   };
   programs.zsh = {
@@ -140,14 +143,7 @@ in {
       # pbcopy="xclip -selection clipboard";
       # pbpaste="xclip -selection clipboard -o";
       neofetch="fastfetch";
-      # Hyprland session management
-      hsave = "~/.local/bin/hypr-save-session";
-      hrestore = "~/.local/bin/hypr-restore-session";
-      hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
-      hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
-      hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
-      hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
-    } // (rsyncAliases.${hostname} or {});
+    } // hyprSessionAliases // (rsyncAliases.${hostname} or {});
     initContent = ''
       #make sure brew is on the path for M1
       if [[ $(uname -m) == 'arm64' ]]; then
@@ -200,13 +196,7 @@ in {
       neofetch = "fastfetch";
       nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
       nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
-      hsave = "~/.local/bin/hypr-save-session";
-      hrestore = "~/.local/bin/hypr-restore-session";
-      hsave-work = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/work-session.json";
-      hrestore-work = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/work-session.json";
-      hsave-personal = "~/.local/bin/hypr-save-session -f ~/.local/share/hyprland-sessions/personal-session.json";
-      hrestore-personal = "~/.local/bin/hypr-restore-session -f ~/.local/share/hyprland-sessions/personal-session.json";
-    };
+    } // hyprSessionAliases;
     extraConfig = lib.mkAfter ''
       # zoxide with --cmd cd: replaces builtin cd with zoxide-powered cd
       source ${pkgs.runCommand "zoxide-nushell-cmd-cd" {} ''
@@ -310,4 +300,12 @@ in {
   };
 
   home.file.".inputrc".source = ./dotfiles/inputrc;
+  home.file.".local/bin/hypr-save-session" = lib.mkIf isHyprland {
+    source = ./scripts/hypr-save-session.sh;
+    executable = true;
+  };
+  home.file.".local/bin/hypr-restore-session" = lib.mkIf isHyprland {
+    source = ./scripts/hypr-restore-session.sh;
+    executable = true;
+  };
 }
