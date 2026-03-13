@@ -13,11 +13,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
-    omarchy-nix-dev = {
-      url = "path:/home/mike/dev/omacom/omarchy-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
-    };
     nixos-mailserver = {
       url = "gitlab:simple-nixos-mailserver/nixos-mailserver/master";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -43,7 +38,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, omarchy-nix-dev, disko, nixos-hardware, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, disko, nixos-hardware, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -280,7 +275,7 @@
         ./modules/dropbox.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }
-        omarchy-nix-dev.nixosModules.default
+        omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
           # Configure omarchy
@@ -306,7 +301,7 @@
             users.${user} = {
               imports = [
                 ./modules/home-manager
-                omarchy-nix-dev.homeManagerModules.default
+                omarchy-nix.homeManagerModules.default
               ];
               home.stateVersion = "23.11";
               programs.tmux = {
