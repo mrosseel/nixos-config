@@ -10,6 +10,7 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
       url = "github:mrosseel/omarchy-nix";
+      # url = "path:/home/mike/dev/omacom/omarchy-nix";  # uncomment for local dev on nixtop
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
