@@ -9,7 +9,7 @@
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
-      url = "github:mrosseel/omarchy-nix";
+      url = "path:/home/mike/dev/omacom/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
