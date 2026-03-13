@@ -7,8 +7,12 @@
   # };
  services.caddy = {
     enable = true;
+    virtualHosts."www.pifinder.eu" = {
+      extraConfig = ''
+        redir https://pifinder.eu{uri} permanent
+      '';
+    };
     virtualHosts."pifinder.eu" = {
-      serverAliases = [ "www.pifinder.eu" ];
       extraConfig = ''
         encode gzip
         reverse_proxy localhost:5002
