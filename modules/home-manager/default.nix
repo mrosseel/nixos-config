@@ -16,6 +16,8 @@ let
   nushellRsyncConfig = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (name: cmd: "alias ${name} = ${cmd}") nushellRsyncAliases
   );
+  isNixtop = hostname == "nixtop";
+  omarchyOverride = lib.optionalString isNixtop " --override-input omarchy-nix path:/home/mike/dev/omacom/omarchy-nix";
   hyprSessionAliases = lib.optionalAttrs isHyprland {
     hsave = "~/.local/bin/hypr-save-session";
     hrestore = "~/.local/bin/hypr-restore-session";
@@ -123,7 +125,6 @@ in {
     shellAliases = {
       cd = "z";
     } // hyprSessionAliases;
-    };
   };
   programs.zsh = {
     enable = true;
@@ -134,9 +135,9 @@ in {
       ls = "eza -a --icons=auto";
       ll = "eza -1 -l -a --icons=auto --group-directories-first ";
       nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
-      nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
+      nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#${omarchyOverride}";
       nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
-      nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
+      nixup = "pushd ~/nixos-config; nix flake update${omarchyOverride}; nixsw; popd";
       cd = "z";
       clc = "NODE_OPTIONS=--max-old-space-size=8192 SHELL=/bin/bash claude";
       clcd = "NODE_OPTIONS=--max-old-space-size=8192 SHELL=/bin/bash claude --dangerously-skip-permissions";
@@ -194,7 +195,7 @@ in {
       ls = "eza -a --icons=auto";
       ll = "eza -1 -l -a --icons=auto --group-directories-first";
       neofetch = "fastfetch";
-      nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#";
+      nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#${omarchyOverride}";
       nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
     } // hyprSessionAliases;
     extraConfig = lib.mkAfter ''
@@ -206,8 +207,8 @@ in {
       # Functions that need def instead of alias
       def nixup [] {
         cd ~/nixos-config
-        nix flake update
-        sudo nixos-rebuild switch --flake ~/nixos-config/.#
+        nix flake update${omarchyOverride}
+        sudo nixos-rebuild switch --flake ~/nixos-config/.#${omarchyOverride}
       }
 
       def nixupmac [] {
