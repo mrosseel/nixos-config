@@ -9,9 +9,7 @@
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
-      # url = "github:henrysipp/omarchy-nix";
-      # url = "github:mrosseel/omarchy-nix";
-      url = "path:/home/mike/dev/omacom/omarchy-nix";
+      url = "github:mrosseel/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -321,6 +319,10 @@
 
                 # Override voxtype stop to reset Elgato mic profile after (ready for next recording)
                 binddr = SUPER CTRL, X, Stop dictation, exec, bash -c 'voxtype record stop; for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk "{print \$2}"); do pactl set-card-profile "$card" off 2>/dev/null; sleep 0.1; pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null; done'
+
+                # Screenshots: save to file + copy to clipboard
+                bindd = , Print, Screenshot region, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim -g "$(slurp)" - | tee "$FILE" | wl-copy -t image/png'
+                bindd = SUPER, Print, Screenshot full screen, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim - | tee "$FILE" | wl-copy -t image/png'
               '';
 
               # Thunderbird email client
