@@ -146,6 +146,29 @@
         }
       '';
     };
+    virtualHosts."messier.miker.be" = {
+      extraConfig = ''
+        encode gzip
+
+        handle /api/* {
+          reverse_proxy localhost:8001
+        }
+
+        handle {
+          root * /home/mike/messier-marathon/frontend/dist
+          file_server
+          try_files {path} /index.html
+        }
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
     virtualHosts."shop.starnights.be" = {
       extraConfig = ''
         encode gzip
