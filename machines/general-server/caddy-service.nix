@@ -155,7 +155,7 @@
         }
 
         handle {
-          root * /home/mike/messier-marathon/frontend/dist
+          root * /var/www/messier
           file_server
           try_files {path} /index.html
         }

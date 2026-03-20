@@ -20,6 +20,7 @@ in
 {
   systemd.tmpfiles.rules = [
     "d /var/www/pifinder-catalogs 0755 mike mike -"
+    "d /var/www/messier 0755 mike mike -"
   ];
 
   systemd.services.pifinder-web-catalogs = {
