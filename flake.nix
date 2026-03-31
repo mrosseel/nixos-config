@@ -9,8 +9,8 @@
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
-      url = "github:mrosseel/omarchy-nix";
-      # url = "path:/home/mike/dev/omacom/omarchy-nix";  # uncomment for local dev on nixtop
+      # url = "github:mrosseel/omarchy-nix";
+      url = "path:/home/mike/dev/omacom/omarchy-nix";  # local dev on nixtop
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -30,6 +30,8 @@
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
 
+    nixpkgs-master.url = "github:NixOS/nixpkgs/master";
+
     copyparty.url = "github:9001/copyparty";
 
     # sketchybar config
@@ -39,7 +41,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, disko, nixos-hardware, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixpkgs-master, nixos-mailserver, omarchy-nix, disko, nixos-hardware, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -54,6 +56,9 @@
       };
     };
     overlays = with inputs; [
+      (final: prev: {
+        freecad-wayland = (import nixpkgs-master { system = prev.system; config = prev.config; }).freecad-wayland;
+      })
     ];
     user = "mike";
     configuration = { pkgs, ... }: {
@@ -137,6 +142,7 @@
         {
           nixpkgs.config = nixpkgsConfig;
         }
+        ./modules/nix-github-token.nix
         ./machines/nix270/configuration.nix
         ./machines/nix270/hardware-configuration.nix
 	./modules/default-browser.nix
@@ -174,6 +180,7 @@
 	{
 	  nixpkgs.config = nixpkgsConfig;
 	}
+        ./modules/nix-github-token.nix
         ./machines/nixair/configuration.nix
         ./machines/nixair/hardware-configuration.nix
 	./modules/default-browser.nix
@@ -224,6 +231,7 @@
       specialArgs = { inherit inputs; };
       modules = [
         nixos-mailserver.nixosModules.mailserver
+        ./modules/nix-github-token.nix
         ./machines/general-server/configuration.nix
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
@@ -257,7 +265,9 @@
       modules = [
         {
           nixpkgs.config = nixpkgsConfig;
+          nixpkgs.overlays = overlays;
         }
+        ./modules/nix-github-token.nix
         ./machines/nixtop/configuration.nix
         ./machines/nixtop/config.nix
         disko.nixosModules.disko
@@ -407,6 +417,7 @@
     nixosConfigurations."proxnix" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; copyparty = inputs.copyparty; };
       modules = [
+        ./modules/nix-github-token.nix
         ./machines/proxnix/configuration.nix
         ./machines/proxnix/config.nix
         ./machines/proxnix/copyparty.nix
