@@ -86,10 +86,9 @@ in {
       vim_keys = lib.mkDefault true;
     };
   };
-  xdg.configFile.nvim = {
-    source = ../../config/nvim;
-    recursive = true;
-  };
+  # nvim config is managed directly as a git-tracked directory
+  # (not via home-manager, which makes files read-only nix-store symlinks)
+  # Symlink is created manually: ~/.config/nvim -> ~/nixos-config/config/nvim
   programs.bat.enable = true;
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
