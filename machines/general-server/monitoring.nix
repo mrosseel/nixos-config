@@ -91,6 +91,10 @@ in
         replication_factor = 1;
       };
 
+      # Server uses ens18, not eth0/en0
+      common.instance_interface_names = [ "ens18" "lo" ];
+      memberlist.bind_addr = [ "127.0.0.1" ];
+
       schema_config.configs = [{
         from = "2024-01-01";
         store = "tsdb";
@@ -149,8 +153,6 @@ in
               method = "request.method";
               uri = "request.uri";
               remote_ip = "request.remote_ip";
-              user_agent = "request.headers.User-Agent[0]";
-              referer = "request.headers.Referer[0]";
               duration = "duration";
             }; }
             { labels = {
@@ -227,8 +229,41 @@ in
     };
   };
 
-  # Ensure Caddy log directory exists
+  # Promtail needs access to journal and Caddy logs under strict sandboxing
+  systemd.services.promtail.serviceConfig = {
+    ReadOnlyPaths = [ "/var/log/caddy" "/run/log/journal" "/var/log/journal" ];
+  };
+
+  # Ensure required directories exist
   systemd.tmpfiles.rules = [
     "d /var/log/caddy 0755 caddy caddy -"
+    "d /var/lib/promtail 0750 promtail promtail -"
+    "d /etc/secrets 0750 root grafana -"
   ];
+
+  # Create placeholder secret files if they don't exist yet
+  systemd.services.init-monitoring-secrets = {
+    description = "Initialize monitoring secret files with placeholders";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "grafana.service" "ha-metrics-push.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      for f in grafana-admin-password grafana-secret-key ha-token; do
+        if [ ! -f "/etc/secrets/$f" ]; then
+          echo -n "CHANGE_ME" > "/etc/secrets/$f"
+        fi
+      done
+      # Generate a real secret key if it's still the placeholder
+      if [ "$(cat /etc/secrets/grafana-secret-key)" = "CHANGE_ME" ]; then
+        ${pkgs.openssl}/bin/openssl rand -hex 32 > /etc/secrets/grafana-secret-key
+      fi
+      # Grafana needs to read its secrets
+      chown root:grafana /etc/secrets/grafana-admin-password /etc/secrets/grafana-secret-key
+      chmod 640 /etc/secrets/grafana-admin-password /etc/secrets/grafana-secret-key
+      chmod 600 /etc/secrets/ha-token
+    '';
+  };
 }
