@@ -1,12 +1,20 @@
 { pkgs, ... }:
 
 {
-  # environment.etc."caddy/pifinder-eu" = {
-  #   source = /home/mike/pifinder-eu;
-  #   mode = "0777";  # Adjust the mode according to your security requirements
-  # };
  services.caddy = {
     enable = true;
+    globalConfig = ''
+      servers {
+        metrics
+      }
+    '';
+    logFormat = ''
+      output file /var/log/caddy/access.log {
+        roll_size 100MiB
+        roll_keep 5
+      }
+      format json
+    '';
     virtualHosts."www.pifinder.eu" = {
       extraConfig = ''
         redir https://pifinder.eu{uri} permanent

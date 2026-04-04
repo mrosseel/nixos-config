@@ -237,6 +237,7 @@
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
         ./machines/general-server/systemd.nix
+        ./machines/general-server/monitoring.nix
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix

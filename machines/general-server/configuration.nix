@@ -90,18 +90,20 @@
   users.groups.mike = {};
   users.users.mike = {
         home = "/home/mike";
-        isNormalUser = true;  # Set to true for a regular user
+        isNormalUser = true;
         group = "mike";
-        extraGroups = [ "wheel" ];  # Add the user to additional groups if needed, like 'wheel' for sudo access
-        shell = pkgs.zsh;  # Set zsh as the default shell
+        extraGroups = [ "wheel" ];
+        shell = pkgs.zsh;
         ignoreShellProgramCheck = true;
   };
   security.sudo.extraRules = [{
     users = [ "mike" ];
     commands = [
-      { command = "/run/current-system/sw/bin/nix-store *"; options = [ "NOPASSWD" ]; }
+      { command = "/run/current-system/sw/bin/nix-store *"; options = [ "NOPASSWD" "SETENV" ]; }
+      { command = "/nix/store/*/bin/nix-store *"; options = [ "NOPASSWD" "SETENV" ]; }
       { command = "/run/current-system/sw/bin/nix-env *"; options = [ "NOPASSWD" ]; }
       { command = "/nix/store/*/bin/switch-to-configuration *"; options = [ "NOPASSWD" ]; }
+      { command = "/run/current-system/sw/bin/systemctl *"; options = [ "NOPASSWD" ]; }
     ];
   }];
 
