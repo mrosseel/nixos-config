@@ -2,6 +2,14 @@
 { config, pkgs, ... }:
 
 {
+  # /bin/chmod symlink needed by VelociDrone patcher
+  # Override x11.conf D! rule that deletes X11 sockets after 10d,
+  # which breaks Steam/bubblewrap when XWayland socket gets cleaned
+  systemd.tmpfiles.rules = [
+    "L+ /bin/chmod - - - - ${pkgs.coreutils}/bin/chmod"
+    "d /tmp/.X11-unix 1777 root root -"
+  ];
+
   # Time zone and locale
   time.timeZone = "Europe/Brussels";
   i18n.defaultLocale = "en_GB.UTF-8";
@@ -169,6 +177,18 @@
     };
   };
 
+  # WayVNC remote desktop server
+  systemd.user.services.wayvnc = {
+    description = "WayVNC Server";
+    after = [ "graphical-session.target" ];
+    wantedBy = [ "graphical-session.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.wayvnc}/bin/wayvnc 0.0.0.0 5900";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+  };
+
   # Restart services after resume from suspend
   powerManagement.resumeCommands = ''
     # Wait for USB devices to settle
@@ -206,13 +226,44 @@
     ${pkgs.systemd}/bin/systemctl --user -M mike@ start elgato-audio-restart || true
   '';
 
+  # Extra nix-ld libraries for Python venvs (Qt, numpy, etc.) and Tauri apps (OpenCode)
+  programs.nix-ld.libraries = with pkgs; [
+    zlib
+    glib
+    libGL
+    fontconfig
+    freetype
+    libx11
+    libxext
+    libxrender
+    libxcb
+    libxi
+    dbus
+    libxkbcommon
+    wayland
+    gtk2
+    gtk3
+    gdk-pixbuf
+    cairo
+    libsoup_3
+    webkitgtk_4_1
+    gsettings-desktop-schemas
+    pango
+  ];
+
   # System packages
   programs.mosh.enable = true;
 
+  # GSettings schemas for GTK apps (OpenCode desktop, etc.)
+  environment.sessionVariables.XDG_DATA_DIRS = ["${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}" "${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}"];
+  environment.sessionVariables.NIXOS_OZONE_WL = "1";
+
   environment.systemPackages = with pkgs; [
+    gsettings-desktop-schemas
     cifs-utils
     azure-cli
     mullvad-browser
+    xrandr
 
     lm_sensors
     darktable
@@ -223,6 +274,8 @@
     slurp
     ventoy
     popsicle
+    gscan2pdf
+    wayvnc
     pulseaudio   # for pactl (hyprwhspr needs this)
     wtype        # for text input with Dvorak support (hyprwhspr needs this)
     wl-clipboard # for wl-copy/wl-paste (hyprwhspr needs this)
@@ -233,6 +286,8 @@
     rocmPackages.rocminfo
     rocmPackages.rocm-smi
     rocmPackages.clr  # HIP runtime
+
+    freecad-wayland
   ];
 
   # Mullvad VPN (requires systemd-resolved)
@@ -325,8 +380,9 @@
           pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null
         done
         sleep 0.5
-        # Set mic volume
+        # Set mic volume and unmute (USB reset causes hardware mute)
         amixer -c Wave3 sset Mic 80% 2>/dev/null
+        pactl set-source-mute alsa_input.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00.mono-fallback 0 2>/dev/null
         # Set as default source
         pactl set-default-source alsa_input.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00.mono-fallback 2>/dev/null
       '';
@@ -363,7 +419,23 @@
 
   # Tailscale VPN
   services.tailscale.enable = true;
+  services.tailscale.extraUpFlags = [ "--accept-routes" ];
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
+
+  # Prevent Tailscale from hijacking LAN traffic when on the same subnet
+  # OPNsense advertises 192.168.5.0/24 for remote access, but when home
+  # we need to use the local interface directly
+  systemd.services.tailscale-lan-fix = {
+    description = "Ensure LAN traffic bypasses Tailscale subnet routes";
+    after = [ "tailscaled.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.bash}/bin/bash -c '${pkgs.iproute2}/bin/ip rule del to 192.168.5.0/24 lookup main priority 100 2>/dev/null; ${pkgs.iproute2}/bin/ip rule add to 192.168.5.0/24 lookup main priority 100'";
+      ExecStop = "${pkgs.iproute2}/bin/ip rule del to 192.168.5.0/24 lookup main priority 100";
+    };
+  };
 
   # Firewall
   networking.firewall.allowedTCPPorts = [
