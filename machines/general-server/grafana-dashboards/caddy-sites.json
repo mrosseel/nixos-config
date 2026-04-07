@@ -1,0 +1,168 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Requests per Host",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\"} [$__auto]))",
+        "legendFormat": "{{request_host}}"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } },
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate (4xx/5xx)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\", status=~\"4..\"} [$__auto]))",
+          "legendFormat": "{{request_host}} 4xx"
+        },
+        {
+          "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\", status=~\"5..\"} [$__auto]))",
+          "legendFormat": "{{request_host}} 5xx"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 20 },
+          "unit": "reqps",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Total Requests by Host",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "sum by (request_host) (count_over_time({job=\"caddy\", request_host=~\"$host\"} [$__range]))",
+        "legendFormat": "{{request_host}}"
+      }],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "bargauge",
+      "title": "Status Code Distribution",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "sum by (status) (count_over_time({job=\"caddy\", request_host=~\"$host\"} [$__range]))",
+        "legendFormat": "{{status}}"
+      }],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "table",
+      "title": "Top Pages",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "topk(20, sum by (uri) (count_over_time({job=\"caddy\", request_host=~\"$host\"} | json | method=\"GET\" | uri!~\".*\\\\.(css|js|png|jpg|jpeg|gif|webp|avif|woff2|ico|svg|map)$\" [$__range])))",
+        "legendFormat": "{{uri}}"
+      }],
+      "transformations": [
+        { "id": "sortBy", "options": { "sort": [{ "field": "Value", "desc": true }] } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests per Method",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "sum by (method) (rate({job=\"caddy\", request_host=~\"$host\"} [$__auto]))",
+        "legendFormat": "{{method}}"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 20 },
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top IPs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "topk(20, sum by (remote_ip) (count_over_time({job=\"caddy\", request_host=~\"$host\"} | json [$__range])))",
+        "legendFormat": "{{remote_ip}}"
+      }],
+      "transformations": [
+        { "id": "sortBy", "options": { "sort": [{ "field": "Value", "desc": true }] } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Unique IPs",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "count(sum by (remote_ip) (count_over_time({job=\"caddy\", request_host=~\"$host\"} | json [$__range])))"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Total Requests",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 24 },
+      "datasource": "Loki",
+      "targets": [{
+        "expr": "sum(count_over_time({job=\"caddy\", request_host=~\"$host\"} [$__range]))"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": ["caddy", "loki"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": "Loki",
+        "definition": "label_values({job=\"caddy\"}, request_host)",
+        "includeAll": true,
+        "multi": true,
+        "name": "host",
+        "query": { "label": "request_host", "stream": "{job=\"caddy\"}", "type": 1 },
+        "type": "query",
+        "allValue": ".+"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "title": "Caddy Sites Overview",
+  "uid": "caddy-sites-overview"
+}

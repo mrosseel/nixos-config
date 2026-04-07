@@ -111,6 +111,8 @@ in
       limits_config = {
         retention_period = "30d";
         allow_structured_metadata = false;
+        ingestion_rate_mb = 32;
+        ingestion_burst_size_mb = 64;
       };
 
       compactor = {
@@ -143,7 +145,7 @@ in
             targets = [ "localhost" ];
             labels = {
               job = "caddy";
-              __path__ = "/var/log/caddy/access.log";
+              __path__ = "/var/log/caddy/access*.log";
             };
           }];
           pipeline_stages = [
@@ -195,6 +197,10 @@ in
     };
 
     provision = {
+      dashboards.settings.providers = [{
+        name = "default";
+        options.path = ./grafana-dashboards;
+      }];
       datasources.settings.datasources = [
         {
           name = "Prometheus";
@@ -229,14 +235,36 @@ in
     };
   };
 
+  # One-time Grafana DB reset to fix datasource provisioning
+  # Remove this block after first successful deploy
+  systemd.services.grafana-db-reset = {
+    description = "One-time Grafana DB reset";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "grafana.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      if [ -f /var/lib/grafana/.db-reset-done ]; then
+        exit 0
+      fi
+      rm -f /var/lib/grafana/grafana.db
+      touch /var/lib/grafana/.db-reset-done
+      chown grafana:grafana /var/lib/grafana/.db-reset-done
+    '';
+  };
+
   # Promtail needs access to journal and Caddy logs under strict sandboxing
   systemd.services.promtail.serviceConfig = {
     ReadOnlyPaths = [ "/var/log/caddy" "/run/log/journal" "/var/log/journal" ];
+    SupplementaryGroups = [ "caddy" ];
   };
 
   # Ensure required directories exist
   systemd.tmpfiles.rules = [
-    "d /var/log/caddy 0755 caddy caddy -"
+    "d /var/log/caddy 0750 caddy caddy -"
+    "z /var/log/caddy/access*.log 0640 caddy caddy -"
     "d /var/lib/promtail 0750 promtail promtail -"
     "d /etc/secrets 0750 root grafana -"
   ];
@@ -260,6 +288,9 @@ in
       if [ "$(cat /etc/secrets/grafana-secret-key)" = "CHANGE_ME" ]; then
         ${pkgs.openssl}/bin/openssl rand -hex 32 > /etc/secrets/grafana-secret-key
       fi
+      # Fix Caddy log permissions so Promtail can read them
+      chmod -R g+r /var/log/caddy/ 2>/dev/null || true
+
       # Grafana needs to read its secrets
       chown root:grafana /etc/secrets/grafana-admin-password /etc/secrets/grafana-secret-key
       chmod 640 /etc/secrets/grafana-admin-password /etc/secrets/grafana-secret-key

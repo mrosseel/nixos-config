@@ -12,6 +12,7 @@
       output file /var/log/caddy/access.log {
         roll_size 100MiB
         roll_keep 5
+        mode 0640
       }
       format json
     '';
