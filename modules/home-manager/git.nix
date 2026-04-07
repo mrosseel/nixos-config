@@ -16,6 +16,7 @@ in
   programs.git = {
     package = pkgs.git;
     enable = true;
+    signing.format = null;
     settings = {
       user = {
         name = userName;

@@ -319,7 +319,7 @@ def create_buttons() -> dict[int, Button]:
                        text="Sonos -", icon=str(ICONS_DIR / "vol_down.png"), bg_color="#1db954"),
         9: VolumeButton(9, "media_player.bureau", direction="up",
                        text="Sonos +", icon=str(ICONS_DIR / "vol_up.png"), bg_color="#1db954"),
-        10: CommandButton(10, 'grim -g "$(slurp)" /home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png',
+        10: CommandButton(10, 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim -g "$(slurp)" - | tee "$FILE" | wl-copy -t image/png',
                          text="Screenshot", icon=str(ICONS_DIR / "screenshot.png"), bg_color="#5e35b1"),
         11: CommandButton(11, "loginctl lock-session",
                          text="Lock", icon=str(ICONS_DIR / "lock.png"), bg_color="#00695c"),

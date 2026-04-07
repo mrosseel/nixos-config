@@ -43,6 +43,7 @@
     extraConfig = lib.mkAfter ''
       # Override omarchy C-Space prefix with C-a
       set -g prefix C-a
+      set -g prefix2 None
       unbind C-b
       unbind C-Space
       bind C-a send-prefix
@@ -55,11 +56,11 @@
       set-option -g set-titles on
       set-option -g set-titles-string "#S / #W"
 
-      # Vim-style pane nav (in addition to omarchy's C-M-Arrow)
-      bind-key h select-pane -L
-      bind-key j select-pane -D
-      bind-key k select-pane -U
-      bind-key l select-pane -R
+      # Vim-style pane nav (Alt+hjkl, prefix+l stays as last-window)
+      bind-key M-h select-pane -L
+      bind-key M-j select-pane -D
+      bind-key M-k select-pane -U
+      bind-key M-l select-pane -R
 
       # Split with | and - (in addition to omarchy's h/v)
       unbind %
