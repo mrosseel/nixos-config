@@ -32,6 +32,22 @@ let
         -H "Content-Type: application/json" \
         -d "{\"state\": \"$value\", \"attributes\": {\"unit_of_measurement\": \"$unit\", \"friendly_name\": \"General Server $friendly\", \"icon\": \"mdi:server\"}}" > /dev/null
     done
+
+    # Site uptime checks via blackbox exporter
+    BLACKBOX="http://127.0.0.1:9115/probe?module=http_2xx"
+    for site in "miker.be:miker_be:mdi:web" "astro.miker.be:astro_miker_be:mdi:telescope" "messier.miker.be:messier_miker_be:mdi:star-shooting" "blog.miker.be:blog_miker_be:mdi:post" "pifinder.eu:pifinder_eu:mdi:compass"; do
+      IFS=: read -r host entity_suffix icon <<< "$site"
+      probe_result=$(${pkgs.curl}/bin/curl -sf "$BLACKBOX&target=https://$host" | ${pkgs.gnugrep}/bin/grep '^probe_success ' | ${pkgs.gawk}/bin/awk '{print $2}')
+      if [ "$probe_result" = "1" ]; then
+        state="up"
+      else
+        state="down"
+      fi
+      ${pkgs.curl}/bin/curl -sf -X POST "$HA_URL/api/states/binary_sensor.site_''${entity_suffix}" \
+        -H "Authorization: Bearer $HA_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"state\": \"$([ \"$state\" = \"up\" ] && echo on || echo off)\", \"attributes\": {\"friendly_name\": \"$host\", \"device_class\": \"connectivity\", \"icon\": \"$icon\"}}" > /dev/null
+    done
   '';
 in
 {
@@ -53,6 +69,32 @@ in
       enabledCollectors = [ "systemd" "processes" ];
     };
 
+    exporters.blackbox = {
+      enable = true;
+      listenAddress = "127.0.0.1";
+      port = 9115;
+      configFile = pkgs.writeText "blackbox.yml" (builtins.toJSON {
+        modules.http_2xx = {
+          prober = "http";
+          timeout = "10s";
+          http = {
+            valid_http_versions = [ "HTTP/1.1" "HTTP/2.0" ];
+            valid_status_codes = [ 200 ];
+            follow_redirects = true;
+          };
+        };
+        modules.http_api = {
+          prober = "http";
+          timeout = "10s";
+          http = {
+            valid_http_versions = [ "HTTP/1.1" "HTTP/2.0" ];
+            valid_status_codes = [ 200 ];
+            fail_if_body_not_matches_regexp = [ ".*" ];
+          };
+        };
+      });
+    };
+
     scrapeConfigs = [
       {
         job_name = "node";
@@ -67,6 +109,36 @@ in
           targets = [ "127.0.0.1:2019" ];
         }];
         scrape_interval = "15s";
+      }
+      {
+        job_name = "blackbox-sites";
+        metrics_path = "/probe";
+        params.module = [ "http_2xx" ];
+        static_configs = [{
+          targets = [
+            "https://miker.be"
+            "https://astro.miker.be"
+            "https://astro.miker.be/api/tonight"
+            "https://messier.miker.be"
+            "https://blog.miker.be"
+            "https://pifinder.eu"
+          ];
+        }];
+        scrape_interval = "60s";
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            target_label = "__param_target";
+          }
+          {
+            source_labels = [ "__param_target" ];
+            target_label = "instance";
+          }
+          {
+            target_label = "__address__";
+            replacement = "127.0.0.1:9115";
+          }
+        ];
       }
     ];
   };
