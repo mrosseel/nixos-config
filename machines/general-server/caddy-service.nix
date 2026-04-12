@@ -98,6 +98,26 @@
         }
       '';
     };
+    virtualHosts."miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/miker.be
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+      '';
+    };
+    virtualHosts."www.miker.be" = {
+      extraConfig = ''
+        redir https://miker.be{uri} permanent
+      '';
+    };
     virtualHosts."blog.miker.be" = {
       extraConfig = ''
         encode gzip
@@ -146,6 +166,29 @@
       extraConfig = ''
         encode gzip
         reverse_proxy localhost:5003
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
+    virtualHosts."astro.miker.be" = {
+      extraConfig = ''
+        encode gzip
+
+        handle /api/* {
+          reverse_proxy localhost:8002
+        }
+
+        handle {
+          root * /var/www/astro.miker.be
+          file_server
+          try_files {path} /index.html
+        }
+
         header {
           Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
           X-Content-Type-Options "nosniff"

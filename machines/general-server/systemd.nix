@@ -16,11 +16,20 @@ let
     numpy
     cachetools
   ]);
+  astro-python = pkgs.python3.withPackages (ps: with ps; [
+    fastapi
+    uvicorn
+    ps.ephem
+    httpx
+    ps.python-dotenv
+  ]);
 in
 {
   systemd.tmpfiles.rules = [
     "d /var/www/pifinder-catalogs 0755 mike mike -"
     "d /var/www/messier 0755 mike mike -"
+    "d /var/www/miker.be 0755 mike mike -"
+    "d /var/www/astro.miker.be 0755 mike mike -"
   ];
 
   systemd.services.pifinder-web-catalogs = {
@@ -64,6 +73,24 @@ in
       Group = "mike";
       WorkingDirectory = "/home/mike/messier-marathon/backend";
       ExecStart = "${messier-python}/bin/uvicorn main:app --host 127.0.0.1 --port 8001";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+    environment = {
+      PYTHONUNBUFFERED = "1";
+    };
+  };
+
+  systemd.services.astro-miker = {
+    description = "Astro Miker Backend API";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      Type = "simple";
+      User = "mike";
+      Group = "mike";
+      WorkingDirectory = "/home/mike/astro.miker.be/backend";
+      ExecStart = "${astro-python}/bin/uvicorn main:app --host 127.0.0.1 --port 8002";
       Restart = "on-failure";
       RestartSec = 5;
     };
