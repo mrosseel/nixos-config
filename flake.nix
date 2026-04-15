@@ -423,6 +423,7 @@
         ./machines/proxnix/config.nix
         ./machines/proxnix/copyparty.nix
         ./machines/proxnix/couchdb.nix
+        ./machines/proxnix/minecraft.nix
         ./modules/openssh.nix
         ./modules/fail2ban.nix
         ./modules/linux/avahi.nix
