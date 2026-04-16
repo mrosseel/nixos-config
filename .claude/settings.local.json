@@ -14,7 +14,14 @@
       "Bash(nix flake show:*)",
       "Bash(nixup)",
       "Bash(git rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebFetch(domain:api.modrinth.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:download.geysermc.org)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:discourse.nixos.org)",
+      "WebFetch(domain:wiki.nixos.org)"
     ],
     "deny": []
   }

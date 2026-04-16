@@ -46,7 +46,7 @@
     enable = true;
     allowedTCPPorts = [ 22 80 ]; # SSH and CopyParty from anywhere
     extraCommands = ''
-      iptables -A nixos-fw -s 192.168.5.0/24 -p tcp -m multiport --dports 111,2049,3260,4000,4001,5984,20048 -j nixos-fw-accept
+      iptables -A nixos-fw -s 192.168.5.0/24 -p tcp -m multiport --dports 111,2049,3260,4000,4001,5984,8100,20048 -j nixos-fw-accept
       iptables -A nixos-fw -s 192.168.5.0/24 -p udp -m multiport --dports 69,111,4000,4001,20048 -j nixos-fw-accept
     '';
   };

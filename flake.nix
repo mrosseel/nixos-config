@@ -34,6 +34,8 @@
 
     copyparty.url = "github:9001/copyparty";
 
+    nix-minecraft.url = "github:Infinidoge/nix-minecraft";
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -424,6 +426,8 @@
         ./machines/proxnix/copyparty.nix
         ./machines/proxnix/couchdb.nix
         ./machines/proxnix/minecraft.nix
+        inputs.nix-minecraft.nixosModules.minecraft-servers
+        { nixpkgs.overlays = [ inputs.nix-minecraft.overlay ]; }
         ./modules/openssh.nix
         ./modules/fail2ban.nix
         ./modules/linux/avahi.nix

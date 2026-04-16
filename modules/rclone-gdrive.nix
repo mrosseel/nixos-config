@@ -23,6 +23,7 @@
 
     serviceConfig = {
       Type = "notify";
+      ExecStartPre = "-${pkgs.fuse}/bin/fusermount -u /home/mike/GoogleDrive";
       ExecStart = ''
         ${pkgs.rclone}/bin/rclone mount gdrive: /home/mike/GoogleDrive \
           --vfs-cache-mode full \
