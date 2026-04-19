@@ -15,7 +15,7 @@
       inputs.home-manager.follows = "home-manager";
     };
     nixos-mailserver = {
-      url = "gitlab:simple-nixos-mailserver/nixos-mailserver/master";
+      url = "gitlab:simple-nixos-mailserver/nixos-mailserver/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     disko = {
@@ -35,6 +35,8 @@
     copyparty.url = "github:9001/copyparty";
 
     nix-minecraft.url = "github:Infinidoge/nix-minecraft";
+
+    claude-code.url = "github:sadjow/claude-code-nix";
 
     # sketchybar config
     sketchybar = {
@@ -58,8 +60,9 @@
       };
     };
     overlays = with inputs; [
+      claude-code.overlays.default
       (final: prev: {
-        freecad-wayland = (import nixpkgs-master { system = prev.system; config = prev.config; }).freecad-wayland;
+        freecad-wayland = (import nixpkgs-master { system = prev.stdenv.hostPlatform.system; config = prev.config; }).freecad-wayland;
       })
     ];
     user = "mike";
@@ -181,6 +184,7 @@
       modules = [
 	{
 	  nixpkgs.config = nixpkgsConfig;
+	  nixpkgs.overlays = overlays;
 	}
         ./modules/nix-github-token.nix
         ./machines/nixair/configuration.nix
