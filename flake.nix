@@ -66,6 +66,10 @@
       })
     ];
     user = "mike";
+    # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
+    nixosBase = {
+      nix.settings.experimental-features = [ "nix-command" "flakes" ];
+    };
     configuration = { pkgs, ... }: {
       # List packages installed in system profile. To search by name, run:
       # $ nix-env -qaP | grep wget
@@ -118,10 +122,6 @@
             extraSpecialArgs = { inherit inputs; hostname = "airelon"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
-              programs.tmux = {
-                enable = true;
-                shortcut = "a";  # Set your custom shortcut here
-              };
             };
           };
         }
@@ -144,6 +144,7 @@
     nixosConfigurations."nix270" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+        nixosBase
         {
           nixpkgs.config = nixpkgsConfig;
         }
@@ -168,11 +169,6 @@
               imports = [
                 ./modules/home-manager
               ];
-              home.stateVersion = "23.11";
-              programs.tmux = {
-                enable = true;
-                shortcut = "a";  # Set your custom shortcut here
-              };
             };
           };
         }
@@ -182,6 +178,7 @@
     nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs nixpkgs-stable; };
       modules = [
+        nixosBase
 	{
 	  nixpkgs.config = nixpkgsConfig;
 	  nixpkgs.overlays = overlays;
@@ -202,6 +199,7 @@
         {
           # Configure omarchy
           omarchy = {
+            username = "mike";
             full_name = "Mike Rosseel";
             email_address = "mike.rosseel@gmail.com";
             theme = "tokyo-night";
@@ -212,7 +210,7 @@
               username = "mike";
               };
           };
-          
+
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
@@ -223,11 +221,6 @@
                 ./modules/home-manager
                 omarchy-nix.homeManagerModules.default
               ];
-              home.stateVersion = "23.11";
-              programs.tmux = {
-                enable = true;
-                shortcut = "a";  # Set your custom shortcut here
-              };
             };
           };
         }
@@ -236,6 +229,7 @@
     nixosConfigurations."general-server" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+        nixosBase
         nixos-mailserver.nixosModules.mailserver
         ./modules/nix-github-token.nix
         ./machines/general-server/configuration.nix
@@ -258,10 +252,6 @@
             extraSpecialArgs = { hostname = "general-server"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
-              programs.tmux = {
-                enable = true;
-                shortcut = "b";  # Set your custom shortcut here
-              };
             };
           };
         }
@@ -270,6 +260,7 @@
     nixosConfigurations."nixtop" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };
       modules = [
+        nixosBase
         {
           nixpkgs.config = nixpkgsConfig;
           nixpkgs.overlays = overlays;
@@ -321,11 +312,6 @@
                 ./modules/home-manager
                 omarchy-nix.homeManagerModules.default
               ];
-              home.stateVersion = "23.11";
-              programs.tmux = {
-                enable = true;
-                shortcut = "a";
-              };
 
               # Override keyboard layout to Dvorak (omarchy-nix defaults to us)
               wayland.windowManager.hyprland.settings.input.kb_layout = "us";
@@ -424,6 +410,7 @@
     nixosConfigurations."proxnix" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; copyparty = inputs.copyparty; };
       modules = [
+        nixosBase
         ./modules/nix-github-token.nix
         ./machines/proxnix/configuration.nix
         ./machines/proxnix/config.nix
@@ -445,10 +432,6 @@
             extraSpecialArgs = { hostname = "proxnix"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
-              programs.tmux = {
-                enable = true;
-                shortcut = "b";
-              };
             };
           };
         }

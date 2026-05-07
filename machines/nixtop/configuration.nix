@@ -10,9 +10,6 @@
   # Set the system platform
   nixpkgs.hostPlatform = "x86_64-linux";
 
-  # Enable flakes
-  nix.settings.experimental-features = ["nix-command" "flakes"];
-
   # Bootloader - systemd-boot for UEFI
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;

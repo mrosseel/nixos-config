@@ -9,7 +9,6 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
     ];
-  nix.settings.experimental-features = ["nix-command" "flakes"];
   boot.kernelParams = [ "radeon.cik_support=0" "amdgpu.cik_support=1" ];
 
   # AMD GPU hardware acceleration (updated for NixOS 26.05)
