@@ -3,7 +3,8 @@
 
   inputs = {
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.11";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # Pinned 2026-04-24: nixpkgs-unstable 01fbdee breaks gscan2pdf tests.
+    nixpkgs.url = "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager/master";
@@ -32,11 +33,16 @@
 
     nixpkgs-master.url = "github:NixOS/nixpkgs/master";
 
+    # nixpkgs source for kernel + linux-firmware (kept separate from main nixpkgs
+    # so we can roll the kernel independently when chasing Strix Halo amdgpu fixes).
+    nixpkgs-kernel.url = "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30";
+
     copyparty.url = "github:9001/copyparty";
 
     nix-minecraft.url = "github:Infinidoge/nix-minecraft";
 
     claude-code.url = "github:sadjow/claude-code-nix";
+    codex-cli-nix.url = "github:sadjow/codex-cli-nix";
 
     # sketchybar config
     sketchybar = {
@@ -238,6 +244,8 @@
         ./machines/general-server/auto-update.nix
         ./machines/general-server/systemd.nix
         ./machines/general-server/monitoring.nix
+        ./machines/general-server/asterisms-votes.nix
+        ./machines/general-server/phpfpm-joeri.nix
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix
@@ -316,6 +324,9 @@
               # Override keyboard layout to Dvorak (omarchy-nix defaults to us)
               wayland.windowManager.hyprland.settings.input.kb_layout = "us";
               wayland.windowManager.hyprland.settings.input.kb_variant = "dvorak";
+
+              # Capture full Hyprland logs to diagnose AMDGPU/SMU-induced renderer aborts
+              wayland.windowManager.hyprland.settings.debug.disable_logs = false;
 
               # Hyprwhspr speech-to-text keybinding
               wayland.windowManager.hyprland.extraConfig = ''
@@ -417,6 +428,7 @@
         ./machines/proxnix/copyparty.nix
         ./machines/proxnix/couchdb.nix
         ./machines/proxnix/minecraft.nix
+        ./machines/proxnix/homepage.nix
         inputs.nix-minecraft.nixosModules.minecraft-servers
         { nixpkgs.overlays = [ inputs.nix-minecraft.overlay ]; }
         ./modules/openssh.nix

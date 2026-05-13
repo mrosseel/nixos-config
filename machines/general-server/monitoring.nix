@@ -35,7 +35,7 @@ let
 
     # Site uptime checks via blackbox exporter
     BLACKBOX="http://127.0.0.1:9115/probe?module=http_2xx"
-    for site in "miker.be:miker_be:mdi:web" "astro.miker.be:astro_miker_be:mdi:telescope" "messier.miker.be:messier_miker_be:mdi:star-shooting" "blog.miker.be:blog_miker_be:mdi:post" "pifinder.eu:pifinder_eu:mdi:compass"; do
+    for site in "miker.be:miker_be:mdi:web" "astro.miker.be:astro_miker_be:mdi:telescope" "sun.miker.be:sun_miker_be:mdi:weather-sunny" "messier.miker.be:messier_miker_be:mdi:star-shooting" "asterisms.miker.be:asterisms_miker_be:mdi:vector-triangle" "blog.miker.be:blog_miker_be:mdi:post" "pifinder.eu:pifinder_eu:mdi:compass"; do
       IFS=: read -r host entity_suffix icon <<< "$site"
       probe_result=$(${pkgs.curl}/bin/curl -sf "$BLACKBOX&target=https://$host" | ${pkgs.gnugrep}/bin/grep '^probe_success ' | ${pkgs.gawk}/bin/awk '{print $2}')
       if [ "$probe_result" = "1" ]; then
@@ -120,6 +120,7 @@ in
             "https://astro.miker.be"
             "https://astro.miker.be/api/tonight"
             "https://messier.miker.be"
+            "https://asterisms.miker.be"
             "https://blog.miker.be"
             "https://pifinder.eu"
           ];
@@ -195,62 +196,69 @@ in
     };
   };
 
-  # --- Promtail ---
-  services.promtail = {
+  # --- Grafana Alloy (replaces promtail, which was removed from nixpkgs) ---
+  services.alloy = {
     enable = true;
-    configuration = {
-      server = {
-        http_listen_port = 9080;
-        grpc_listen_port = 0;
-      };
-
-      positions.filename = "/var/lib/promtail/positions.yaml";
-
-      clients = [{
-        url = "http://127.0.0.1:3100/loki/api/v1/push";
-      }];
-
-      scrape_configs = [
-        {
-          job_name = "caddy-access-logs";
-          static_configs = [{
-            targets = [ "localhost" ];
-            labels = {
-              job = "caddy";
-              __path__ = "/var/log/caddy/access*.log";
-            };
-          }];
-          pipeline_stages = [
-            { json.expressions = {
-              request_host = "request.host";
-              status = "status";
-              method = "request.method";
-              uri = "request.uri";
-              remote_ip = "request.remote_ip";
-              duration = "duration";
-            }; }
-            { labels = {
-              request_host = null;
-              status = null;
-              method = null;
-            }; }
-          ];
+    configPath = pkgs.writeText "config.alloy" ''
+      loki.write "default" {
+        endpoint {
+          url = "http://127.0.0.1:3100/loki/api/v1/push"
         }
-        {
-          job_name = "journal";
-          journal = {
-            max_age = "12h";
-            labels = {
-              job = "systemd-journal";
-            };
-          };
-          relabel_configs = [{
-            source_labels = [ "__journal__systemd_unit" ];
-            target_label = "unit";
-          }];
+      }
+
+      local.file_match "caddy" {
+        path_targets = [
+          {
+            __path__ = "/var/log/caddy/access*.log",
+            job      = "caddy",
+          },
+        ]
+      }
+
+      loki.source.file "caddy" {
+        targets    = local.file_match.caddy.targets
+        forward_to = [loki.process.caddy.receiver]
+      }
+
+      loki.process "caddy" {
+        forward_to = [loki.write.default.receiver]
+
+        stage.json {
+          expressions = {
+            request_host = "request.host",
+            status       = "status",
+            method       = "request.method",
+            uri          = "request.uri",
+            remote_ip    = "request.remote_ip",
+            duration     = "duration",
+          }
         }
-      ];
-    };
+
+        stage.labels {
+          values = {
+            request_host = "",
+            status       = "",
+            method       = "",
+          }
+        }
+      }
+
+      loki.relabel "journal" {
+        forward_to = []
+
+        rule {
+          source_labels = ["__journal__systemd_unit"]
+          target_label  = "unit"
+        }
+      }
+
+      loki.source.journal "journal" {
+        max_age       = "12h"
+        labels        = { job = "systemd-journal" }
+        forward_to    = [loki.write.default.receiver]
+        relabel_rules = loki.relabel.journal.rules
+      }
+    '';
   };
 
   # --- Grafana ---
@@ -327,17 +335,16 @@ in
     '';
   };
 
-  # Promtail needs access to journal and Caddy logs under strict sandboxing
-  systemd.services.promtail.serviceConfig = {
+  # Alloy needs access to journal and Caddy logs under strict sandboxing
+  systemd.services.alloy.serviceConfig = {
     ReadOnlyPaths = [ "/var/log/caddy" "/run/log/journal" "/var/log/journal" ];
-    SupplementaryGroups = [ "caddy" ];
+    SupplementaryGroups = [ "caddy" "systemd-journal" ];
   };
 
   # Ensure required directories exist
   systemd.tmpfiles.rules = [
     "d /var/log/caddy 0750 caddy caddy -"
     "z /var/log/caddy/access*.log 0640 caddy caddy -"
-    "d /var/lib/promtail 0750 promtail promtail -"
     "d /etc/secrets 0750 root grafana -"
   ];
 

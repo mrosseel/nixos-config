@@ -113,6 +113,28 @@
         }
       '';
     };
+    virtualHosts."mars.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/mars.miker.be
+        file_server
+        # Tile pyramids, vendored Cesium, mission media: never change
+        # once published — cache forever.
+        @assets path /tiles/* /vendor/cesium/* /images/*
+        header @assets Cache-Control "public, max-age=31536000, immutable"
+        # JS / CSS / HTML / manifests: revalidate on every reload so code
+        # updates ship immediately without users having to clear cache.
+        @code path /index.html /*.html /js/* /css/* /locales/* /data/* /
+        header @code Cache-Control "no-cache, must-revalidate"
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
     virtualHosts."www.miker.be" = {
       extraConfig = ''
         redir https://miker.be{uri} permanent
@@ -131,8 +153,32 @@
           Cache-Control "public, max-age=3600, must-revalidate"
           -Server
         }
-        @static path *.css *.js *.png *.jpg *.jpeg *.gif *.webp *.avif *.woff2
-        header @static Cache-Control "public, max-age=31536000, immutable"
+        @static path_regexp \.(css|js|png|jpg|jpeg|gif|webp|avif|svg|woff2|pdf)$
+        header @static {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
+      '';
+    };
+    virtualHosts."joeri.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/joeri.miker.be
+        php_fastcgi unix//run/phpfpm/joeri.sock
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+        @static path_regexp \.(css|js|png|jpg|jpeg|gif|webp|avif|svg|woff2|pdf)$
+        header @static {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
       '';
     };
     virtualHosts."test.pifinder.eu" = {
@@ -180,11 +226,34 @@
         encode gzip
 
         handle /api/* {
-          reverse_proxy localhost:8002
+          reverse_proxy localhost:8003
         }
 
         handle {
           root * /var/www/astro.miker.be
+          file_server
+          try_files {path} /index.html
+        }
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
+    virtualHosts."sun.miker.be" = {
+      extraConfig = ''
+        encode gzip
+
+        handle /api/* {
+          reverse_proxy localhost:8004
+        }
+
+        handle {
+          root * /var/www/sun.miker.be
           file_server
           try_files {path} /index.html
         }
@@ -221,6 +290,51 @@
         }
       '';
     };
+    virtualHosts."asterisms.miker.be" = {
+      extraConfig = ''
+        encode gzip
+
+        handle /api/* {
+          reverse_proxy localhost:8002
+        }
+
+        handle {
+          root * /var/www/asterisms.miker.be
+          file_server
+          try_files {path} /index.html
+        }
+
+        # Vite-hashed bundles (immutable, content-addressed by filename).
+        @assets path /assets/*
+        header @assets {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
+
+        # Per-asterism images: id is content-derived, file body never changes once written.
+        @asterism_imgs path /img/*
+        header @asterism_imgs {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
+
+        # Catalog JSON + PiFinder lists: stable URLs but mutable content. Short cache.
+        @data path /data/* /pifinder/*
+        header @data {
+          Cache-Control "public, max-age=120, must-revalidate"
+          defer
+        }
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=300, must-revalidate"
+          -Server
+        }
+      '';
+    };
     virtualHosts."shop.starnights.be" = {
       extraConfig = ''
         encode gzip
@@ -239,4 +353,10 @@
     allowedTCPPorts = [ 80 443];
     allowedUDPPorts = [ 53 ];
   };
+
+  # Pre-create the mars.miker.be web root owned by mike so the kiosk asset
+  # rsync from the workstation doesn't need remote sudo.
+  systemd.tmpfiles.rules = [
+    "d /var/www/mars.miker.be 0755 mike users -"
+  ];
 }
