@@ -41,12 +41,56 @@
     settings.KbdInteractiveAuthentication = false;
     settings.X11Forwarding = false;
     settings.PermitRootLogin = "no";
+    # SFTP-only chroot for the warpspeed POS backup user. Daily .db
+    # snapshots land in /snapshots, litestream WAL frames land in
+    # /litestream. No shell, no port-forwarding, no TCP tunnels.
+    extraConfig = ''
+      Match User warpspeed-backup
+        ChrootDirectory /var/lib/warpspeed-backups
+        ForceCommand internal-sftp
+        AllowTcpForwarding no
+        X11Forwarding no
+        PermitTunnel no
+        AllowAgentForwarding no
+    '';
   };
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOvpuaWhiyWISrRYXtOpBLo6Fo/+NzZ0812RHlorSuNF mike.rosseel@gmail.com"
   ];
   users.users.mike.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOvpuaWhiyWISrRYXtOpBLo6Fo/+NzZ0812RHlorSuNF mike.rosseel@gmail.com"
+  ];
+
+  # ── warpspeed POS backup receiver ────────────────────────────────────
+  # The Astropolis contabo-vps runs litestream + a daily sqlite3 .backup
+  # timer that both push here over SFTP. No shell, no read access outside
+  # the chroot. Pubkey is the dedicated ed25519 key generated on the VPS
+  # (see ~/dev/astropolis/nixos-cfg/modules/warpspeed-backup.nix).
+  users.groups.warpspeed-backup = { };
+  users.users.warpspeed-backup = {
+    isSystemUser = true;
+    group = "warpspeed-backup";
+    # Home doubles as the SSH login dir. The chroot above pins us there.
+    home = "/var/lib/warpspeed-backups";
+    createHome = false;   # tmpfiles owns the dir tree (chroot needs root)
+    shell = "${pkgs.shadow}/bin/nologin";
+    openssh.authorizedKeys.keys = [
+      # PASTE PUBKEY HERE — generated on the VPS with:
+      #   sudo -u warpspeed ssh-keygen -t ed25519 -N "" \
+      #     -f /var/lib/warpspeed-backup-keys/id_ed25519 \
+      #     -C "warpspeed-backup@ap-contabo-vps"
+      # then cat /var/lib/warpspeed-backup-keys/id_ed25519.pub here.
+      # Until this line is filled in the user can't log in at all, which
+      # is fine — the chroot is harmless empty.
+    ];
+  };
+  systemd.tmpfiles.rules = [
+    # The chroot root MUST be root-owned and not group/world writable,
+    # otherwise sshd refuses to chroot into it (silent log entry, opaque
+    # client-side "Connection closed").
+    "d /var/lib/warpspeed-backups            0755 root             root             - -"
+    "d /var/lib/warpspeed-backups/snapshots  0750 warpspeed-backup warpspeed-backup - -"
+    "d /var/lib/warpspeed-backups/litestream 0750 warpspeed-backup warpspeed-backup - -"
   ];
 
   # Pick only one of the below networking options.
