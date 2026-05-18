@@ -14,6 +14,10 @@
       "127.0.0.0/8"
       "::1"
       "192.168.5.0/24"
+      # Astropolis warpspeed VPS — pushes daily snapshots + a litestream
+      # WAL stream over SFTP. Should never trip the SSH jail; whitelisted
+      # so a transient auth blip can't lock out the backup pipeline.
+      "45.92.10.215"
     ];
     jails = {
       sshd.settings = {
