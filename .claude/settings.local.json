@@ -21,7 +21,10 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:discourse.nixos.org)",
-      "WebFetch(domain:wiki.nixos.org)"
+      "WebFetch(domain:wiki.nixos.org)",
+      "Bash(nix shell *)",
+      "Bash(journalctl --boot=-1 -p err --no-pager -n 50)",
+      "Bash(journalctl --list-boots --no-pager)"
     ],
     "deny": []
   }

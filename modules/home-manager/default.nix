@@ -37,6 +37,7 @@ in {
     ./neovim.nix
     ./starship.nix
     ./streamdeck.nix
+    ./opencode.nix
 #    ./gc.nix
   ];
   # specify my home-manager configs
@@ -145,6 +146,14 @@ in {
       neofetch="fastfetch";
     } // hyprSessionAliases // (rsyncAliases.${hostname} or {});
     initContent = ''
+      # Silence zoxide's "init should be at the end" doctor warning.
+      # We can't actually move it past the home-manager-injected
+      # syntaxHighlighting source without disabling zoxide's
+      # enableZshIntegration and re-adding the eval line manually here,
+      # which is fragile across HM updates. The warning is benign — the
+      # syntax-highlighting plugin doesn't interfere with zoxide.
+      export _ZO_DOCTOR=0
+
       #make sure brew is on the path for M1
       if [[ $(uname -m) == 'arm64' ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"

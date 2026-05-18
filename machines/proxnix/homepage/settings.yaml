@@ -1,0 +1,25 @@
+title: Mike's Home
+headerStyle: clean
+theme: dark
+color: slate
+language: en
+
+layout:
+  Monitoring:
+    style: row
+    columns: 4
+  Infrastructure:
+    style: row
+    columns: 4
+  Home Automation:
+    style: row
+    columns: 3
+  Sites:
+    style: row
+    columns: 4
+  Services:
+    style: row
+    columns: 4
+
+statusStyle: dot
+hideVersion: true

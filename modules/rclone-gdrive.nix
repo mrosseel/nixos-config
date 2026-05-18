@@ -43,7 +43,7 @@
       RestartSec = "10s";
       User = "mike";
       Group = "users";
-      Environment = [ "PATH=${pkgs.fuse}/bin:/run/wrappers/bin" ];
+      Environment = [ "PATH=/run/wrappers/bin:${pkgs.fuse}/bin" ];
     };
   };
 }

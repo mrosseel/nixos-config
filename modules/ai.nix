@@ -207,8 +207,10 @@ in
 {
   environment.systemPackages = [
     pkgs.claude-code
+    inputs.codex-cli-nix.packages.${pkgs.system}.default
     # pkgs.gemini-cli  # Disabled due to CVE-2024-23342 in ecdsa dependency
     pkgs.ollama
+    pkgs.opencode
     # GPU VRAM management tools
     gpu-vram-set
     gpu-vram-info
@@ -231,4 +233,3 @@ in
   #   };
   # };
 }
-

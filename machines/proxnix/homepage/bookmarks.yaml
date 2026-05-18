@@ -1,0 +1,23 @@
+- Code:
+    - GitHub:
+        - abbr: GH
+          href: https://github.com/
+    - nixos-config:
+        - abbr: NX
+          href: https://github.com/MikeRo1234/nixos-config
+
+- Cloud:
+    - Tailscale Admin:
+        - abbr: TS
+          href: https://login.tailscale.com/admin/machines
+    - Cloudflare:
+        - abbr: CF
+          href: https://dash.cloudflare.com/
+
+- Docs:
+    - NixOS options:
+        - abbr: NX
+          href: https://search.nixos.org/options
+    - Home Manager options:
+        - abbr: HM
+          href: https://home-manager-options.extranix.com/

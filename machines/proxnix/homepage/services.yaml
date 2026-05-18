@@ -1,0 +1,107 @@
+- Monitoring:
+    - Grafana:
+        href: http://general-server.tail18779.ts.net:3000
+        description: Performance dashboard (Prometheus + Loki). Tailscale only.
+        icon: grafana.png
+        siteMonitor: http://general-server.tail18779.ts.net:3000
+    - Prometheus:
+        href: http://general-server.tail18779.ts.net:9090
+        description: Metrics store. Loopback on general-server, tunnel via SSH/Tailscale.
+        icon: prometheus.png
+    - Uptime Kuma:
+        href: https://ha.miker.be/hassio/ingress/a0d7b954_uptime-kuma
+        description: Site/service uptime probes (HAOS add-on)
+        icon: uptime-kuma.png
+    - Blackbox Exporter:
+        href: http://general-server.tail18779.ts.net:9115
+        description: HTTP probes feeding Prometheus
+        icon: prometheus.png
+
+- Infrastructure:
+    - proxnix (this host):
+        href: https://proxmox.local:8006
+        description: Proxmox VM host (192.168.5.12)
+        icon: proxmox.png
+        siteMonitor: http://192.168.5.12:3000
+    - nixtop:
+        href: ssh://nixtop.local
+        description: Framework Desktop, AMD Ryzen AI 395, 128GB
+        icon: nixos.png
+    - general-server:
+        href: ssh://general-server.tail18779.ts.net
+        description: VPS — Caddy, Grafana, Prometheus, mail
+        icon: nixos.png
+        siteMonitor: http://general-server.tail18779.ts.net:3000
+    - rigel (Unraid NAS):
+        href: http://rigel.local
+        description: Unraid NAS — array, Docker, VMs
+        icon: unraid.png
+        siteMonitor: http://rigel.local
+
+- Home Automation:
+    - Home Assistant:
+        href: https://ha.miker.be
+        description: HA core (HAOS VM 103 on Proxmox)
+        icon: home-assistant.png
+        siteMonitor: https://ha.miker.be
+    - ESPHome:
+        href: https://ha.miker.be/hassio/ingress/5c53de3b_esphome
+        description: ESP device management (HA add-on)
+        icon: esphome.png
+    - Frigate:
+        href: https://ha.miker.be/hassio/ingress/ccab4aaf_frigate
+        description: NVR / camera ML (if installed)
+        icon: frigate.png
+
+- Sites:
+    - miker.be:
+        href: https://miker.be
+        description: Personal homepage
+        icon: si-firefox
+        siteMonitor: https://miker.be
+    - blog.miker.be:
+        href: https://blog.miker.be
+        description: Blog
+        icon: si-rss
+        siteMonitor: https://blog.miker.be
+    - astro.miker.be:
+        href: https://astro.miker.be
+        description: Astropolis tonight
+        icon: si-stellarium
+        siteMonitor: https://astro.miker.be
+    - asterisms.miker.be:
+        href: https://asterisms.miker.be
+        description: Asterisms project
+        icon: si-stellarium
+        siteMonitor: https://asterisms.miker.be
+    - messier.miker.be:
+        href: https://messier.miker.be
+        description: Messier catalog
+        icon: si-stellarium
+        siteMonitor: https://messier.miker.be
+    - pifinder.eu:
+        href: https://pifinder.eu
+        description: PiFinder project
+        icon: si-raspberrypi
+        siteMonitor: https://pifinder.eu
+
+- Services:
+    - CopyParty:
+        href: http://proxnix.local
+        description: File share (proxnix:80)
+        icon: si-files
+        siteMonitor: http://proxnix.local
+    - CouchDB:
+        href: http://proxnix.local:5984/_utils/
+        description: Sync DB
+        icon: couchdb.png
+        siteMonitor: http://proxnix.local:5984
+    - Minecraft (BlueMap):
+        href: http://proxnix.local:8100
+        description: Paper server map
+        icon: minecraft.png
+        siteMonitor: http://proxnix.local:8100
+    - PiHole / DNS:
+        href: http://192.168.5.1
+        description: Router / local DNS
+        icon: si-pihole

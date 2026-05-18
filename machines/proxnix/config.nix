@@ -22,6 +22,11 @@
   # Docker
   virtualisation.docker.enable = true;
 
+  # Tailscale — outside access without opening router ports.
+  # First-time setup: `sudo tailscale up` interactively.
+  services.tailscale.enable = true;
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
+
   # TFTP server
   services.atftpd = {
     enable = true;

@@ -1,6 +1,6 @@
 # Hardware and boot configuration for nixtop
 # DO NOT MODIFY unless necessary - put configuration in config.nix instead
-{ config, pkgs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 {
   imports = [
@@ -14,8 +14,16 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Latest kernel for Framework Desktop
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  # Kernel + firmware sourced from nixpkgs-kernel input (nixpkgs-unstable 01fbdee, 2026-04).
+  # Currently tracking 7.0.1 — earlier 6.19.10 pin still hung amdgpu (sdma timeouts, MODE2
+  # resets), so trying the latest in case newer SMU/DCN3.5 paths are healthier.
+  boot.kernelPackages =
+    let kernelPkgs = import inputs.nixpkgs-kernel { system = "x86_64-linux"; config = config.nixpkgs.config; };
+    in kernelPkgs.linuxPackages_7_0;
+
+  hardware.firmware = let
+    kernelPkgs = import inputs.nixpkgs-kernel { system = "x86_64-linux"; config = config.nixpkgs.config; };
+  in [ kernelPkgs.linux-firmware ];
 
   # AMD Ryzen AI 395 iGPU - AI workload optimized via TTM
   # Based on: https://strixhalo.wiki/AI/AI_Capabilities_Overview#memory-limits
@@ -31,7 +39,28 @@
   # boot.kernelParams = [ "amd_iommu=off" ];
   # Optional: Increase VRAM allocation (if BIOS doesn't expose setting)
   # boot.kernelParams = [ "amdgpu.umafbsize=4096M" ];  # 4GB VRAM
-  boot.kernelParams = [];
+  boot.kernelParams = [
+    "printk.always_kmsg_dump=1"
+    # Workaround for Strix Halo SMU wedge on VPE power-gate (msg_reg: 32 timeout)
+    # causing GPU hangs / full freezes. Disables only the VPE_v6_1 IP block (bit 11
+    # in detection order — verify in dmesg after kernel bumps). Mask = 0xffffffff
+    # with bit 11 cleared. Revisit when vpe_v6_1 SMU path is fixed upstream.
+    "amdgpu.ip_block_mask=0xfffff7ff"
+  ];
+
+  # Plymouth (enabled by omarchy-nix) hijacks the LUKS password prompt in
+  # the systemd initrd and renders nothing on simpledrm before amdgpu loads,
+  # producing a black screen with no visible prompt.
+  boot.plymouth.enable = lib.mkForce false;
+
+  # Panic on lockups/oops so pstore captures a record, then auto-reboot.
+  # systemd-pstore.service archives /sys/fs/pstore to /var/lib/systemd/pstore on next boot.
+  boot.kernel.sysctl = {
+    "kernel.panic" = 10;
+    "kernel.panic_on_oops" = 1;
+    "kernel.softlockup_panic" = 1;
+    "kernel.hardlockup_panic" = 1;
+  };
 
   # AMD GPU - Vulkan and OpenGL (RADV is enabled by default)
   hardware.graphics = {
