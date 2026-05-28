@@ -107,11 +107,14 @@
       export ATTIC_CONFIG_DIR=$(mktemp -d)
       trap 'rm -rf "$ATTIC_CONFIG_DIR"' EXIT
       attic login local http://127.0.0.1:8080 "$SETUP_TOKEN"
-      # `cache create` errors if it already exists — tolerate so re-runs
-      # remain idempotent. `cache configure --public` then enforces the
-      # desired state regardless of whether create or configure ran.
+      # `cache create --public` sets the public flag on creation.
+      # `|| true` so re-runs are idempotent (existing-cache error is
+      # benign — the marker below ensures we don't loop on it forever).
+      # We deliberately do NOT call `attic cache configure --public`
+      # afterwards: it requires a stronger permission than
+      # `configure_cache` alone and would fail even when the state is
+      # already correct.
       attic cache create local:pifinder --public || true
-      attic cache configure local:pifinder --public
       touch /var/lib/atticd/.pifinder-cache-bootstrapped-v2
     '';
   };
