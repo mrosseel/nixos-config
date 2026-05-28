@@ -64,33 +64,55 @@
     '';
   };
 
-  # Create the public 'pifinder' cache on first start, after atticd is
-  # listening. atticd-atticadm uses systemd-run to enter atticd's
-  # DynamicUser context, so we just need it on PATH.
+  # Create the public 'pifinder' cache on first start.
+  #
+  # atticadm itself only has `make-token` and `help` subcommands — cache
+  # creation is done by the `attic` *client* against the running atticd
+  # API. So we mint a one-shot setup token with create_cache /
+  # configure_cache rights, log into the local loopback endpoint with it,
+  # and run `attic cache create … --public`. The setup token expires in
+  # 5 minutes and is never written to disk.
+  #
+  # Marker is `-v2` because v1 (which ran `atticadm create-cache`, a
+  # non-existent subcommand) silently no-op'd; renaming forces this
+  # corrected service to run on the next rebuild.
   systemd.services.atticd-bootstrap-cache = {
     description = "Create the pifinder cache on first start";
     after = [ "atticd.service" ];
     requires = [ "atticd.service" ];
     wantedBy = [ "multi-user.target" ];
-    unitConfig.ConditionPathExists = "!/var/lib/atticd/.pifinder-cache-bootstrapped";
+    unitConfig.ConditionPathExists = "!/var/lib/atticd/.pifinder-cache-bootstrapped-v2";
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
     };
-    path = with pkgs; [ curl coreutils ];
+    path = with pkgs; [ curl coreutils attic-client ];
     script = ''
       set -euo pipefail
       # Wait for atticd to bind 127.0.0.1:8080.
       for i in $(seq 1 60); do
-        if curl -fsS http://127.0.0.1:8080/ > /dev/null 2>&1; then
+        if curl -fsS -o /dev/null http://127.0.0.1:8080/ ; then
           break
         fi
         sleep 1
       done
-      # Idempotent under re-runs: atticadm exits non-zero if the cache
-      # already exists, which is fine when this marker has been wiped.
-      /run/current-system/sw/bin/atticd-atticadm create-cache pifinder --public || true
-      touch /var/lib/atticd/.pifinder-cache-bootstrapped
+      SETUP_TOKEN=$(/run/current-system/sw/bin/atticd-atticadm make-token \
+        --sub bootstrap \
+        --validity 5m \
+        --create-cache pifinder \
+        --configure-cache pifinder \
+        --push pifinder \
+        --pull pifinder)
+      # Keep attic client state out of root's $HOME — fresh per run.
+      export ATTIC_CONFIG_DIR=$(mktemp -d)
+      trap 'rm -rf "$ATTIC_CONFIG_DIR"' EXIT
+      attic login local http://127.0.0.1:8080 "$SETUP_TOKEN"
+      # `cache create` errors if it already exists — tolerate so re-runs
+      # remain idempotent. `cache configure --public` then enforces the
+      # desired state regardless of whether create or configure ran.
+      attic cache create local:pifinder --public || true
+      attic cache configure local:pifinder --public
+      touch /var/lib/atticd/.pifinder-cache-bootstrapped-v2
     '';
   };
 
