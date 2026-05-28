@@ -152,13 +152,22 @@
   nix.settings.trusted-users = [ "root" "@wheel" ];
 
   # Run rspamd's Redis-compatible store on Valkey instead of Redis. The
-  # current dump.rdb on disk was written by Valkey (or a Valkey-derived
-  # Redis fork) running under a previous nixpkgs and uses RDB format
-  # version 13, which Redis 8.2.3 in the currently-pinned nixpkgs cannot
-  # read — switching to Valkey 9.x preserves the bayesian-filter data
-  # without a migration step. Valkey is wire-protocol-compatible with
-  # Redis, so rspamd needs no changes.
+  # currently-pinned nixpkgs (b86751b) ships redis 8.2.3, but the on-disk
+  # dump.rdb was written by Redis 8.6.3 (which ran under a previous
+  # deploy) in RDB v13 format. Neither redis 8.2.3 nor Valkey 9.0.3 can
+  # parse v13. A one-shot migration via the still-on-disk gen 499
+  # redis 8.6.3 binary converted the v13 RDB to a RESP-format AOF at
+  # /var/lib/redis-rspamd/appendonlydir/ (the original dump.rdb is kept
+  # as dump.rdb.v13.bak). Enabling appendonly + aof-use-rdb-preamble=no
+  # below makes valkey-server load from that AOF on every start.
+  #
+  # Valkey is wire-protocol-compatible with Redis; rspamd talks to it
+  # identically.
   services.redis.package = pkgs.valkey;
+  services.redis.servers.rspamd.settings = {
+    appendonly = "yes";
+    "aof-use-rdb-preamble" = "no";
+  };
 
   system.stateVersion = "23.11"; # Did you read the comment?
 
