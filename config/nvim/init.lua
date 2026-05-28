@@ -1,1 +1,1 @@
-require("miker")
+/nix/store/kqlm2n2i2rhl9nlc6pjrqa3wsi9lhxng-home-manager-files/.config/nvim/init.lua

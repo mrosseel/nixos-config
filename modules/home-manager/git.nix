@@ -97,8 +97,29 @@ in
         email = userEmail;
       };
       ui = {
-        default-command =  ["log" "--reversed"];
-        pager = "cat";
+        default-command = ["log" "--reversed"];
+        pager = "delta";
+        editor = "nvim";
+        diff-editor = "meld";
+        merge-editor = "meld";
+      };
+      remotes.origin.auto-track-bookmarks = "*";
+      aliases = {
+        l = ["log"];
+        s = ["status"];
+        d = ["diff"];
+        n = ["new"];
+        e = ["edit"];
+        ll = ["log" "-r" "::"];
+        tug = ["bookmark" "move" "--from" "closest_bookmark(@-)" "--to" "@-"];
+      };
+      revset-aliases = {
+        "closest_bookmark(to)" = "heads(::to & bookmarks())";
+      };
+      merge-tools.meld = {
+        program = "meld";
+        merge-args = ["$left" "$base" "$right" "-o" "$output" "--auto-merge"];
+        diff-args = ["$left" "$right"];
       };
     };
   };

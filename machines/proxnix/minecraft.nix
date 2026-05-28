@@ -56,6 +56,7 @@ in
         miker = "b2df8408-190c-456e-9801-d44432d5e657";
         hackerdroll = "3217baaa-225d-455d-a028-9136f45fd591";
         DarkShadowVerso = "8174bd79-6a58-4395-b17f-92a28670e12b";
+        ".hackerdroll" = "00000000-0000-0000-0009-01f73ade46b1";
       };
 
       serverProperties = {
@@ -78,6 +79,9 @@ in
   };
 
   environment.systemPackages = [ pkgs.mcrcon ];
+
+  # Geyser (Bedrock) — UDP 19132
+  networking.firewall.allowedUDPPorts = [ 19132 ];
 
   # RCON (25575) intentionally NOT opened in firewall — local/SSH access only
 

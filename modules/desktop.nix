@@ -32,6 +32,7 @@
     #libreoffice-qt
     dropbox
     keepassxc
+    remmina
   ];
   fonts.packages = [ pkgs.nerd-fonts.meslo-lg ];
 

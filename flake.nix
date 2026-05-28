@@ -246,6 +246,7 @@
         ./machines/general-server/monitoring.nix
         ./machines/general-server/asterisms-votes.nix
         ./machines/general-server/phpfpm-joeri.nix
+        ./machines/general-server/attic-service.nix
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix

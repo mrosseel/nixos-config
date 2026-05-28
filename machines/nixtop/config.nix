@@ -261,8 +261,9 @@
   environment.systemPackages = with pkgs; [
     gsettings-desktop-schemas
     cifs-utils
-    azure-cli
+    (azure-cli.withExtensions [ azure-cli.extensions.ssh ])
     mullvad-browser
+    tor-browser
     xrandr
 
     lm_sensors
@@ -416,6 +417,13 @@
       "dir_mode=0775"
     ];
   };
+
+  # Firmware updates (fwupdmgr)
+  services.fwupd.enable = true;
+
+  # btrfs is mounted with discard=async, which continuously trims.
+  # Disable the weekly fstrim timer to avoid redundant work.
+  services.fstrim.enable = false;
 
   # Tailscale VPN
   services.tailscale.enable = true;
