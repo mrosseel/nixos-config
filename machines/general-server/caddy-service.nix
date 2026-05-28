@@ -181,6 +181,18 @@
         }
       '';
     };
+    # PiFinder NixOS binary cache (Attic). See attic-service.nix.
+    # Plain reverse proxy — no HTML headers/CSP because clients are the
+    # Nix daemon, not browsers; large NAR/chunk uploads must not be capped.
+    virtualHosts."cache.pifinder.eu" = {
+      extraConfig = ''
+        reverse_proxy localhost:8080 {
+          # Don't buffer request bodies — push uploads can be many MB.
+          flush_interval -1
+        }
+      '';
+    };
+
     virtualHosts."test.pifinder.eu" = {
       extraConfig = ''
           encode gzip

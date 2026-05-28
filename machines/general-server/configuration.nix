@@ -138,16 +138,18 @@
         shell = pkgs.zsh;
         ignoreShellProgramCheck = true;
   };
-  security.sudo.extraRules = [{
-    users = [ "mike" ];
-    commands = [
-      { command = "/run/current-system/sw/bin/nix-store *"; options = [ "NOPASSWD" "SETENV" ]; }
-      { command = "/nix/store/*/bin/nix-store *"; options = [ "NOPASSWD" "SETENV" ]; }
-      { command = "/run/current-system/sw/bin/nix-env *"; options = [ "NOPASSWD" ]; }
-      { command = "/nix/store/*/bin/switch-to-configuration *"; options = [ "NOPASSWD" ]; }
-      { command = "/run/current-system/sw/bin/systemctl *"; options = [ "NOPASSWD" ]; }
-    ];
-  }];
+  # Full passwordless sudo for wheel members (mike). SSH is key-only and
+  # PermitRootLogin = no, so the practical attack surface is unchanged from
+  # the surgical per-command NOPASSWD that was here before, but every
+  # admin task (deploys, atticd bootstrap, ad-hoc maintenance) works
+  # without interactive prompts — which matters for nixos-rebuild
+  # --target-host and any scripted remote setup.
+  security.sudo.wheelNeedsPassword = false;
+
+  # Trust wheel users to push unsigned store paths via nix-copy-closure.
+  # Required for `nixos-rebuild switch --target-host` to copy locally-built
+  # derivations (e.g. Caddyfile-formatted) that aren't in cache.nixos.org.
+  nix.settings.trusted-users = [ "root" "@wheel" ];
 
   system.stateVersion = "23.11"; # Did you read the comment?
 
