@@ -151,6 +151,15 @@
   # derivations (e.g. Caddyfile-formatted) that aren't in cache.nixos.org.
   nix.settings.trusted-users = [ "root" "@wheel" ];
 
+  # Run rspamd's Redis-compatible store on Valkey instead of Redis. The
+  # current dump.rdb on disk was written by Valkey (or a Valkey-derived
+  # Redis fork) running under a previous nixpkgs and uses RDB format
+  # version 13, which Redis 8.2.3 in the currently-pinned nixpkgs cannot
+  # read — switching to Valkey 9.x preserves the bayesian-filter data
+  # without a migration step. Valkey is wire-protocol-compatible with
+  # Redis, so rspamd needs no changes.
+  services.redis.servers.rspamd.package = pkgs.valkey;
+
   system.stateVersion = "23.11"; # Did you read the comment?
 
 }
