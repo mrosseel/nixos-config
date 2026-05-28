@@ -158,7 +158,7 @@
   # read — switching to Valkey 9.x preserves the bayesian-filter data
   # without a migration step. Valkey is wire-protocol-compatible with
   # Redis, so rspamd needs no changes.
-  services.redis.servers.rspamd.package = pkgs.valkey;
+  services.redis.package = pkgs.valkey;
 
   system.stateVersion = "23.11"; # Did you read the comment?
 
