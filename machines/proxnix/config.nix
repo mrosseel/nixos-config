@@ -31,6 +31,9 @@
   services.atftpd = {
     enable = true;
     root = "/srv/tftp";
+    # Prevent Sorcerer's Apprentice Syndrome (duplicate-ACK retransmit storm)
+    # for reliable PiFinder netboot transfers.
+    extraOptions = [ "--prevent-sas" ];
   };
 
   # NFS server
