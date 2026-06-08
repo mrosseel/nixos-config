@@ -1,6 +1,56 @@
 # User, services, and application configuration for nixtop
 { config, pkgs, ... }:
 
+let
+  # While a VNC client is connected, hold a logind idle-inhibitor so hypridle
+  # can't power the display off mid-capture. That dpms-off tears down wayvnc's
+  # cursor-capture session and intermittently segfaults Hyprland in the
+  # CCursorshareSession path. With no client connected the inhibitor is
+  # released, so the screen still sleeps when the machine is genuinely idle.
+  wayvnc-idle-guard = pkgs.writeShellApplication {
+    name = "wayvnc-idle-guard";
+    runtimeInputs = [ pkgs.wayvnc pkgs.jq pkgs.systemd pkgs.coreutils ];
+    text = ''
+      inhibit_pid=""
+
+      start_inhibit() {
+        if [ -n "$inhibit_pid" ] && kill -0 "$inhibit_pid" 2>/dev/null; then
+          return
+        fi
+        systemd-inhibit --what=idle --who=wayvnc \
+          --why="VNC client connected" sleep infinity &
+        inhibit_pid=$!
+      }
+
+      stop_inhibit() {
+        if [ -n "$inhibit_pid" ]; then
+          kill "$inhibit_pid" 2>/dev/null || true
+          inhibit_pid=""
+        fi
+      }
+
+      trap stop_inhibit EXIT
+
+      # Re-sync if a client is already connected when this guard starts.
+      if [ "$(wayvncctl -j client-list 2>/dev/null | jq 'length' 2>/dev/null || echo 0)" -gt 0 ]; then
+        start_inhibit
+      fi
+
+      wayvncctl --wait --reconnect -j event-receive | while read -r line; do
+        method=$(printf '%s' "$line" | jq -r '.method // empty' 2>/dev/null || true)
+        count=$(printf '%s' "$line" | jq -r '.params.connection_count // .connection_count // empty' 2>/dev/null || true)
+        # Fresh wayvnc control connection means no clients are attached yet.
+        if [ "$method" = "wayvnc-startup" ]; then
+          stop_inhibit
+        fi
+        if [ -n "$count" ]; then
+          if [ "$count" -gt 0 ]; then start_inhibit; else stop_inhibit; fi
+        fi
+      done
+    '';
+  };
+in
+
 {
   # /bin/chmod symlink needed by VelociDrone patcher
   # Override x11.conf D! rule that deletes X11 sockets after 10d,
@@ -184,6 +234,19 @@
     wantedBy = [ "graphical-session.target" ];
     serviceConfig = {
       ExecStart = "${pkgs.wayvnc}/bin/wayvnc 0.0.0.0 5900";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+  };
+
+  # Holds an idle-inhibitor while a VNC client is connected (see wayvnc-idle-guard above)
+  systemd.user.services.wayvnc-idle-guard = {
+    description = "Inhibit idle while a wayvnc client is connected";
+    after = [ "wayvnc.service" "graphical-session.target" ];
+    wants = [ "wayvnc.service" ];
+    wantedBy = [ "graphical-session.target" ];
+    serviceConfig = {
+      ExecStart = "${wayvnc-idle-guard}/bin/wayvnc-idle-guard";
       Restart = "on-failure";
       RestartSec = 5;
     };
