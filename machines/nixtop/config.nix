@@ -261,6 +261,7 @@
   environment.systemPackages = with pkgs; [
     gsettings-desktop-schemas
     cifs-utils
+    sqlite
     (azure-cli.withExtensions [ azure-cli.extensions.ssh ])
     mullvad-browser
     tor-browser
@@ -289,6 +290,7 @@
     rocmPackages.clr  # HIP runtime
 
     freecad-wayland
+    calibre
   ];
 
   # Mullvad VPN (requires systemd-resolved)

@@ -207,7 +207,7 @@ in
 {
   environment.systemPackages = [
     pkgs.claude-code
-    inputs.codex-cli-nix.packages.${pkgs.system}.default
+    inputs.codex-cli-nix.packages.${pkgs.stdenv.hostPlatform.system}.default
     # pkgs.gemini-cli  # Disabled due to CVE-2024-23342 in ecdsa dependency
     pkgs.ollama
     pkgs.opencode
@@ -221,6 +221,10 @@ in
   services.ollama = {
     enable = true;
     package = pkgs.ollama-rocm;  # Use ollama-cuda for NVIDIA, ollama for CPU-only
+    environmentVariables = {
+      OLLAMA_FLASH_ATTENTION = "1";  # faster + leaner KV cache (context length unchanged)
+      OLLAMA_KV_CACHE_TYPE = "q8_0";  # ~half the KV-cache memory, near-zero quality loss; needs flash attention
+    };
   };
 
   # Open WebUI - Web interface for Ollama
