@@ -19,6 +19,9 @@
   zramSwap.enable = true;
   networking.hostName = "general-server"; # Define your hostname.
   networking.nameservers = [ "8.8.8.8" "8.8.4.4" "2001:4860:4860::8888" ];
+  # /etc/resolv.conf is written statically below; don't let resolvconf manage it
+  # too (nixpkgs-unstable asserts on the conflict).
+  networking.resolvconf.enable = false;
 
   # IPv6 configuration for Contabo VPS (Contabo uses /112 prefix)
   networking.interfaces.ens18.ipv6.addresses = [{
