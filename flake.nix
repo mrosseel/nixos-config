@@ -3,8 +3,11 @@
 
   inputs = {
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.11";
-    # Pinned 2026-04-24: nixpkgs-unstable 01fbdee breaks gscan2pdf tests.
-    nixpkgs.url = "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b";
+    # Main package set tracks nixpkgs-unstable (rolls fast, matches HM master).
+    # When a specific package breaks here, override it from nixpkgs-vetted
+    # (nixos-unstable: same channel, slower-vetted via Hydra) via an overlay.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-vetted.url = "github:NixOS/nixpkgs/nixos-unstable";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager/master";
@@ -58,7 +61,8 @@
       allowUnsupportedSystem = false;
       permittedInsecurePackages = [
         "libsoup-2.74.3"
-        "ventoy-1.1.10"
+        "ventoy-1.1.12"
+        "electron-39.8.10"
       ];
       vivaldi = {
         proprietaryCodecs = true;
