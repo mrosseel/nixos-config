@@ -60,6 +60,14 @@
     "kernel.panic_on_oops" = 1;
     "kernel.softlockup_panic" = 1;
     "kernel.hardlockup_panic" = 1;
+
+    # Strong host model. nixtop is dual-homed on 192.168.5.0/24 (wired enp191s0
+    # + Wi-Fi wlan0). With the default weak host model it answered/announced the
+    # wired IP (.170) out the Wi-Fi MAC too, so the router's ARP entry flipped
+    # to Wi-Fi and the cable intermittently "dropped". These pin each IP to its
+    # own NIC, so both interfaces can stay up safely.
+    "net.ipv4.conf.all.arp_ignore" = 1;
+    "net.ipv4.conf.all.arp_announce" = 2;
   };
 
   # AMD GPU - Vulkan and OpenGL (RADV is enabled by default)
@@ -80,6 +88,9 @@
   # Hostname
   networking.hostName = "nixtop";
   networking.networkmanager.enable = true;
+  # INFO instead of default WARN: keeps NM logging link/DHCP events while we
+  # monitor the intermittent wired-drop issue (ARP flux from dual-homing).
+  networking.networkmanager.logLevel = "INFO";
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
