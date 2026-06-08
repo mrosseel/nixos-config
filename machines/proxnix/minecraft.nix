@@ -19,8 +19,12 @@ let
       sha256 = "08cpq11i83rc949b33dj4dvf2dmqpr6y676ybbhi447ph3y7fm1a";
     };
     ViaVersion = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/P1OZGk5p/versions/MWBvGZtW/ViaVersion-5.9.0-SNAPSHOT.jar";
-      sha256 = "1i3xrqis1hrb6gn4r9z1pdqjndvv6zgrmnx1z35lndwl7zlz1n1y";
+      url = "https://cdn.modrinth.com/data/P1OZGk5p/versions/OGj9YIQN/ViaVersion-5.9.1.jar";
+      sha256 = "00gbdwwbqf56s58p1n4ivcfxgi878gsiv79ihlf8xi9qc5ysjfis";
+    };
+    ViaBackwards = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/NpvuJQoq/versions/W890fNPl/ViaBackwards-5.9.1.jar";
+      sha256 = "06fpfcjida94g8mg9w2lxwd2gfp42dvfflafli6vi2zsraxiirid";
     };
     Geyser = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/wKkoqHrH/versions/ZAMkISgL/Geyser-Spigot.jar";
