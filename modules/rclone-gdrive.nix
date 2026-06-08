@@ -23,7 +23,9 @@
 
     serviceConfig = {
       Type = "notify";
-      ExecStartPre = "-${pkgs.fuse}/bin/fusermount -u /home/mike/GoogleDrive";
+      # -uz = lazy unmount: also removes stale/dead mounts (plain -u fails on them,
+      # which left the service stuck in a "directory already mounted" restart loop)
+      ExecStartPre = "-${pkgs.fuse}/bin/fusermount -uz /home/mike/GoogleDrive";
       ExecStart = ''
         ${pkgs.rclone}/bin/rclone mount gdrive: /home/mike/GoogleDrive \
           --vfs-cache-mode full \
@@ -38,7 +40,7 @@
           --drive-acknowledge-abuse \
           --log-level INFO
       '';
-      ExecStop = "${pkgs.fuse}/bin/fusermount -u /home/mike/GoogleDrive";
+      ExecStop = "-${pkgs.fuse}/bin/fusermount -uz /home/mike/GoogleDrive";
       Restart = "on-failure";
       RestartSec = "10s";
       User = "mike";
