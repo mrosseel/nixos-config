@@ -266,9 +266,11 @@ in {
     enable = true;
     enableNushellIntegration = true;
     enableZshIntegration = true;
+    flags = [ "--disable-up-arrow" ];  # up = plain shell history, ctrl-r = atuin
     settings = {
       style = "compact";
       search_mode = "fuzzy";
+      filter_mode = "directory";  # default scope: commands run in current dir
     };
   };
 
