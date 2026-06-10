@@ -49,6 +49,42 @@ let
       done
     '';
   };
+
+  # Hard-recover the Elgato Wave:3 mic when its USB firmware hangs (kernel logs
+  # "usb_set_interface failed (-110)"). A wireplumber restart or the sysfs
+  # authorized-toggle can't fix it because VBUS stays powered; only a real port
+  # power-cycle resets the device. Wave:3 = hub 3-2.1.1 port 1, StreamDeck = port 3.
+  fix-wave3 = pkgs.writeShellScriptBin "fix-wave3" ''
+    export PATH="${pkgs.uhubctl}/bin:${pkgs.pulseaudio}/bin:${pkgs.alsa-utils}/bin:${pkgs.systemd}/bin:${pkgs.coreutils}/bin:${pkgs.gnugrep}/bin:${pkgs.gawk}/bin:${pkgs.libnotify}/bin:$PATH"
+
+    echo "Power-cycling Elgato Wave:3 (hub 3-2.1.1 port 1; StreamDeck on port 3 untouched)..."
+    sudo uhubctl -l 3-2.1.1 -p 1 -a cycle -d 3
+    sleep 4
+
+    systemctl --user restart wireplumber
+    sleep 2
+
+    # A real power-cycle re-mutes the mic in hardware and drops the card profile,
+    # so restore both (mirrors elgato-audio-restart.service below).
+    for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk '{print $2}'); do
+      pactl set-card-profile "$card" off 2>/dev/null || true
+      sleep 0.3
+      pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null || true
+    done
+    sleep 0.5
+    amixer -c Wave3 sset Mic 80% 2>/dev/null || true
+
+    src=$(pactl list sources short 2>/dev/null | grep -iE 'input.*wave' | awk '{print $2}' | head -1)
+    if [ -n "$src" ]; then
+      pactl set-source-mute "$src" 0 2>/dev/null || true
+      pactl set-default-source "$src" 2>/dev/null || true
+      echo "Wave:3 recovered. Default source: $src"
+      notify-send -i audio-input-microphone "Wave:3 mic" "Recovered and set as default" 2>/dev/null || true
+    else
+      echo "Wave:3 power-cycled but no input source appeared yet - check 'pactl list sources short'." >&2
+      notify-send -u critical -i audio-input-microphone "Wave:3 mic" "Power-cycled but no source appeared" 2>/dev/null || true
+    fi
+  '';
 in
 
 {
@@ -354,6 +390,7 @@ in
 
     freecad-wayland
     calibre
+    fix-wave3  # power-cycle recovery for the Wave:3 mic (USB -110 firmware hang)
   ];
 
   # Mullvad VPN (requires systemd-resolved)

@@ -335,6 +335,9 @@
                 # Override voxtype stop to reset Elgato mic profile after (ready for next recording)
                 binddr = SUPER CTRL, X, Stop dictation, exec, bash -c 'voxtype record stop; for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk "{print \$2}"); do pactl set-card-profile "$card" off 2>/dev/null; sleep 0.1; pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null; done'
 
+                # Hard-recover the Wave:3 mic if its USB firmware hangs (-110); fix-wave3 lives in nixtop/config.nix
+                bindd = SUPER CTRL, R, Fix Wave3 mic, exec, fix-wave3
+
                 # Screenshots: save to file + copy to clipboard
                 bindd = , Print, Screenshot region, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim -g "$(slurp)" - | tee "$FILE" | wl-copy -t image/png'
                 bindd = SUPER, Print, Screenshot full screen, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim - | tee "$FILE" | wl-copy -t image/png'
