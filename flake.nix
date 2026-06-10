@@ -34,8 +34,6 @@
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
 
-    nixpkgs-master.url = "github:NixOS/nixpkgs/master";
-
     # nixpkgs source for kernel + linux-firmware (kept separate from main nixpkgs
     # so we can roll the kernel independently when chasing Strix Halo amdgpu fixes).
     nixpkgs-kernel.url = "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30";
@@ -54,7 +52,7 @@
     };
   };
 
-  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixpkgs-master, nixos-mailserver, omarchy-nix, disko, nixos-hardware, ...}:
+  outputs = inputs@{ self, home-manager, nix-darwin, nixpkgs, nixpkgs-stable, nixos-mailserver, omarchy-nix, disko, nixos-hardware, ...}:
   let
     nixpkgsConfig = {
       allowUnfree = true;
@@ -71,9 +69,6 @@
     };
     overlays = with inputs; [
       claude-code.overlays.default
-      (final: prev: {
-        freecad-wayland = (import nixpkgs-master { system = prev.stdenv.hostPlatform.system; config = prev.config; }).freecad-wayland;
-      })
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
