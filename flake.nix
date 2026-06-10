@@ -69,6 +69,7 @@
     };
     overlays = with inputs; [
       claude-code.overlays.default
+      (import ./overlays/brave.nix)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
