@@ -36,7 +36,7 @@
 
     # nixpkgs source for kernel + linux-firmware (kept separate from main nixpkgs
     # so we can roll the kernel independently when chasing Strix Halo amdgpu fixes).
-    nixpkgs-kernel.url = "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30";
+    nixpkgs-kernel.url = "github:NixOS/nixpkgs/8c91a71d13451abc40eb9dae8910f972f979852f";
 
     copyparty.url = "github:9001/copyparty";
 

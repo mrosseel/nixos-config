@@ -14,9 +14,11 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Kernel + firmware sourced from nixpkgs-kernel input (nixpkgs-unstable 01fbdee, 2026-04).
-  # Currently tracking 7.0.1 — earlier 6.19.10 pin still hung amdgpu (sdma timeouts, MODE2
-  # resets), so trying the latest in case newer SMU/DCN3.5 paths are healthier.
+  # Kernel + firmware sourced from nixpkgs-kernel input. Pinned to the same rev as the
+  # main nixpkgs so the kernel's passthru (buildDTBs, target, ...) matches what the
+  # NixOS modules expect — an older pin skews and fails eval on those attrs.
+  # Currently tracking 7.0.12 — earlier 6.19.10 pin still hung amdgpu (sdma timeouts,
+  # MODE2 resets), so tracking the latest 7.0.x in case newer SMU/DCN3.5 paths are healthier.
   boot.kernelPackages =
     let kernelPkgs = import inputs.nixpkgs-kernel { system = "x86_64-linux"; config = config.nixpkgs.config; };
     in kernelPkgs.linuxPackages_7_0;
