@@ -45,6 +45,14 @@
     claude-code.url = "github:sadjow/claude-code-nix";
     codex-cli-nix.url = "github:sadjow/codex-cli-nix";
 
+    # grower: daily directory-size inventory. Published so every host (incl.
+    # the Mac) can fetch it. Override locally during dev with:
+    #   --override-input grower path:/home/mike/dev/grower
+    grower = {
+      url = "github:mrosseel/grower";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -133,7 +141,24 @@
         }
         ./modules/darwin
         ./modules/python.nix
-        # inputs.pifinder.darwinModules.default 
+        # grower CLI for ad-hoc disk-growth checks. No scheduling on macOS —
+        # run `grower scan` / `grower diff` by hand. Default scans the home
+        # dir (no sudo/firmlink issues); `sudo grower scan --root /` does the
+        # whole machine, and the excludes below already cover APFS firmlinks.
+        ({ pkgs, inputs, ... }: {
+          nixpkgs.overlays = [ inputs.grower.overlays.default ];
+          environment.systemPackages = [ pkgs.grower ];
+          environment.etc."grower/config.toml".text = ''
+            db_path = "/Users/mike/.local/share/grower/grower.db"
+            roots = ["/Users/mike"]
+            excludes = ["/System/Volumes", "/Volumes", "/dev", "/private/var/vm", "/Users/mike/Library/Mobile Documents", "/Users/mike/.Trash"]
+            threshold = "10MiB"
+            one_filesystem = false
+            follow_symlinks = false
+            hostname = "airelon"
+          '';
+        })
+        # inputs.pifinder.darwinModules.default
         # {
         #   services.pifinderWebServer = {
         #     enable = true;
@@ -293,6 +318,28 @@
         ./modules/dropbox.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }
+        { nixpkgs.overlays = [ inputs.grower.overlays.default ]; }
+        inputs.grower.nixosModules.default
+        {
+          services.grower = {
+            enable = true;
+            # Run as mike (with CAP_DAC_READ_SEARCH from the module) so the DB
+            # lives in mike's home and `grower report`/`diff` need no sudo.
+            user = "mike";
+            group = "users";
+            dbDir = "/home/mike/.local/share/grower";
+            # Whole machine, but skip what isn't local disk or would double-count.
+            # one_filesystem stays false: btrfs gives each subvolume (/home, /nix,
+            # /persist) a distinct st_dev, so excludes — not device boundaries —
+            # are the right tool here.
+            excludes = [
+              "/proc" "/sys" "/dev" "/run"  # pseudo-filesystems
+              "/.snapshots"                 # btrfs snapshots — would double-count live subvolumes
+              "/mnt"                        # external/network/removable mounts (openclaw, rigel-music, pifinder, usb, sdcard, …)
+              "/home/mike/GoogleDrive"      # rclone Google Drive (remote)
+            ];
+          };
+        }
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
