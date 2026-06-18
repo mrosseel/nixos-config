@@ -4,19 +4,24 @@
 # Served at https://cache.pifinder.eu via Caddy reverse proxy (caddy-service.nix).
 # See docs/adr/0004-attic-binary-cache.md in the PiFinder repo for the rationale.
 #
-# Three systemd oneshots make this fully declarative — no manual SSH
+# Four systemd oneshots make this fully declarative — no manual SSH
 # atticadm steps. Each runs at most once, guarded by ConditionPathExists:
 #
-#   atticd-bootstrap-secret  →  generates the RS256 JWT secret
-#                               at /var/lib/atticd/env
-#   atticd-bootstrap-cache   →  creates the public 'pifinder' cache
-#   atticd-bootstrap-token   →  mints a 5-year CI push/pull JWT and
-#                               writes it to /var/lib/atticd/ci-token
+#   atticd-bootstrap-secret        →  generates the RS256 JWT secret
+#                                     at /var/lib/atticd/env
+#   atticd-bootstrap-cache         →  creates the public 'pifinder' cache
+#                                     (dev/nightly builds)
+#   atticd-bootstrap-cache-release →  creates the public 'pifinder-release'
+#                                     cache (retained release closures —
+#                                     PiFinder ADR 0004)
+#   atticd-bootstrap-token         →  mints a 5-year CI push/pull JWT for
+#                                     both caches, at /var/lib/atticd/ci-token
 #
 # After deploy, the one-and-only manual step is to read the CI token
 # (sudo cat /var/lib/atticd/ci-token) and paste it into the PiFinder
-# repo's GitHub Actions secrets as ATTIC_TOKEN. Cache public key is
-# fetchable from https://cache.pifinder.eu/pifinder.
+# repo's GitHub Actions secrets as ATTIC_TOKEN. Cache public keys are
+# fetchable from https://cache.pifinder.eu/pifinder and
+# https://cache.pifinder.eu/pifinder-release.
 #
 # Wiping any of the marker files (.pifinder-cache-bootstrapped,
 # .pifinder-token-bootstrapped) re-runs the corresponding step, which
@@ -119,15 +124,64 @@
     '';
   };
 
+  # Create the public 'pifinder-release' cache on first start. Mirrors
+  # atticd-bootstrap-cache. Holds tagged release closures that must outlive the
+  # dev cache's retention (PiFinder ADR 0004). Devices pull the stable channel
+  # from it; a Pi upgrading months after a release must still resolve the path.
+  #
+  # Retention is left at the default ("Global"), and global GC is off, so today
+  # nothing is collected. IMPORTANT: when you eventually prune the dev cache, do
+  # it PER-CACHE — `attic cache configure local:pifinder --retention-period <N>`
+  # — never via a global retention, which would also prune this cache while it
+  # stays at "Global".
+  systemd.services.atticd-bootstrap-cache-release = {
+    description = "Create the pifinder-release cache on first start";
+    after = [ "atticd.service" ];
+    requires = [ "atticd.service" ];
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.ConditionPathExists = "!/var/lib/atticd/.pifinder-release-cache-bootstrapped";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = with pkgs; [ curl coreutils attic-client ];
+    script = ''
+      set -euo pipefail
+      for i in $(seq 1 60); do
+        if curl -fsS -o /dev/null http://127.0.0.1:8080/ ; then
+          break
+        fi
+        sleep 1
+      done
+      SETUP_TOKEN=$(/run/current-system/sw/bin/atticd-atticadm make-token \
+        --sub bootstrap \
+        --validity 5m \
+        --create-cache pifinder-release \
+        --configure-cache pifinder-release \
+        --push pifinder-release \
+        --pull pifinder-release)
+      export ATTIC_CONFIG_DIR=$(mktemp -d)
+      trap 'rm -rf "$ATTIC_CONFIG_DIR"' EXIT
+      attic login local http://127.0.0.1:8080 "$SETUP_TOKEN"
+      attic cache create local:pifinder-release --public || true
+      touch /var/lib/atticd/.pifinder-release-cache-bootstrapped
+    '';
+  };
+
   # Mint a long-lived CI token on first start and write it to a
   # root-readable file. Operator reads it once via `sudo cat` and pastes
   # into the PiFinder repo's GitHub Actions secrets as ATTIC_TOKEN.
   systemd.services.atticd-bootstrap-token = {
     description = "Mint the CI push/pull token on first start";
-    after = [ "atticd-bootstrap-cache.service" ];
-    requires = [ "atticd-bootstrap-cache.service" ];
+    after = [ "atticd-bootstrap-cache.service" "atticd-bootstrap-cache-release.service" ];
+    requires = [ "atticd-bootstrap-cache.service" "atticd-bootstrap-cache-release.service" ];
     wantedBy = [ "multi-user.target" ];
-    unitConfig.ConditionPathExists = "!/var/lib/atticd/.pifinder-token-bootstrapped";
+    # -v2: the CI token now also carries pifinder-release push/pull (the release
+    # workflow pushes there). Bumping the marker re-mints the token ONCE — the
+    # operator must then re-paste it into the PiFinder repo's ATTIC_TOKEN secret.
+    # The old pifinder-only token keeps working for the dev cache but cannot push
+    # releases, so CI's `attic push pifinder:pifinder-release` 403s until re-paste.
+    unitConfig.ConditionPathExists = "!/var/lib/atticd/.pifinder-token-bootstrapped-v2";
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
@@ -141,10 +195,12 @@
         --validity 5y \
         --pull pifinder \
         --push pifinder \
+        --pull pifinder-release \
+        --push pifinder-release \
         > /var/lib/atticd/ci-token
       chown root:root /var/lib/atticd/ci-token
       chmod 0600 /var/lib/atticd/ci-token
-      touch /var/lib/atticd/.pifinder-token-bootstrapped
+      touch /var/lib/atticd/.pifinder-token-bootstrapped-v2
     '';
   };
 }
