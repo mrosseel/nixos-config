@@ -68,6 +68,10 @@
       bind | split-window -h -c "#{pane_current_path}"
       bind - split-window -v -c "#{pane_current_path}"
 
+      # Hand plain-byte keys to apps instead of the csi-u enhanced protocol.
+      # Avoids per-character escape sequences corrupting fast paste/dictation.
+      set -g extended-keys off
+
       # Copy mode extras
       bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
       bind Escape copy-mode
