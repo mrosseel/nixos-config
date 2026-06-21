@@ -13,8 +13,12 @@
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     omarchy-nix = {
-      # url = "github:mrosseel/omarchy-nix";
-      url = "path:/home/mike/dev/omacom/omarchy-nix";  # local dev on nixtop
+      # Default to upstream so hosts without a local checkout (servers, nixair)
+      # evaluate cleanly. nixtop builds against the local dev checkout via
+      # --override-input, baked into the nixsw/nixup aliases (hostname-gated in
+      # modules/home-manager/default.nix). The override is ephemeral and never
+      # touches flake.lock, so it can't leak the local path into commits.
+      url = "github:mrosseel/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };

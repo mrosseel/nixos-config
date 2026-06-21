@@ -17,6 +17,10 @@ let
     lib.mapAttrsToList (name: cmd: "alias ${name} = ${cmd}") nushellRsyncAliases
   );
   isNixtop = hostname == "nixtop";
+  # On nixtop, build omarchy-nix from the local dev checkout instead of the
+  # upstream default in flake.nix. Applied only to the build (nixos-rebuild),
+  # never to `nix flake update`: --override-input implies --no-write-lock-file,
+  # so the local path stays out of the committed flake.lock.
   omarchyOverride = lib.optionalString isNixtop " --override-input omarchy-nix path:/home/mike/dev/omacom/omarchy-nix";
   hyprSessionAliases = lib.optionalAttrs isHyprland {
     hsave = "~/.local/bin/hypr-save-session";
@@ -137,7 +141,7 @@ in {
       nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
       nixsw = "sudo nixos-rebuild switch --flake ~/nixos-config/.#${omarchyOverride}";
       nixupmac = "pushd ~/nixos-config; nix flake update; nixswmac; popd";
-      nixup = "pushd ~/nixos-config; nix flake update${omarchyOverride}; nixsw; popd";
+      nixup = "pushd ~/nixos-config; nix flake update; nixsw; popd";
       cd = "z";
       clc = "NODE_OPTIONS=--max-old-space-size=8192 SHELL=/bin/bash claude";
       clcd = "NODE_OPTIONS=--max-old-space-size=8192 SHELL=/bin/bash claude --dangerously-skip-permissions";
@@ -215,7 +219,7 @@ in {
       # Functions that need def instead of alias
       def nixup [] {
         cd ~/nixos-config
-        nix flake update${omarchyOverride}
+        nix flake update
         sudo nixos-rebuild switch --flake ~/nixos-config/.#${omarchyOverride}
       }
 

@@ -1093,14 +1093,17 @@
         "walker": "walker"
       },
       "locked": {
-        "lastModified": 1781256264,
-        "narHash": "sha256-+J5NxIob0bh9/uCFnzi3grtidqXmROMan1bB3hffhK0=",
-        "path": "/home/mike/dev/omacom/omarchy-nix",
-        "type": "path"
+        "lastModified": 1781036439,
+        "narHash": "sha256-Aul0B9ec2oVIWJjGk7G55zExVOPOoKv/KzcmXkAwxhs=",
+        "owner": "mrosseel",
+        "repo": "omarchy-nix",
+        "rev": "844a68a7b3eca36a84e5e5cde39254d290a83df7",
+        "type": "github"
       },
       "original": {
-        "path": "/home/mike/dev/omacom/omarchy-nix",
-        "type": "path"
+        "owner": "mrosseel",
+        "repo": "omarchy-nix",
+        "type": "github"
       }
     },
     "pre-commit-hooks": {
