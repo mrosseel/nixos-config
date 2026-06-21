@@ -193,6 +193,30 @@
       '';
     };
 
+    # PiFinder file host — tarballs + desync chunk store, served as static
+    # files next to the Attic cache. Read-only over HTTPS; uploads happen over
+    # SSH/rsync into the mike-owned web root (no upload daemon, no dir listing).
+    virtualHosts."files.pifinder.eu" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/files.pifinder.eu
+        file_server
+
+        # Content-addressed desync chunks never change — cache forever.
+        @chunks path /castr/*
+        header @chunks Cache-Control "public, max-age=31536000, immutable"
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=300, must-revalidate"
+          -Server
+        }
+      '';
+    };
+
     virtualHosts."test.pifinder.eu" = {
       extraConfig = ''
           encode gzip
@@ -370,5 +394,9 @@
   # rsync from the workstation doesn't need remote sudo.
   systemd.tmpfiles.rules = [
     "d /var/www/mars.miker.be 0755 mike users -"
+    # PiFinder file host (files.pifinder.eu): web root + desync chunk store,
+    # owned by mike so rsync uploads from the workstation need no remote sudo.
+    "d /var/www/files.pifinder.eu 0755 mike users -"
+    "d /var/www/files.pifinder.eu/castr 0755 mike users -"
   ];
 }
