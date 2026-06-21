@@ -287,6 +287,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
+            backupFileExtension = "backup";
             extraSpecialArgs = { hostname = "general-server"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
@@ -496,6 +497,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
+            backupFileExtension = "backup";
             extraSpecialArgs = { hostname = "proxnix"; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
