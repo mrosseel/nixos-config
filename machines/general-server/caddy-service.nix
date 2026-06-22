@@ -195,12 +195,13 @@
 
     # PiFinder file host — tarballs + desync chunk store, served as static
     # files next to the Attic cache. Read-only over HTTPS; uploads happen over
-    # SSH/rsync into the mike-owned web root (no upload daemon, no dir listing).
+    # SSH/rsync into the mike-owned web root (no upload daemon). browse renders
+    # an auto-generated directory index — every filename is publicly listable.
     virtualHosts."files.pifinder.eu" = {
       extraConfig = ''
         encode gzip
         root * /var/www/files.pifinder.eu
-        file_server
+        file_server browse
 
         # Content-addressed desync chunks never change — cache forever.
         @chunks path /castr/*
