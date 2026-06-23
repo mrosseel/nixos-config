@@ -1,4 +1,11 @@
-{ pkgs, lib, ... }:
+{ pkgs, lib, hostname ? "", ... }:
+let
+  # Workstations I sit at use C-a; anything I SSH into (servers, the Pi)
+  # keeps the default C-b so a single C-a/C-b chord never collides across hops.
+  mainMachines = [ "nixtop" "airelon" "nix270" "nixair" ];
+  isMain = builtins.elem hostname mainMachines;
+  prefixKey = if isMain then "C-a" else "C-b";
+in
 {
   programs.tmux = {
     enable = true;
@@ -41,12 +48,13 @@
         tmuxPlugins.better-mouse-mode
       ];
     extraConfig = lib.mkAfter ''
-      # Override omarchy C-Space prefix with C-a
-      set -g prefix C-a
+      # Prefix: C-a on main machines, C-b on SSH targets (see mainMachines above).
+      # Override omarchy's C-Space prefix either way.
+      set -g prefix ${prefixKey}
       set -g prefix2 None
-      unbind C-b
       unbind C-Space
-      bind C-a send-prefix
+      bind ${prefixKey} send-prefix
+      ${lib.optionalString isMain "unbind C-b"}
 
       # Nushell
       set -g default-command "${pkgs.nushell}/bin/nu"
