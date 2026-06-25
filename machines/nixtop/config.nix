@@ -1,5 +1,5 @@
 # User, services, and application configuration for nixtop
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   # While a VNC client is connected, hold a logind idle-inhibitor so hypridle
@@ -398,7 +398,11 @@ in
   # Resolve `.local` (mDNS) via resolved instead of nss-mdns's per-lookup
   # multicast, which races apps holding UDP 5353 (Brave/Spotify) → EBUSY.
   # "resolve" = look up mDNS but don't respond; avahi handles responding/publish.
+  # nixtop-scoped (mkForce) — the shared avahi module enables nss-mdns for all
+  # hosts; only this machine routes .local through resolved.
   services.resolved.extraConfig = "MulticastDNS=resolve";
+  services.avahi.nssmdns4 = lib.mkForce false;
+  services.avahi.nssmdns6 = lib.mkForce false;
   services.mullvad-vpn = {
     enable = true;
     package = pkgs.mullvad-vpn;
