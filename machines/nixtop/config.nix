@@ -400,7 +400,7 @@ in
   # "resolve" = look up mDNS but don't respond; avahi handles responding/publish.
   # nixtop-scoped (mkForce) — the shared avahi module enables nss-mdns for all
   # hosts; only this machine routes .local through resolved.
-  services.resolved.extraConfig = "MulticastDNS=resolve";
+  services.resolved.settings.Resolve.MulticastDNS = "resolve";
   services.avahi.nssmdns4 = lib.mkForce false;
   services.avahi.nssmdns6 = lib.mkForce false;
   services.mullvad-vpn = {
