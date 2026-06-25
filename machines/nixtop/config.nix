@@ -395,6 +395,10 @@ in
 
   # Mullvad VPN (requires systemd-resolved)
   services.resolved.enable = true;
+  # Resolve `.local` (mDNS) via resolved instead of nss-mdns's per-lookup
+  # multicast, which races apps holding UDP 5353 (Brave/Spotify) → EBUSY.
+  # "resolve" = look up mDNS but don't respond; avahi handles responding/publish.
+  services.resolved.extraConfig = "MulticastDNS=resolve";
   services.mullvad-vpn = {
     enable = true;
     package = pkgs.mullvad-vpn;
