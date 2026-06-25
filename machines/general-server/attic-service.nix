@@ -53,6 +53,15 @@
         region = "us-west-1";
         bucket = "pifinder-nix-cache";
       };
+
+      # Lifetime management. atticd runs GC on this interval and deletes store
+      # paths older than each cache's retention period. We deliberately set NO
+      # global default-retention-period, so a cache without a per-cache period
+      # (pifinder-release) is kept forever; the dev `pifinder` cache gets a
+      # finite period applied by atticd-set-dev-retention below.
+      garbage-collection = {
+        interval = "1 day";
+      };
     };
   };
 
@@ -212,6 +221,44 @@
       chown root:root /var/lib/atticd/ci-token
       chmod 0600 /var/lib/atticd/ci-token
       touch /var/lib/atticd/.pifinder-token-bootstrapped-v2
+    '';
+  };
+
+  # Apply a finite retention period to the dev `pifinder` cache so it does not
+  # grow without bound (testable-PR + trunk + beta closures all land here).
+  # pifinder-release is left at "Global Default" (no period → kept forever, the
+  # whole point of the retained cache). Marker-guarded; the period below is the
+  # source of truth — bump the marker suffix to re-apply a changed value.
+  # NB: retention config requires the dedicated configure-cache-retention
+  # permission, separate from configure-cache.
+  systemd.services.atticd-set-dev-retention = {
+    description = "Set the pifinder dev cache retention period (90 days)";
+    after = [ "atticd-bootstrap-cache.service" ];
+    requires = [ "atticd-bootstrap-cache.service" ];
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.ConditionPathExists = "!/var/lib/atticd/.pifinder-dev-retention-90d";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = with pkgs; [ curl coreutils attic-client ];
+    script = ''
+      set -euo pipefail
+      for i in $(seq 1 60); do
+        if curl -fsS -o /dev/null http://127.0.0.1:8080/ ; then break; fi
+        sleep 1
+      done
+      SETUP_TOKEN=$(/run/current-system/sw/bin/atticd-atticadm make-token \
+        --sub set-retention \
+        --validity 5m \
+        --configure-cache-retention pifinder \
+        --configure-cache pifinder \
+        --pull pifinder)
+      export ATTIC_CONFIG_DIR=$(mktemp -d)
+      trap 'rm -rf "$ATTIC_CONFIG_DIR"' EXIT
+      attic login local http://127.0.0.1:8080 "$SETUP_TOKEN"
+      attic cache configure local:pifinder --retention-period "90 days"
+      touch /var/lib/atticd/.pifinder-dev-retention-90d
     '';
   };
 }
