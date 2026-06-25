@@ -42,6 +42,17 @@
       # Default chunking thresholds from the upstream nixosModule (16K min,
       # 64K avg, 256K max) are appropriate for our closure sizes; left at
       # the module defaults.
+
+      # Chunk store: AWS S3 (ADR 0001 named S3/R2 as the eventual backend).
+      # Overrides the module's mkDefault local-disk store. Credentials are
+      # NOT here — AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY live in the
+      # environmentFile (/var/lib/atticd/env), kept out of the Nix store like
+      # the RS256 secret. No `endpoint`: real AWS derives s3.<region>....
+      storage = {
+        type = "s3";
+        region = "us-west-1";
+        bucket = "pifinder-nix-cache";
+      };
     };
   };
 
