@@ -356,6 +356,7 @@
             theme = "tokyo-night";
             scale = 1;
             browser = "brave";
+            terminal = "foot";
             seamless_boot = {
               enable = true;
               username = "mike";
