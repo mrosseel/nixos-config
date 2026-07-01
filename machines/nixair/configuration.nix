@@ -10,6 +10,9 @@
       ./hardware-configuration.nix
     ];
   boot.kernelParams = [ "radeon.cik_support=0" "amdgpu.cik_support=1" ];
+  # R9 290 (Hawaii/DCE8) DisplayPort black screen: amdgpu DP-blank bug on 6.12.
+  # Try a newer kernel for the fix (Hyprland needs amdgpu+DC, so dc=0 is not an option).
+  boot.kernelPackages = pkgs.linuxPackages_latest;
 
   # AMD GPU hardware acceleration (updated for NixOS 26.05)
   hardware.graphics = {
@@ -65,7 +68,7 @@
 
 
   # Configure console keymap
-  console.keyMap = "dvorak";
+  console.keyMap = "us";
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
@@ -99,6 +102,12 @@
     packages = with pkgs; [
     #  thunderbird
     ];
+  };
+  # Password set imperatively (mutableUsers = true) to keep it out of this public repo.
+  users.users.finn = {
+    isNormalUser = true;
+    description = "Finn";
+    extraGroups = [ "networkmanager" "video" "input" "render" "audio" ];
   };
   programs.xwayland.enable = true;
 
