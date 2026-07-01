@@ -135,6 +135,28 @@
   # for devenv caching
   nix.settings.trusted-users = [ "root" "mike" ];
 
+  # Create /bin/bash symlink for compatibility with non-NixOS scripts
+  # (many Omarchy scripts use #!/bin/bash)
+  system.activationScripts.binbash = {
+    deps = [ "binsh" ];
+    text = ''
+      ln -sf ${pkgs.bash}/bin/bash /bin/bash
+    '';
+  };
+
+  # Passwordless sudo for nixos-rebuild so this host can be rebuilt non-interactively
+  security.sudo.extraRules = [
+    {
+      users = [ "mike" ];
+      commands = [
+        {
+          command = "${pkgs.nixos-rebuild}/bin/nixos-rebuild";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }
+  ];
+
   # List services that you want to enable:
   # Enable the OpenSSH daemon.
   services.openssh = {
