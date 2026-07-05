@@ -54,35 +54,62 @@ let
   # "usb_set_interface failed (-110)"). A wireplumber restart or the sysfs
   # authorized-toggle can't fix it because VBUS stays powered; only a real port
   # power-cycle resets the device. Wave:3 = hub 3-2.1.1 port 1, StreamDeck = port 3.
+  # A deeper wedge exists where the child-hub cycle re-enumerates the device but
+  # capture delivers zero frames (source RUNNING, hw_ptr stuck at 0, no kernel
+  # errors); that one only clears when the parent hub 3-2.1 port 1 is cycled,
+  # which briefly drops the StreamDeck too.
   fix-wave3 = pkgs.writeShellScriptBin "fix-wave3" ''
     export PATH="${pkgs.uhubctl}/bin:${pkgs.pulseaudio}/bin:${pkgs.alsa-utils}/bin:${pkgs.systemd}/bin:${pkgs.coreutils}/bin:${pkgs.gnugrep}/bin:${pkgs.gawk}/bin:${pkgs.libnotify}/bin:$PATH"
+
+    restore_audio() {
+      systemctl --user restart wireplumber
+      sleep 2
+
+      # A real power-cycle re-mutes the mic in hardware and drops the card profile,
+      # so restore both (mirrors elgato-audio-restart.service below).
+      for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk '{print $2}'); do
+        pactl set-card-profile "$card" off 2>/dev/null || true
+        sleep 0.3
+        pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null || true
+      done
+      sleep 0.5
+      amixer -c Wave3 sset Mic 80% 2>/dev/null || true
+
+      src=$(pactl list sources short 2>/dev/null | grep -iE 'input.*wave' | awk '{print $2}' | head -1)
+      if [ -n "$src" ]; then
+        pactl set-source-mute "$src" 0 2>/dev/null || true
+        pactl set-default-source "$src" 2>/dev/null || true
+      fi
+    }
+
+    # The device can re-enumerate cleanly yet stream nothing, so "source exists"
+    # is not enough — count actual captured bytes.
+    capture_works() {
+      [ -n "$src" ] || return 1
+      bytes=$(timeout 2 parec --device="$src" --raw 2>/dev/null | wc -c)
+      [ "$bytes" -gt 0 ]
+    }
 
     echo "Power-cycling Elgato Wave:3 (hub 3-2.1.1 port 1; StreamDeck on port 3 untouched)..."
     sudo uhubctl -l 3-2.1.1 -p 1 -a cycle -d 3
     sleep 4
+    restore_audio
 
-    systemctl --user restart wireplumber
-    sleep 2
+    if ! capture_works; then
+      echo "Wave:3 re-enumerated but captures zero frames - escalating to parent hub 3-2.1 port 1 (StreamDeck drops briefly)..."
+      sudo uhubctl -l 3-2.1 -p 1 -a off
+      sleep 8
+      sudo uhubctl -l 3-2.1 -p 1 -a on
+      sleep 6
+      restore_audio
+    fi
 
-    # A real power-cycle re-mutes the mic in hardware and drops the card profile,
-    # so restore both (mirrors elgato-audio-restart.service below).
-    for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk '{print $2}'); do
-      pactl set-card-profile "$card" off 2>/dev/null || true
-      sleep 0.3
-      pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null || true
-    done
-    sleep 0.5
-    amixer -c Wave3 sset Mic 80% 2>/dev/null || true
-
-    src=$(pactl list sources short 2>/dev/null | grep -iE 'input.*wave' | awk '{print $2}' | head -1)
-    if [ -n "$src" ]; then
-      pactl set-source-mute "$src" 0 2>/dev/null || true
-      pactl set-default-source "$src" 2>/dev/null || true
+    if capture_works; then
       echo "Wave:3 recovered. Default source: $src"
       notify-send -i audio-input-microphone "Wave:3 mic" "Recovered and set as default" 2>/dev/null || true
     else
-      echo "Wave:3 power-cycled but no input source appeared yet - check 'pactl list sources short'." >&2
-      notify-send -u critical -i audio-input-microphone "Wave:3 mic" "Power-cycled but no source appeared" 2>/dev/null || true
+      echo "Wave:3 still not capturing after parent-hub cycle - unplug/replug it physically." >&2
+      notify-send -u critical -i audio-input-microphone "Wave:3 mic" "Still dead after both power-cycles - replug physically" 2>/dev/null || true
     fi
   '';
 in
@@ -467,6 +494,10 @@ in
       ];
     }
   ];
+
+  # QMK udev rules: user access to keyboard bootloaders (Planck atmel-dfu 03eb:2ff4)
+  # so `qmk flash` works without sudo
+  hardware.keyboard.qmk.enable = true;
 
   # Elgato device udev rules (both Wave:3 and StreamDeck MK.2)
   # - Disable USB autosuspend to prevent random disconnects
