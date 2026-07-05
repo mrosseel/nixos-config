@@ -115,6 +115,15 @@ in
   # Console keyboard
   console.keyMap = "dvorak";
 
+  # System-wide XKB layout. Needed so the SDDM greeter's Hyprland compositor
+  # picks up dvorak (the greeter can't read the personal Home-Manager Hyprland
+  # kb_variant override, so without this it falls back to us/qwerty and rejects
+  # the password at login).
+  services.xserver.xkb = {
+    layout = "us";
+    variant = "dvorak";
+  };
+
   # Enable aarch64 emulation for cross-building RPi images
   boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
 
