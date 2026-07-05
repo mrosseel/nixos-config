@@ -35,6 +35,7 @@ in {
   home.stateVersion = "23.11";
   imports = [
     ./tmux.nix
+    ./herdr.nix
     ./git.nix
     ./kitty.nix
     ./astro.nix
