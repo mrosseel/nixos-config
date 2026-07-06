@@ -32,18 +32,14 @@
 # Select internationalisation properties.
 	i18n.defaultLocale = "en_US.UTF-8";
 
-# Enable the X11 windowing system.
-	services.xserver.enable = true;
+# Desktop is provided by omarchy-nix (Hyprland/Wayland); GNOME/X11 disabled.
 
-# Enable the GNOME Desktop Environment.
-	services.displayManager.gdm.enable = true;
-	services.desktopManager.gnome.enable = true;
-
-# Configure keymap in X11
-	services.xserver = {
-		xkb.layout = "us";
-		xkb.variant = "dvorak";
+# Intel GPU hardware acceleration for Wayland.
+	hardware.graphics = {
+		enable = true;
+		enable32Bit = true;
 	};
+	programs.xwayland.enable = true;
 
 # Configure console keymap
 	console.keyMap = "dvorak";
@@ -74,9 +70,18 @@
   users.users.mike = {
     isNormalUser = true;
     description = "Mike";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "video" "input" "render" ];
     shell = pkgs.zsh;
     ignoreShellProgramCheck = true;
+  };
+
+  # Create /bin/bash symlink for compatibility with Omarchy scripts
+  # (many use #!/bin/bash).
+  system.activationScripts.binbash = {
+    deps = [ "binsh" ];
+    text = ''
+      ln -sf ${pkgs.bash}/bin/bash /bin/bash
+    '';
   };
 
   # Allow unfree packages (handled in flake.nix)

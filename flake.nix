@@ -185,6 +185,7 @@
         nixosBase
         {
           nixpkgs.config = nixpkgsConfig;
+          nixpkgs.overlays = overlays;
         }
         ./modules/nix-github-token.nix
         ./machines/nix270/configuration.nix
@@ -196,8 +197,24 @@
         ./modules/linux/avahi.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }
+        omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
+          # Configure omarchy
+          omarchy = {
+            username = "mike";
+            full_name = "Mike Rosseel";
+            email_address = "mike.rosseel@gmail.com";
+            theme = "tokyo-night";
+            scale = 1;
+            browser = "brave";
+            terminal = "foot";
+            seamless_boot = {
+              enable = true;
+              username = "mike";
+            };
+          };
+
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
@@ -206,13 +223,18 @@
             users.${user} = {
               imports = [
                 ./modules/home-manager
+                omarchy-nix.homeManagerModules.default
               ];
+
+              # Override keyboard layout to Dvorak (omarchy-nix defaults to us)
+              wayland.windowManager.hyprland.settings.input.kb_layout = "us";
+              wayland.windowManager.hyprland.settings.input.kb_variant = "dvorak";
             };
           };
         }
       ];
     };
-    # work in progress - now with omarchy-nix
+    # nixair - plain GNOME desktop (Finn's machine)
     nixosConfigurations."nixair" = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs nixpkgs-stable; };
       modules = [
