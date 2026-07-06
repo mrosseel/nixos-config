@@ -87,6 +87,9 @@
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
     nixosBase = {
       nix.settings.experimental-features = [ "nix-command" "flakes" ];
+      # Trust the wheel group so closures built on another host (e.g. nixtop)
+      # can be pushed here via `nixos-rebuild --target-host` without signing.
+      nix.settings.trusted-users = [ "root" "@wheel" ];
     };
     configuration = { pkgs, ... }: {
       # List packages installed in system profile. To search by name, run:
