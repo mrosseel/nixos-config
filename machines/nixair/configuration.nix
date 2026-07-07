@@ -59,6 +59,32 @@
   services.desktopManager.gnome.enable = true;
   services.xserver.xkb.layout = "us";
 
+  # Drop GNOME's bundled web browser so Brave is the only browser.
+  environment.gnome.excludePackages = with pkgs; [ epiphany gnome-tour ];
+
+  # Pop!_OS-style always-on bottom dock with apps pinned.
+  programs.dconf.profiles.user.databases = [
+    {
+      settings = {
+        "org/gnome/shell" = {
+          enabled-extensions = [ "dash-to-dock@micxgx.gmail.com" ];
+          favorite-apps = [
+            "brave-browser.desktop"
+            "steam.desktop"
+            "org.gnome.Nautilus.desktop"
+            "org.gnome.Console.desktop"
+            "org.gnome.Settings.desktop"
+          ];
+        };
+        "org/gnome/shell/extensions/dash-to-dock" = {
+          dock-position = "BOTTOM";
+          dock-fixed = true;
+          extend-height = false;
+        };
+      };
+    }
+  ];
+
 
   # Configure console keymap
   console.keyMap = "us";
@@ -104,8 +130,12 @@
   };
   programs.xwayland.enable = true;
 
-  # Install firefox.
-  programs.firefox.enable = true;
+  # Steam (gaming).
+  programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    dedicatedServer.openFirewall = true;
+  };
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
@@ -116,7 +146,8 @@
     brave
     vlc
     gnome-tweaks
-    gnomeExtensions.pop-shell # Pop!_OS-style auto-tiling
+    gnomeExtensions.pop-shell # Pop!_OS-style auto-tiling (opt-in)
+    gnomeExtensions.dash-to-dock # Pop!_OS-style bottom dock
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
