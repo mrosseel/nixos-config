@@ -75,6 +75,12 @@
     ignoreShellProgramCheck = true;
   };
 
+  # Passwordless sudo for wheel so nixtop can deploy here non-interactively
+  # via `nixos-rebuild --target-host` (the remote steps run as nix-env /
+  # switch-to-configuration, not nixos-rebuild, so a command-scoped rule
+  # wouldn't cover them). Personal laptop; acceptable tradeoff.
+  security.sudo.wheelNeedsPassword = false;
+
   # Create /bin/bash symlink for compatibility with Omarchy scripts
   # (many use #!/bin/bash).
   system.activationScripts.binbash = {

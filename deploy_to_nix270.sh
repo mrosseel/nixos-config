@@ -10,4 +10,5 @@ exec nixos-rebuild switch \
   --flake .#nix270 \
   --target-host mike@nix270.local \
   --use-remote-sudo \
+  --ask-elevate-password \
   "$@"
