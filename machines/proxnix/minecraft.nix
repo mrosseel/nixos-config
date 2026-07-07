@@ -3,36 +3,36 @@
 let
   plugins = {
     EssentialsX = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/hXiIvTyT/versions/Oa9ZDzZq/EssentialsX-2.21.2.jar";
-      sha256 = "1inz1c6zs4w3ckjil51yyz7r87rwvdk3cvw869y58g1gy0k90x8b";
+      url = "https://cdn.modrinth.com/data/hXiIvTyT/versions/nY6VN1XH/EssentialsX-2.22.0.jar";
+      sha256 = "1rjqmkyrpr9qdwih62ir0g8mn9r4mpqaj84q40pclzwp0m8ni95x";
     };
     CoreProtect = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/Lu3KuzdV/versions/HD2IvrxS/CoreProtect-CE-23.1.jar";
-      sha256 = "1qm2ircahprws0fxsx4ppbs8prn7qcfqm2kf3mp05n2ixjs84c41";
+      url = "https://cdn.modrinth.com/data/Lu3KuzdV/versions/6W2ad1iI/CoreProtect-CE-23.2.jar";
+      sha256 = "0nwj0hmkxv9y4xf1jlycib8whciincn05y3xbg4xdqxln3lbny1d";
     };
     BlueMap = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/swbUV1cr/versions/rUyuQba7/bluemap-5.14-paper.jar";
-      sha256 = "1zwy9zn1kp06y47hmpwv13xl5ligsxp244k8j4pwvdqyglc9ipc2";
+      url = "https://cdn.modrinth.com/data/swbUV1cr/versions/Vb2ZE8bR/bluemap-5.16-paper.jar";
+      sha256 = "1jkn8sggpvyc9yq60a2amrca3g1gna5cx2sgc9bbsbakc2raxnvr";
     };
     Chunky = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/fALzjamp/versions/P3y2MXnd/Chunky-Bukkit-1.4.40.jar";
       sha256 = "08cpq11i83rc949b33dj4dvf2dmqpr6y676ybbhi447ph3y7fm1a";
     };
     ViaVersion = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/P1OZGk5p/versions/OGj9YIQN/ViaVersion-5.9.1.jar";
-      sha256 = "00gbdwwbqf56s58p1n4ivcfxgi878gsiv79ihlf8xi9qc5ysjfis";
+      url = "https://cdn.modrinth.com/data/P1OZGk5p/versions/ruzmiBqe/ViaVersion-5.10.0.jar";
+      sha256 = "0wnr95qnvazkfgz84ncms8hrjl0y00kgcvhaw0dwsx4d3633z9p5";
     };
     ViaBackwards = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/NpvuJQoq/versions/W890fNPl/ViaBackwards-5.9.1.jar";
-      sha256 = "06fpfcjida94g8mg9w2lxwd2gfp42dvfflafli6vi2zsraxiirid";
+      url = "https://cdn.modrinth.com/data/NpvuJQoq/versions/YjpKsm6j/ViaBackwards-5.10.0.jar";
+      sha256 = "0ay6x6bcynnzdh2j1rjz2bvxf8qc4pvpcwk26g6li01qvpfvd6a6";
     };
     Geyser = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/wKkoqHrH/versions/ZAMkISgL/Geyser-Spigot.jar";
-      sha256 = "0nqd4dgrrl6cy2bmmc2hvkr2w5qxv72qqmfg9dbbh8xawr15nchq";
+      url = "https://cdn.modrinth.com/data/wKkoqHrH/versions/xd9KQBCh/Geyser-Spigot.jar";
+      sha256 = "00jv588y584a1qzdl5bdlg32y78wvcgfgm1pnawhdp0b3y53p33b";
     };
     Floodgate = pkgs.fetchurl {
-      url = "https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/132/downloads/spigot";
-      sha256 = "0c0hibd33891rkgsfkq9b6ffrva7f6rcdwn225m50qvgk1xga7b5";
+      url = "https://download.geysermc.org/v2/projects/floodgate/versions/2.2.5/builds/138/downloads/spigot";
+      sha256 = "1lbb3j78xaancawcyi4qb9aj2nk2i823scfmfjwz2kzvw84bkga4";
     };
   };
 

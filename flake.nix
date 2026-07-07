@@ -247,30 +247,14 @@
         ./machines/nixair/configuration.nix
         ./machines/nixair/hardware-configuration.nix
 	./modules/default-browser.nix
-	./modules/desktop.nix
 	./modules/openssh.nix
         ./modules/python.nix
 	./modules/ai.nix
 	./modules/printing.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }
-        omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
-          # Configure omarchy
-          omarchy = {
-            username = "mike";
-            full_name = "Mike Rosseel";
-            email_address = "mike.rosseel@gmail.com";
-            theme = "tokyo-night";
-            scale = 1;
-            browser = "brave";
-            seamless_boot = {
-              enable=true;
-              username = "mike";
-              };
-          };
-
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
@@ -279,7 +263,6 @@
             users.${user} = {
               imports = [
                 ./modules/home-manager
-                omarchy-nix.homeManagerModules.default
               ];
             };
           };

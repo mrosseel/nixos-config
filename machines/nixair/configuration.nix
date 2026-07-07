@@ -11,7 +11,7 @@
     ];
   boot.kernelParams = [ "radeon.cik_support=0" "amdgpu.cik_support=1" ];
   # R9 290 (Hawaii/DCE8) DisplayPort black screen: amdgpu DP-blank bug on 6.12.
-  # Try a newer kernel for the fix (Hyprland needs amdgpu+DC, so dc=0 is not an option).
+  # A newer kernel fixes it; GNOME Wayland needs amdgpu+DC, so dc=0 is not an option.
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
   # AMD GPU hardware acceleration (updated for NixOS 26.05)
@@ -53,18 +53,11 @@
     LC_TIME = "nl_BE.UTF-8";
   };
 
-  # Enable the X11 windowing system.
-  # services.xserver.enable = true;
-
-  # Enable the GNOME Desktop Environment.
-  # services.displayManager.gdm.enable = true;
-  # services.desktopManager.gnome.enable = true;
-
-  # Configure keymap in X11
-  # services.xserver.xkb = {
-  #   layout = "us";
-  #   variant = "dvorak";
-  # };
+  # GNOME desktop with GDM login.
+  services.xserver.enable = true;
+  services.displayManager.gdm.enable = true;
+  services.desktopManager.gnome.enable = true;
+  services.xserver.xkb.layout = "us";
 
 
   # Configure console keymap
@@ -120,8 +113,10 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
+    brave
+    vlc
+    gnome-tweaks
+    gnomeExtensions.pop-shell # Pop!_OS-style auto-tiling
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -134,15 +129,6 @@
 
   # for devenv caching
   nix.settings.trusted-users = [ "root" "mike" ];
-
-  # Create /bin/bash symlink for compatibility with non-NixOS scripts
-  # (many Omarchy scripts use #!/bin/bash)
-  system.activationScripts.binbash = {
-    deps = [ "binsh" ];
-    text = ''
-      ln -sf ${pkgs.bash}/bin/bash /bin/bash
-    '';
-  };
 
   # Passwordless sudo for nixos-rebuild so this host can be rebuilt non-interactively
   security.sudo.extraRules = [
