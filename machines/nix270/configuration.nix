@@ -2,7 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
 	imports =
@@ -25,6 +25,11 @@
 
 # Enable networking
 		networking.networkmanager.enable = true;
+
+# omarchy-nix defaults NetworkManager to the iwd backend, which rejects valid
+# Wi-Fi passwords on this hardware. Use the reliable wpa_supplicant backend.
+		networking.networkmanager.wifi.backend = lib.mkForce "wpa_supplicant";
+		networking.wireless.iwd.enable = lib.mkForce false;
 
 # Set your time zone.
 	time.timeZone = "Europe/Brussels";
