@@ -1014,11 +1014,11 @@
         "quickshell": "quickshell"
       },
       "locked": {
-        "lastModified": 1783497331,
-        "narHash": "sha256-1BOdNj9VoHfBftpJpVpq8cOdtmfLjnqWr7BSy18jESQ=",
+        "lastModified": 1783500207,
+        "narHash": "sha256-8VoyRiItIpvODznKwWwzxFMH7XmPtpyoGD8cEo2o0zg=",
         "owner": "mrosseel",
         "repo": "omarchy-nix",
-        "rev": "39edf139031cc8fc8e126b111bd10004e889d82c",
+        "rev": "d4f0e45a085120811e83e5e09b68e17edfc1bebc",
         "type": "github"
       },
       "original": {

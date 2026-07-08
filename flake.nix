@@ -90,17 +90,13 @@
       # Trust the wheel group so closures built on another host (e.g. nixtop)
       # can be pushed here via `nixos-rebuild --target-host` without signing.
       nix.settings.trusted-users = [ "root" "@wheel" ];
-      # Pull prebuilt binaries for flake-sourced packages that cache.nixos.org
-      # doesn't have. Hyprland (+ its ecosystem) comes from the hyprland flake,
-      # not nixpkgs, so without hyprland.cachix.org the whole stack compiles
-      # locally on every bump. nix-community covers other common flake outputs.
-      # These append to the default cache.nixos.org (extra-*, not a replacement).
+      # Generic flake-output cache, wanted on every host. The Hyprland cache
+      # lives in omarchy-nix instead (it owns the hyprland flake dependency),
+      # so only omarchy hosts carry it. Appends to the default cache.nixos.org.
       nix.settings.extra-substituters = [
-        "https://hyprland.cachix.org"
         "https://nix-community.cachix.org"
       ];
       nix.settings.extra-trusted-public-keys = [
-        "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzJ6jXYv+S+rfAoja0iy6vGm7A="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       ];
     };
