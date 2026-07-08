@@ -10,12 +10,15 @@ let
     };
     "nixtop" = {
       "2air" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/ mike@airelon.local:~/dev/ 2>/dev/null";
-      # Push the 3D-printing dir to nix270 (nix270 only syncs this subdir, not all of ~/dev).
-      "23d" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/3dprinting/ mike@nix270.local:~/dev/3dprinting/ 2>/dev/null";
+      # 3D-printing sync with nix270 (manual rsync, additive — no --delete).
+      "sync3d-to-nix270" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/3dprinting/ mike@nix270.local:~/dev/3dprinting/ 2>/dev/null";
+      "sync3d-from-nix270" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' mike@nix270.local:~/dev/3dprinting/ ~/dev/3dprinting/ 2>/dev/null";
     };
     "nix270" = {
-      # Push local 3D-printing changes back to nixtop.
-      "23d" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/3dprinting/ mike@nixtop.local:~/dev/3dprinting/ 2>/dev/null";
+      # 3D-printing sync with nixtop (manual rsync, additive — no --delete).
+      # nix270 only syncs this subdir, not all of ~/dev.
+      "sync3d-to-nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' ~/dev/3dprinting/ mike@nixtop.local:~/dev/3dprinting/ 2>/dev/null";
+      "sync3d-from-nixtop" = "rsync -azhW --info=progress2 --exclude='.direnv' --exclude='.venv' mike@nixtop.local:~/dev/3dprinting/ ~/dev/3dprinting/ 2>/dev/null";
     };
   };
   nushellRsyncAliases = rsyncAliases.${hostname} or {};
