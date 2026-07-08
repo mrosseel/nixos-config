@@ -536,6 +536,26 @@ in
     };
   };
 
+  # Brave/Chromium's audio service does not re-enumerate capture devices after the
+  # PulseAudio server (pipewire-pulse) drops and returns, so the mic silently
+  # vanishes from the browser until Brave restarts. Every wireplumber/pipewire-pulse
+  # restart here (Wave:3 USB recovery, resume, rebuild) triggers that. Respawning
+  # just Brave's audio child process makes Chromium re-scan devices with no lost tabs.
+  systemd.user.services.brave-audio-recover = {
+    description = "Respawn Brave's audio service after a PipeWire/Pulse restart";
+    after = [ "pipewire-pulse.service" "wireplumber.service" ];
+    partOf = [ "pipewire-pulse.service" "wireplumber.service" ];
+    wantedBy = [ "pipewire-pulse.service" "wireplumber.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "poke-brave-audio" ''
+        ${pkgs.coreutils}/bin/sleep 3
+        ${pkgs.procps}/bin/pkill -f 'brave.*--utility-sub-type=audio' || true
+      '';
+    };
+  };
+
   # Service to restart StreamDeck daemon when device is connected
   systemd.user.services.streamdeck-restart = {
     description = "Restart StreamDeck daemon";
