@@ -246,6 +246,7 @@
         ./modules/nix-github-token.nix
         ./machines/nixair/configuration.nix
         ./machines/nixair/hardware-configuration.nix
+        ./modules/linux/avahi.nix
 	./modules/default-browser.nix
 	./modules/openssh.nix
         ./modules/python.nix
