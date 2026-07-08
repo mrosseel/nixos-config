@@ -49,6 +49,17 @@
 # Configure console keymap
 	console.keyMap = "dvorak";
 
+# Syncthing — devices/folders managed via the GUI/API (like nixtop), not
+# declaratively. Used to sync ~/dev/3dprinting with nixtop.
+	services.syncthing = {
+		enable = true;
+		user = "mike";
+		dataDir = "/home/mike";
+		configDir = "/home/mike/.config/syncthing";
+		overrideDevices = false;
+		overrideFolders = false;
+	};
+
 # Enable CUPS to print documents.
 	services.printing.enable = true;
 
@@ -76,7 +87,7 @@
     isNormalUser = true;
     description = "Mike";
     extraGroups = [ "networkmanager" "wheel" "video" "input" "render" ];
-    shell = pkgs.zsh;
+    shell = pkgs.nushell;
     ignoreShellProgramCheck = true;
   };
 
@@ -107,8 +118,7 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
+    claude-code  # lightweight; the heavy AI/GPU tooling (modules/ai.nix) stays off nix270
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
