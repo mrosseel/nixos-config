@@ -99,6 +99,10 @@ in {
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
   programs.fzf.enableZshIntegration = true;
+  # atuin owns Ctrl-R for history search; drop fzf's competing Ctrl-R
+  # auto-binding so home-manager doesn't warn about both claiming it.
+  # fzf's file/dir widgets (Ctrl-T, Alt-C) stay enabled.
+  programs.fzf.historyWidget.command = "";
   programs.ssh.matchBlocks = {
     "*" = {
       addKeysToAgent = "yes";
