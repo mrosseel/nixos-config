@@ -49,17 +49,6 @@
 # Configure console keymap
 	console.keyMap = "dvorak";
 
-# Syncthing — devices/folders managed via the GUI/API (like nixtop), not
-# declaratively. Used to sync ~/dev/3dprinting with nixtop.
-	services.syncthing = {
-		enable = true;
-		user = "mike";
-		dataDir = "/home/mike";
-		configDir = "/home/mike/.config/syncthing";
-		overrideDevices = false;
-		overrideFolders = false;
-	};
-
 # Enable CUPS to print documents.
 	services.printing.enable = true;
 
