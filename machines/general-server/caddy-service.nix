@@ -1,6 +1,7 @@
 { pkgs, ... }:
 
 {
+ imports = [ ./thailand-planner.nix ];
  services.caddy = {
     enable = true;
     globalConfig = ''
@@ -148,9 +149,15 @@
         basic_auth {
           family $2a$14$s/JqG2aVwS.OmPLAcfmes.ydNHOWCjoRHs.PF80qI.HNftlvfqsde
         }
-        root * /var/www/thailand.miker.be
-        file_server
-        try_files {path} /index.html
+        # Plan persistence service (see thailand-planner.nix).
+        handle /api/* {
+          reverse_proxy localhost:8010
+        }
+        handle {
+          root * /var/www/thailand.miker.be
+          file_server
+          try_files {path} /index.html
+        }
         # Vite-hashed bundles are immutable, content-addressed by filename.
         @assets path /assets/*
         header @assets Cache-Control "public, max-age=31536000, immutable"
