@@ -140,6 +140,30 @@
         redir https://miker.be{uri} permanent
       '';
     };
+    # Private family trip planner (static Vite SPA). Basic-auth gated so the
+    # itinerary isn't public. Files rsync'd to /var/www/thailand.miker.be.
+    virtualHosts."thailand.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        basic_auth {
+          family $2a$14$s/JqG2aVwS.OmPLAcfmes.ydNHOWCjoRHs.PF80qI.HNftlvfqsde
+        }
+        root * /var/www/thailand.miker.be
+        file_server
+        try_files {path} /index.html
+        # Vite-hashed bundles are immutable, content-addressed by filename.
+        @assets path /assets/*
+        header @assets Cache-Control "public, max-age=31536000, immutable"
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "no-cache, must-revalidate"
+          -Server
+        }
+      '';
+    };
     virtualHosts."blog.miker.be" = {
       extraConfig = ''
         encode gzip
@@ -382,6 +406,8 @@
   # rsync from the workstation doesn't need remote sudo.
   systemd.tmpfiles.rules = [
     "d /var/www/mars.miker.be 0755 mike users -"
+    # Trip planner web root owned by mike so dist rsync needs no remote sudo.
+    "d /var/www/thailand.miker.be 0755 mike users -"
     # PiFinder file host (files.pifinder.eu): web root + desync chunk store,
     # owned by mike so rsync uploads from the workstation need no remote sudo.
     "d /var/www/files.pifinder.eu 0755 mike users -"
