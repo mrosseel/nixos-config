@@ -49,6 +49,18 @@
     claude-code.url = "github:sadjow/claude-code-nix";
     codex-cli-nix.url = "github:sadjow/codex-cli-nix";
 
+    # hunk: review-first terminal diff viewer. Home-manager module wired in
+    # modules/home-manager/hunk.nix (shared across all hosts).
+    # hunk's flake enumerates x86_64-darwin in its systems list, and importing
+    # its home-manager module forces flake-parts to evaluate that perSystem.
+    # Our nixpkgs (26.11) and hunk's own pin both dropped x86_64-darwin, so
+    # follow nixpkgs-stable (25.11), which still has it — hunk evals, and nixtop
+    # only builds hunk's x86_64-linux package.
+    hunk = {
+      url = "github:modem-dev/hunk";
+      inputs.nixpkgs.follows = "nixpkgs-stable";
+    };
+
     # grower: daily directory-size inventory. Published so every host (incl.
     # the Mac) can fetch it. Override locally during dev with:
     #   --override-input grower path:/home/mike/dev/grower
@@ -73,6 +85,7 @@
         "libsoup-2.74.3"
         "ventoy-1.1.12"
         "electron-39.8.10"
+        "electron-40.10.5"  # vesktop 1.6.5 (Electron Discord client); EOL but low-risk
       ];
       vivaldi = {
         proprietaryCodecs = true;
@@ -82,6 +95,10 @@
     overlays = with inputs; [
       claude-code.overlays.default
       (import ./overlays/brave.nix)
+      (import ./overlays/gdal.nix)
+      (import ./overlays/pdal.nix)
+      (import ./overlays/vtk.nix)
+      (import ./overlays/freecad.nix)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
@@ -228,11 +245,12 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = { hostname = "nix270"; };
+            extraSpecialArgs = { hostname = "nix270"; inherit inputs; };
             users.${user} = {
               imports = [
                 ./modules/home-manager
                 omarchy-nix.homeManagerModules.default
+                ./machines/nix270/omarchy-idle.nix
               ];
 
               # Override keyboard layout to Dvorak (omarchy-nix defaults to us)
@@ -269,7 +287,7 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = { hostname = "nixair"; };
+            extraSpecialArgs = { hostname = "nixair"; inherit inputs; };
             users.${user} = {
               imports = [
                 ./modules/home-manager
@@ -306,7 +324,7 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = { hostname = "general-server"; };
+            extraSpecialArgs = { hostname = "general-server"; inherit inputs; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
             };
@@ -386,7 +404,7 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = { hostname = "nixtop"; };
+            extraSpecialArgs = { hostname = "nixtop"; inherit inputs; };
             users.${user} = {
               imports = [
                 ./modules/home-manager
@@ -517,7 +535,7 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "backup";
-            extraSpecialArgs = { hostname = "proxnix"; };
+            extraSpecialArgs = { hostname = "proxnix"; inherit inputs; };
             users.${user} = {
               imports = [ ./modules/home-manager ];
             };
@@ -527,6 +545,7 @@
     };
     homeManagerConfigurations."piDSC" = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages."aarch64-linux";
+      extraSpecialArgs = { inherit inputs; };
       modules = [
         ./modules/home-manager
         {
