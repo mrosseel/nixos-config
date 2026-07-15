@@ -203,11 +203,26 @@ let
             ;;
     esac
   '';
+
+  # Agent multiplexers (herdr) label a pane by the basename of the foreground
+  # process's argv[0]. The upstream codex-cli-nix wrapper execs "codex-raw",
+  # so herdr sees "codex-raw" and never labels the pane as codex. Re-exec with
+  # argv[0] = "codex" while keeping the upstream wrapper's env/PATH setup.
+  codex-cli = inputs.codex-cli-nix.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  codex-cli-argv0 = pkgs.symlinkJoin {
+    name = "codex-argv0-fixed";
+    paths = [ codex-cli ];
+    postBuild = ''
+      rm -f $out/bin/codex
+      sed 's|^exec "|exec -a codex "|' ${codex-cli}/bin/codex > $out/bin/codex
+      chmod +x $out/bin/codex
+    '';
+  };
 in
 {
   environment.systemPackages = [
     pkgs.claude-code
-    inputs.codex-cli-nix.packages.${pkgs.stdenv.hostPlatform.system}.default
+    codex-cli-argv0
     # pkgs.gemini-cli  # Disabled due to CVE-2024-23342 in ecdsa dependency
     pkgs.ollama
     pkgs.opencode
