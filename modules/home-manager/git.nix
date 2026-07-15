@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ pkgs, config, lib, ... }:
 let
     userName = "Mike Rosseel";
     userEmail = "mike.rosseel@gmail.com";
@@ -54,7 +54,9 @@ in
       core = {
         editor = "nvim";
         symlinks = true;
-        pager = "delta";
+        # hunk (enableGitIntegration) sets core.pager; keep delta as the
+        # lower-priority fallback so hunk wins without an eval conflict.
+        pager = lib.mkDefault "delta";
       };
       interactive.diffFilter = "delta --color-only";
       delta = {

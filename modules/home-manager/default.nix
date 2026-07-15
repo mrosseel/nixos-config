@@ -52,6 +52,7 @@ in {
     ./starship.nix
     ./streamdeck.nix
     ./opencode.nix
+    ./hunk.nix
 #    ./gc.nix
   ];
   # specify my home-manager configs
@@ -108,6 +109,10 @@ in {
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
   programs.fzf.enableZshIntegration = true;
+  # fzf 0.74's `--nushell` output still uses `str downcase` (deprecated in
+  # nushell 0.114). Source a sed-patched copy ourselves instead so nushell
+  # doesn't warn on every startup. Drop this once nixpkgs bumps fzf.
+  programs.fzf.enableNushellIntegration = false;
   # atuin owns Ctrl-R for history search; drop fzf's competing Ctrl-R
   # auto-binding so home-manager doesn't warn about both claiming it.
   # fzf's file/dir widgets (Ctrl-T, Alt-C) stay enabled.
@@ -225,6 +230,11 @@ in {
       nixswmac = "sudo darwin-rebuild switch --flake ~/nixos-config/.#";
     } // hyprSessionAliases;
     extraConfig = lib.mkAfter ''
+      # fzf nushell integration, patched for the `str downcase` deprecation.
+      source ${pkgs.runCommand "fzf-nushell-integration.nu" {} ''
+        ${pkgs.fzf}/bin/fzf --nushell | ${pkgs.gnused}/bin/sed 's/str downcase/str lowercase/g' > $out
+      ''}
+
       # zoxide with --cmd cd: replaces builtin cd with zoxide-powered cd
       source ${pkgs.runCommand "zoxide-nushell-cmd-cd" {} ''
         ${pkgs.zoxide}/bin/zoxide init nushell --cmd cd > $out
