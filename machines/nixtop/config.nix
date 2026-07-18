@@ -596,6 +596,16 @@ in
   # Disable the weekly fstrim timer to avoid redundant work.
   services.fstrim.enable = false;
 
+  # Force the WiFi radio on at every boot. NetworkManager persists a
+  # WirelessEnabled=false flag if the radio ever gets toggled off, which
+  # silently hides the WiFi from the bar/panel; this guarantees it comes back.
+  systemd.services.wifi-always-on = {
+    wantedBy = [ "multi-user.target" ];
+    after = [ "NetworkManager.service" ];
+    serviceConfig.Type = "oneshot";
+    script = "${pkgs.networkmanager}/bin/nmcli radio wifi on";
+  };
+
   # Tailscale VPN
   services.tailscale.enable = true;
   services.tailscale.extraUpFlags = [ "--accept-routes" ];
