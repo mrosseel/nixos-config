@@ -427,6 +427,7 @@ in
     freecad-wayland
     calibre
     trezor-suite
+    portfolio  # Portfolio Performance - investment portfolio tracker
     fix-wave3  # power-cycle recovery for the Wave:3 mic (USB -110 firmware hang)
   ];
 
