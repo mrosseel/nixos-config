@@ -191,6 +191,24 @@
         }
       '';
     };
+    # Hidden Treasures observing scorecard: a single static page regenerated from
+    # a PiFinder observation log and rsync'd from the workstation
+    # (~/dev/amateur_astro/hiddentreasures.miker.be/deploy.sh).
+    virtualHosts."hiddentreasures.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/hiddentreasures.miker.be
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+      '';
+    };
     virtualHosts."joeri.miker.be" = {
       extraConfig = ''
         encode gzip
@@ -419,5 +437,7 @@
     # owned by mike so rsync uploads from the workstation need no remote sudo.
     "d /var/www/files.pifinder.eu 0755 mike users -"
     "d /var/www/files.pifinder.eu/castr 0755 mike users -"
+    # Scorecard web root owned by mike so the rsync deploy needs no remote sudo.
+    "d /var/www/hiddentreasures.miker.be 0755 mike users -"
   ];
 }
