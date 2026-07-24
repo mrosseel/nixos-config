@@ -272,8 +272,21 @@ in {
       # Add to PATH
       $env.PATH = ($env.PATH | split row (char esep) | prepend $"($env.HOME)/.npm-packages/bin" | prepend $"($env.HOME)/.local/bin")
 
+      # nix-darwin exports the nix profile dirs from /etc/zshenv + /etc/bashrc,
+      # which nushell never sources -- so on Darwin nushell starts without the
+      # home-manager profile on PATH (no zoxide, eza, fzf, ...). NixOS inherits
+      # a correct PATH from the session, so this is Darwin-only by design.
+      if $nu.os-info.name == "macos" {
+        $env.PATH = ($env.PATH | split row (char esep) | prepend [
+          $"($env.HOME)/.nix-profile/bin"
+          $"/etc/profiles/per-user/($env.USER)/bin"
+          "/run/current-system/sw/bin"
+          "/nix/var/nix/profiles/default/bin"
+        ] | uniq)
+      }
+
       # Homebrew setup for M1 Macs
-      if (sys host | get name) == "Darwin" and ((sys host | get arch) == "aarch64") {
+      if $nu.os-info.name == "macos" and $nu.os-info.arch == "aarch64" {
         $env.PATH = ($env.PATH | split row (char esep) | prepend "/opt/homebrew/bin")
       }
 

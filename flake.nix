@@ -174,13 +174,30 @@
         }
         ./modules/darwin
         ./modules/python.nix
-        # grower CLI for ad-hoc disk-growth checks. No scheduling on macOS —
-        # run `grower scan` / `grower diff` by hand. Default scans the home
-        # dir (no sudo/firmlink issues); `sudo grower scan --root /` does the
-        # whole machine, and the excludes below already cover APFS firmlinks.
+        # grower: daily directory-size inventory. Default scans the home dir
+        # (no sudo/firmlink issues); `sudo grower scan --root /` does the whole
+        # machine, and the excludes below already cover APFS firmlinks.
+        #
+        # Scheduling on a laptop: launchd's StartCalendarInterval silently skips
+        # runs that fall while the machine is asleep, which for a 04:00 slot is
+        # most nights. StartInterval instead fires on wake once the interval has
+        # elapsed, and `grower scan` is idempotent (at most one snapshot per
+        # local day, no-op if today's already exists) — so a 6h tick lands
+        # exactly one scan on the first wake of each day.
         ({ pkgs, inputs, ... }: {
           nixpkgs.overlays = [ inputs.grower.overlays.default ];
           environment.systemPackages = [ pkgs.grower ];
+          launchd.user.agents.grower = {
+            command = "${pkgs.grower}/bin/grower scan";
+            serviceConfig = {
+              StartInterval = 21600; # 6h; idempotency collapses this to 1/day
+              RunAtLoad = true;
+              LowPriorityIO = true;
+              Nice = 10;
+              StandardOutPath = "/Users/mike/.local/share/grower/scan.log";
+              StandardErrorPath = "/Users/mike/.local/share/grower/scan.log";
+            };
+          };
           environment.etc."grower/config.toml".text = ''
             db_path = "/Users/mike/.local/share/grower/grower.db"
             roots = ["/Users/mike"]
@@ -408,6 +425,7 @@
             users.${user} = {
               imports = [
                 ./modules/home-manager
+                ./modules/home-manager/thunderbird.nix
                 omarchy-nix.homeManagerModules.default
               ];
 
@@ -432,80 +450,6 @@
                 bindd = , Print, Screenshot region, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim -g "$(slurp)" - | tee "$FILE" | wl-copy -t image/png'
                 bindd = SUPER, Print, Screenshot full screen, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim - | tee "$FILE" | wl-copy -t image/png'
               '';
-
-              # Thunderbird email client
-              programs.thunderbird = {
-                enable = true;
-                profiles = {
-                  default = {
-                    isDefault = true;
-                  };
-                };
-              };
-
-              # Email accounts for Thunderbird
-              accounts.email = {
-                accounts = {
-                  pifinder = {
-                    primary = true;
-                    address = "info@pifinder.eu";
-                    realName = "Mike Rosseel";
-                    userName = "info@pifinder.eu";
-
-                    imap = {
-                      host = "mail.pifinder.eu";
-                      port = 993;
-                      tls = {
-                        enable = true;
-                        useStartTls = false;
-                      };
-                    };
-
-                    smtp = {
-                      host = "mail.pifinder.eu";
-                      port = 465;
-                      tls = {
-                        enable = true;
-                        useStartTls = false;
-                      };
-                    };
-
-                    thunderbird = {
-                      enable = true;
-                      profiles = [ "default" ];
-                    };
-                  };
-
-                  hackerspace = {
-                    address = "board@hackerspace.gent";
-                    realName = "Hackerspace.gent board";
-                    userName = "board@hackerspace.gent";
-
-                    imap = {
-                      host = "mail.openminds.be";
-                      port = 993;
-                      tls = {
-                        enable = true;
-                        useStartTls = false;
-                      };
-                    };
-
-                    smtp = {
-                      host = "mail.openminds.be";
-                      port = 587;
-                      tls = {
-                        enable = true;
-                        useStartTls = true;
-                      };
-                    };
-
-                    thunderbird = {
-                      enable = true;
-                      profiles = [ "default" ];
-                    };
-                  };
-                };
-              };
             };
           };
         }
