@@ -74,6 +74,7 @@ in
     #./sketchybar.nix
     ./flutter.nix
     ./aerospace.nix
+    ../ai-base.nix   # codex CLI (claude-code comes from the native installer here)
   ];
 
   # here go the darwin preferences and config items
@@ -88,7 +89,6 @@ in
     systemPackages = with pkgs; [
       coreutils
       ghostty-terminfo
-      lan-mouse
       # xquartz
       # trezor-agent  # Broken: trezor 0.13.10 requires click<8.2, nixpkgs has 8.2.1
     ];
@@ -102,6 +102,13 @@ in
   fonts.packages = [ pkgs.nerd-fonts.meslo-lg ];
   
   nix.enable = true;
+  nix.gc = {
+    automatic = true;
+    interval = { Weekday = 0; Hour = 2; Minute = 0; };
+    options = "--delete-older-than 14d";
+  };
+  nix.settings.auto-optimise-store = true;
+  nix.optimise.automatic = true;
   system.defaults = {
     loginwindow.GuestEnabled = false;
     CustomUserPreferences = {
