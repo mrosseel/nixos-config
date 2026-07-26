@@ -263,6 +263,11 @@ in
   # Trusted users for devenv caching
   nix.settings.trusted-users = [ "root" "mike" ];
 
+  # Limit build CPU usage so the machine stays responsive during rebuilds
+  # (Ryzen AI 395: 16 cores / 32 threads). Total load ≈ max-jobs × cores.
+  nix.settings.max-jobs = 4;   # parallel build jobs
+  nix.settings.cores = 6;      # cores per job (0 = all)
+
   # Limit nix-daemon memory to prevent OOM during large builds (e.g. aarch64 cross-compilation)
   systemd.services.nix-daemon.serviceConfig = {
     MemoryMax = "64G";
