@@ -95,10 +95,6 @@
     overlays = with inputs; [
       claude-code.overlays.default
       (import ./overlays/brave.nix)
-      (import ./overlays/gdal.nix)
-      (import ./overlays/pdal.nix)
-      (import ./overlays/vtk.nix)
-      (import ./overlays/freecad.nix)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
