@@ -67,7 +67,7 @@
         }
 
         handle /catalog_images/* {
-          root * /var/www/pifinder-catalogs
+          root * /var/www/catalogs.pifinder.eu
           file_server
 
           @hotlink not header Referer *catalogs.pifinder.eu*
@@ -77,7 +77,7 @@
         }
 
         handle {
-          root * /var/www/pifinder-catalogs
+          root * /var/www/catalogs.pifinder.eu
           @file file
           handle @file {
             file_server
@@ -174,7 +174,7 @@
     virtualHosts."blog.miker.be" = {
       extraConfig = ''
         encode gzip
-        root * /var/www/blog
+        root * /var/www/blog.miker.be
         file_server
         header {
           Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
@@ -349,7 +349,7 @@
         }
 
         handle {
-          root * /var/www/messier
+          root * /var/www/messier.miker.be
           file_server
           try_files {path} /index.html
         }

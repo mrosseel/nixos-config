@@ -36,8 +36,8 @@ let
 in
 {
   systemd.tmpfiles.rules = [
-    "d /var/www/pifinder-catalogs 0755 mike mike -"
-    "d /var/www/messier 0755 mike mike -"
+    "d /var/www/catalogs.pifinder.eu 0755 mike mike -"
+    "d /var/www/messier.miker.be 0755 mike mike -"
     "d /var/www/miker.be 0755 mike mike -"
     "d /var/www/astro.miker.be 0755 mike mike -"
     "d /var/www/asterisms.miker.be 0755 mike mike -"
