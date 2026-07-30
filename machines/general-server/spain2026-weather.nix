@@ -14,6 +14,13 @@
 let
   webRoot = "/var/www/spain2026.miker.be";
 in {
+  # ReadWritePaths cannot namespace a directory that does not exist yet, so the
+  # unit fails at NAMESPACE rather than skipping cleanly on a machine that has
+  # not had the content rsync run. Create it up front.
+  systemd.tmpfiles.rules = [
+    "d ${webRoot}/data 0755 mike users - -"
+  ];
+
   systemd.services.spain2026-weather = {
     description = "Refresh spain2026.miker.be forecast and METAR data";
     after = [ "network-online.target" ];
