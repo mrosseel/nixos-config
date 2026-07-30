@@ -323,6 +323,7 @@
         ./machines/general-server/systemd.nix
         ./machines/general-server/monitoring.nix
         ./machines/general-server/asterisms-votes.nix
+        ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
         ./machines/general-server/attic-service.nix
         ./modules/simple-mail-server.nix
