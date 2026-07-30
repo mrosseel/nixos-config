@@ -108,6 +108,54 @@ def fetch_forecast(sites):
     return {"hours": hours, "sites": rows}
 
 
+# Mid-totality, the instant a TAF would have to cover to be worth anything here.
+TOTALITY_EPOCH = 1786559400        # 2026-08-12T18:30:00Z, mid-totality
+
+
+def fetch_taf(icaos):
+    """Aerodrome forecasts.
+
+    A TAF is a human-checked forecast of cloud base and amount, but it only runs
+    24-30 hours ahead, so it cannot say anything about eclipse evening until
+    11 August. Until then this records how far each one reaches; after that the
+    period covering totality is the best worded guidance available.
+    """
+    out = {}
+    try:
+        data = get("https://aviationweather.gov/api/data/taf"
+                   f"?ids={','.join(icaos)}&format=json")
+    except Exception as e:
+        print(f"  taf fetch failed: {e}", file=sys.stderr)
+        return out
+    for t in data:
+        icao = t.get("icaoId")
+        if not icao:
+            continue
+        covering = None
+        for f in (t.get("fcsts") or []):
+            a, b = f.get("timeFrom"), f.get("timeTo")
+            if a and b and a <= TOTALITY_EPOCH < b:
+                cl = [(c.get("cover"), c.get("base")) for c in (f.get("clouds") or [])]
+                worst = "CLR"
+                for cover, _ in cl:
+                    if cover in ("BKN", "OVC", "VV"):
+                        worst = "BKN/OVC"
+                        break
+                    if cover == "SCT":
+                        worst = "SCT"
+                covering = {"from": a, "to": b, "clouds": cl, "state": worst,
+                            "wx": f.get("wxString")}
+                break
+        prev = out.get(icao)
+        rec = {"issued": t.get("issueTime"), "from": t.get("validTimeFrom"),
+               "to": t.get("validTimeTo"), "raw": t.get("rawTAF"),
+               "totality": covering}
+        # keep the newest issue per station
+        if not prev or (rec["issued"] or "") > (prev["issued"] or ""):
+            out[icao] = rec
+    return out
+
+
 def fetch_metar(icaos):
     out = {}
     ids = ",".join(icaos)
@@ -168,14 +216,19 @@ def main():
             print(f"  grid failed, keeping previous: {e}", file=sys.stderr)
 
     try:
-        mt = fetch_metar([a["icao"] for a in airports])
-        if mt:
+        icaos = [a["icao"] for a in airports]
+        mt = fetch_metar(icaos)
+        tf = fetch_taf(icaos)
+        if mt or tf:
             n = write_atomic("metar.json", {"fetched_at": int(time.time()),
-                                            "stations": mt})
+                                            "stations": mt, "taf": tf,
+                                            "totality_epoch": TOTALITY_EPOCH})
             ok["metar"] = True
-            print(f"  metar.json {n // 1024} kB, {len(mt)} stations")
+            cov = sum(1 for v in tf.values() if v.get("totality"))
+            print(f"  metar.json {n // 1024} kB, {len(mt)} obs, {len(tf)} TAFs "
+                  f"({cov} reaching totality)")
     except Exception as e:
-        print(f"  metar failed, keeping previous: {e}", file=sys.stderr)
+        print(f"  metar/taf failed, keeping previous: {e}", file=sys.stderr)
 
     write_atomic("updated.json", {
         "fetched_at": int(time.time()),
