@@ -112,6 +112,50 @@ def fetch_forecast(sites, key="id"):
 TOTALITY_EPOCH = 1786559400        # 2026-08-12T18:30:00Z, mid-totality
 
 
+# Cloud cover ranked by how much of the sun it takes away.
+COVER_RANK = {"SKC": 0, "CLR": 0, "NSC": 0, "NCD": 0, "CAVOK": 0,
+              "FEW": 1, "SCT": 2, "BKN": 3, "OVC": 4, "VV": 5, "OVX": 5}
+
+
+def taf_hourly(t):
+    """Flatten a TAF's change groups into one value per hour.
+
+    A TAF is a base forecast plus FM/BECMG amendments and TEMPO/PROB variations.
+    The prevailing state is the last non-temporary group covering the hour; the
+    temporary groups are kept separately rather than averaged in, because
+    "BKN for 40 minutes in every hour" is a different thing to fly, or watch an
+    eclipse, under.
+    """
+    a, b = t.get("validTimeFrom"), t.get("validTimeTo")
+    if not a or not b:
+        return None
+    a, b = int(a) // 3600 * 3600, int(b)
+    hours, prev, base, tempo = [], [], [], []
+    for ts in range(a, b, 3600):
+        best = None, None, None      # (start, rank, base)
+        temp = None
+        for f in (t.get("fcsts") or []):
+            fa, fb = f.get("timeFrom"), f.get("timeTo")
+            if not fa or not fb or not (fa <= ts < fb):
+                continue
+            cl = f.get("clouds") or []
+            rank, cbase = 0, None
+            for c in cl:
+                r = COVER_RANK.get(c.get("cover"), 0)
+                if r >= rank:
+                    rank, cbase = r, c.get("base")
+            kind = (f.get("fcstChange") or "").upper()
+            if kind.startswith("TEMPO") or kind.startswith("PROB"):
+                temp = rank if temp is None else max(temp, rank)
+            elif best[0] is None or fa >= best[0]:
+                best = fa, rank, cbase
+        hours.append(ts)
+        prev.append(-1 if best[1] is None else best[1])
+        base.append(best[2] if best[2] is not None else -1)
+        tempo.append(-1 if temp is None else temp)
+    return {"hours": hours, "cover": prev, "base": base, "tempo": tempo}
+
+
 def fetch_taf(icaos):
     """Aerodrome forecasts.
 
@@ -149,7 +193,7 @@ def fetch_taf(icaos):
         prev = out.get(icao)
         rec = {"issued": t.get("issueTime"), "from": t.get("validTimeFrom"),
                "to": t.get("validTimeTo"), "raw": t.get("rawTAF"),
-               "totality": covering}
+               "totality": covering, "hourly": taf_hourly(t)}
         # keep the newest issue per station
         if not prev or (rec["issued"] or "") > (prev["issued"] or ""):
             out[icao] = rec
