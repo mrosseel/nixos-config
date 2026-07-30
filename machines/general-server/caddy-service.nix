@@ -421,6 +421,28 @@
         }
       '';
     };
+    # Static siting guide for the 12 Aug 2026 total solar eclipse. Plain files,
+    # no backend; the aerial photos and maps never change once written.
+    virtualHosts."spain2026.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/spain2026.miker.be
+        file_server
+        @immutable path /assets/*
+        header @immutable {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=1800, must-revalidate"
+          -Server
+        }
+      '';
+    };
   };
   networking.firewall = {
     allowedTCPPorts = [ 80 443];
@@ -439,5 +461,7 @@
     "d /var/www/files.pifinder.eu/castr 0755 mike users -"
     # Scorecard web root owned by mike so the rsync deploy needs no remote sudo.
     "d /var/www/hiddentreasures.miker.be 0755 mike users -"
+    # Eclipse siting guide, same rsync-deploy pattern.
+    "d /var/www/spain2026.miker.be 0755 mike users -"
   ];
 }
