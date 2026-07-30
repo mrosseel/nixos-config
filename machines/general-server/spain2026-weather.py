@@ -75,8 +75,8 @@ def fetch_grid(grid, hours):
             "filled": filled, "n": ncell}
 
 
-def fetch_forecast(sites):
-    """Hourly cloud for every site, quantised to bytes to keep the file small."""
+def fetch_forecast(sites, key="id"):
+    """Hourly cloud for every point, quantised to bytes to keep the file small."""
     hours, rows = None, {}
     for i in range(0, len(sites), CHUNK):
         part = sites[i:i + CHUNK]
@@ -96,9 +96,9 @@ def fetch_forecast(sites):
             elif h["time"] != hours:
                 # different grid cell, different run window: skip rather than
                 # silently misalign this site against the shared time axis
-                print(f"  {s['id']}: time axis mismatch, skipped", file=sys.stderr)
+                print(f"  {s[key]}: time axis mismatch, skipped", file=sys.stderr)
                 continue
-            rows[s["id"]] = {
+            rows[s[key]] = {
                 k[len("cloud_cover"):].lstrip("_") or "total":
                     [(-1 if v is None else int(v)) for v in h[k]]
                 for k in ("cloud_cover", "cloud_cover_low",
@@ -198,10 +198,16 @@ def main():
         fc = fetch_forecast(sites)
         if fc["hours"]:
             fc["fetched_at"] = int(started)
+            # the aerodromes get the same treatment, for the hover charts
+            try:
+                fc["airports"] = fetch_forecast(airports, key="icao")["sites"]
+            except Exception as e:
+                print(f"  airport forecast failed: {e}", file=sys.stderr)
+                fc["airports"] = {}
             n = write_atomic("forecast.json", fc)
             ok["forecast"] = True
             print(f"  forecast.json {n // 1024} kB, {len(fc['sites'])} sites, "
-                  f"{len(fc['hours'])} hours")
+                  f"{len(fc.get('airports', {}))} aerodromes, {len(fc['hours'])} hours")
     except Exception as e:
         print(f"  forecast failed, keeping previous: {e}", file=sys.stderr)
 
