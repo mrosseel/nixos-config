@@ -36,6 +36,45 @@ def write_atomic(name, payload):
     return os.path.getsize(path)
 
 
+def fetch_grid(grid, hours):
+    """Hourly opaque cloud on a coarse lat/lon grid, for the map raster.
+
+    Only the worse of the low and mid layers is kept: that is what decides
+    whether a 5-10 degree sun is visible, and one byte per cell per hour keeps
+    the file small enough to ship to every visitor.
+    """
+    pts = grid["points"]
+    ncell = len(pts)
+    out = [None] * ncell
+    for i in range(0, ncell, CHUNK):
+        part = pts[i:i + CHUNK]
+        q = urllib.parse.urlencode({
+            "latitude": ",".join(f"{p[0]:.3f}" for p in part),
+            "longitude": ",".join(f"{p[1]:.3f}" for p in part),
+            "hourly": "cloud_cover_low,cloud_cover_mid",
+            "forecast_days": FORECAST_DAYS,
+            "timezone": "UTC",
+        })
+        res = get("https://api.open-meteo.com/v1/forecast?" + q)
+        res = res if isinstance(res, list) else [res]
+        for k, d in enumerate(res):
+            h = d.get("hourly") or {}
+            if h.get("time") != hours:
+                continue
+            lo, mid = h["cloud_cover_low"], h["cloud_cover_mid"]
+            out[i + k] = [
+                -1 if (lo[j] is None or mid[j] is None) else max(lo[j], mid[j])
+                for j in range(len(hours))
+            ]
+        time.sleep(1.0)
+    filled = sum(1 for c in out if c)
+    blank = [-1] * len(hours)
+    return {"cols": len(grid["lons"]), "rows": len(grid["lats"]),
+            "lons": grid["lons"], "lats": grid["lats"],
+            "cells": [c if c else blank for c in out],
+            "filled": filled, "n": ncell}
+
+
 def fetch_forecast(sites):
     """Hourly cloud for every site, quantised to bytes to keep the file small."""
     hours, rows = None, {}
@@ -105,7 +144,7 @@ def main():
     print(f"{len(sites)} sites, {len(airports)} aerodromes")
 
     started = time.time()
-    ok = {"forecast": False, "metar": False}
+    ok = {"forecast": False, "grid": False, "metar": False}
 
     try:
         fc = fetch_forecast(sites)
@@ -117,6 +156,16 @@ def main():
                   f"{len(fc['hours'])} hours")
     except Exception as e:
         print(f"  forecast failed, keeping previous: {e}", file=sys.stderr)
+
+    if ok["forecast"] and cfg.get("grid"):
+        try:
+            gr = fetch_grid(cfg["grid"], fc["hours"])
+            gr["fetched_at"] = int(time.time())
+            n = write_atomic("grid.json", gr)
+            ok["grid"] = True
+            print(f"  grid.json {n // 1024} kB, {gr['filled']}/{gr['n']} cells")
+        except Exception as e:
+            print(f"  grid failed, keeping previous: {e}", file=sys.stderr)
 
     try:
         mt = fetch_metar([a["icao"] for a in airports])
@@ -132,6 +181,7 @@ def main():
         "fetched_at": int(time.time()),
         "took_s": round(time.time() - started, 1),
         "forecast_ok": ok["forecast"],
+        "grid_ok": ok["grid"],
         "metar_ok": ok["metar"],
     })
     # A partial refresh still leaves usable data on disk, so only fail the unit
