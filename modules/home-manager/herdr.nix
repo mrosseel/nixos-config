@@ -13,5 +13,12 @@ in
   xdg.configFile."herdr/config.toml".text = ''
     [keys]
     prefix = "${prefixKey}"
+
+    # Forward the kitty graphics protocol to the host terminal so image previews
+    # (yazi and friends) render as pixels instead of dropping to the chafa/ASCII
+    # fallback. Needs a host terminal that speaks the protocol -- kitty does,
+    # foot only does sixel, which herdr does not pass through.
+    [experimental]
+    kitty_graphics = true
   '';
 }

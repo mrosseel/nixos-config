@@ -67,7 +67,13 @@ in {
     ncdu
     dua  # faster ncdu
     yazi # file manager
-    poppler-utils # PDF preview for yazi
+    # yazi previewers. These otherwise only happen to be present because
+    # omarchy pulls them in; declare them so previews don't break if it stops.
+    poppler-utils # PDF
+    ffmpegthumbnailer # video thumbnails
+    imagemagick # SVG, HEIC and the wider image formats
+    p7zip # archive contents
+    exiftool # metadata pane
     tldr
     fastfetch
     jq
@@ -176,6 +182,24 @@ in {
       # which is fragile across HM updates. The warning is benign — the
       # syntax-highlighting plugin doesn't interfere with zoxide.
       export _ZO_DOCTOR=0
+
+      # Multiplexer servers (herdr, tmux) get re-parented to systemd and keep
+      # whatever environment they were first started with. Panes opened later
+      # therefore have no Wayland/X11 handles, and anything graphical silently
+      # drops to its worst backend: vlc renders through libcaca, yazi previews
+      # through chafa. Re-derive the session handles from the runtime dir.
+      if [[ -z "$WAYLAND_DISPLAY" && -z "$DISPLAY" ]]; then
+        _xdg_rt="''${XDG_RUNTIME_DIR:-/run/user/$UID}"
+        for _sock in "$_xdg_rt"/wayland-<->(Nom[1]); do
+          export WAYLAND_DISPLAY="''${_sock:t}"
+          export XDG_SESSION_TYPE=wayland
+        done
+        for _hypr in "$_xdg_rt"/hypr/*(N/om[1]); do
+          export HYPRLAND_INSTANCE_SIGNATURE="''${_hypr:t}"
+        done
+        [[ -S /tmp/.X11-unix/X0 ]] && export DISPLAY=:0
+        unset _xdg_rt _sock _hypr
+      fi
 
       #make sure brew is on the path for M1
       if [[ $(uname -m) == 'arm64' ]]; then
@@ -288,6 +312,26 @@ in {
       # Homebrew setup for M1 Macs
       if $nu.os-info.name == "macos" and $nu.os-info.arch == "aarch64" {
         $env.PATH = ($env.PATH | split row (char esep) | prepend "/opt/homebrew/bin")
+      }
+
+      # Multiplexer servers (herdr, tmux) get re-parented to systemd and keep
+      # whatever environment they were first started with. Panes opened later
+      # therefore have no Wayland/X11 handles, and anything graphical silently
+      # drops to its worst backend: vlc renders through libcaca, yazi previews
+      # through chafa. Re-derive the session handles from the runtime dir.
+      if (($env.WAYLAND_DISPLAY? | is-empty) and ($env.DISPLAY? | is-empty)) {
+        let rt = ($env.XDG_RUNTIME_DIR? | default "/run/user/1000")
+        let socks = (glob $"($rt)/wayland-[0-9]*" --no-dir
+          | where {|p| not ($p | str ends-with ".lock") } | sort)
+        if not ($socks | is-empty) {
+          $env.WAYLAND_DISPLAY = ($socks | first | path basename)
+          $env.XDG_SESSION_TYPE = "wayland"
+        }
+        let hypr = (glob $"($rt)/hypr/*" --no-file | sort)
+        if not ($hypr | is-empty) {
+          $env.HYPRLAND_INSTANCE_SIGNATURE = ($hypr | first | path basename)
+        }
+        if ("/tmp/.X11-unix/X0" | path exists) { $env.DISPLAY = ":0" }
       }
 
       # Vi mode indicators (empty - let starship handle it)

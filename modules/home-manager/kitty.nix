@@ -7,9 +7,9 @@ in
   # Better terminal, with good rendering.
   programs.kitty = {
     enable = true;
-    # Pick "name" from https://github.com/kovidgoyal/kitty-themes/blob/master/themes.json
-    themeFile = "Solarized_Dark_Higher_Contrast";
-    #theme = "Solarized Dark";
+    # Colors come from the omarchy theme (omarchy-nix includes
+    # ~/.local/state/omarchy/current/theme/kitty.conf). Setting themeFile here
+    # would emit a second include that overrides it.
     font = {
       name = "Hack Nerd Font mono";
       size = 16;

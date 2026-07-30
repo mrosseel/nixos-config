@@ -247,7 +247,7 @@
             theme = "tokyo-night";
             scale = 1;
             browser = "brave";
-            terminal = "foot";
+            terminal = "kitty";
             seamless_boot = {
               enable = true;
               username = "mike";
@@ -405,7 +405,7 @@
             theme = "tokyo-night";
             scale = 1;
             browser = "brave";
-            terminal = "foot";
+            terminal = "kitty";
             seamless_boot = {
               enable = true;
               username = "mike";
