@@ -5,6 +5,7 @@ data/forecast.json and data/metar.json beside it. Runs on a timer so the page
 stays a plain file_server: no CORS problem for aviationweather, no per-visitor
 load on Open-Meteo, and the last good data survives an upstream outage.
 """
+import datetime
 import json
 import os
 import sys
@@ -16,16 +17,46 @@ WEB = os.environ.get("SPAIN2026_WEB", "/var/www/spain2026.miker.be")
 DATA = os.path.join(WEB, "data")
 UA = "spain2026.miker.be weather refresh (mike.rosseel@gmail.com)"
 CHUNK = 25            # Open-Meteo multi-location batch
-# Open-Meteo's free tier bills a request as
-# (variables / 10) x (days / 14) x locations, so the horizon is not free: the
-# 16-day window this used to ask for put the day's total over the 10 000 cap and
-# every fetch after that returned 429 until midnight. 14 days still reaches
-# eclipse evening from any plausible refresh date.
-FORECAST_DAYS = 14
 TIMEOUT = 90
-# The map raster is the expensive half of a run and it is a coarse background
-# layer, so it refreshes at half the rate of the site forecast.
-GRID_MAX_AGE = 50 * 60
+
+# Open-Meteo's free tier bills a request as
+# (variables / 10) x (days / 14) x locations against 10 000 units a day, so the
+# horizon is not free. Asking only as far as the day after the eclipse means the
+# per-run cost falls every day, and that is what pays for the cadence below
+# rising as the eclipse gets close: on the day itself a run costs a seventh of
+# what it costs two weeks out.
+ECLIPSE_DAY = datetime.date(2026, 8, 12)
+HORIZON_END = ECLIPSE_DAY + datetime.timedelta(days=1)
+
+# Days to the eclipse -> seconds between refreshes. The timer fires at the
+# shortest of these and the script decides whether the run is due, so the
+# schedule lives here rather than in a unit file.
+CADENCE = ((3, 5 * 60), (7, 10 * 60), (10 ** 4, 20 * 60))
+IDLE = 6 * 3600       # once the eclipse is past there is nothing to forecast
+# A refused or broken fetch must not be retried at eclipse-day speed.
+RETRY_AFTER_FAIL = 30 * 60
+
+
+def today():
+    return datetime.datetime.now(datetime.timezone.utc).date()
+
+
+def forecast_days(day=None):
+    """Horizon in whole days, out to the day after the eclipse."""
+    return max(1, min(16, (HORIZON_END - (day or today())).days + 1))
+
+
+def interval(day=None):
+    """How often a refresh should happen, in seconds."""
+    left = (ECLIPSE_DAY - (day or today())).days
+    if left < 0:
+        return IDLE
+    return next(s for t, s in CADENCE if left <= t)
+
+
+def grid_max_age(day=None):
+    """The raster is the expensive half of a run, so it lags the site forecast."""
+    return max(15 * 60, min(60 * 60, 6 * interval(day)))
 
 
 def get(url):
@@ -44,7 +75,7 @@ def write_atomic(name, payload):
     return os.path.getsize(path)
 
 
-def fetch_grid(grid, hours):
+def fetch_grid(grid, hours, days):
     """Hourly opaque cloud on a coarse lat/lon grid, for the map raster.
 
     Only the worse of the low and mid layers is kept: that is what decides
@@ -60,7 +91,7 @@ def fetch_grid(grid, hours):
             "latitude": ",".join(f"{p[0]:.3f}" for p in part),
             "longitude": ",".join(f"{p[1]:.3f}" for p in part),
             "hourly": "cloud_cover_low,cloud_cover_mid",
-            "forecast_days": FORECAST_DAYS,
+            "forecast_days": days,
             "timezone": "UTC",
         })
         res = get("https://api.open-meteo.com/v1/forecast?" + q)
@@ -83,7 +114,7 @@ def fetch_grid(grid, hours):
             "filled": filled, "n": ncell}
 
 
-def fetch_forecast(sites, key="id"):
+def fetch_forecast(sites, days, key="id"):
     """Hourly cloud for every point, quantised to bytes to keep the file small."""
     hours, rows = None, {}
     for i in range(0, len(sites), CHUNK):
@@ -92,7 +123,7 @@ def fetch_forecast(sites, key="id"):
             "latitude": ",".join(f"{s['lat']:.4f}" for s in part),
             "longitude": ",".join(f"{s['lon']:.4f}" for s in part),
             "hourly": "cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high",
-            "forecast_days": FORECAST_DAYS,
+            "forecast_days": days,
             "timezone": "UTC",
         })
         res = get("https://api.open-meteo.com/v1/forecast?" + q)
@@ -237,22 +268,53 @@ def fetch_metar(icaos):
     return out
 
 
+def forecast_due(now):
+    """Whether a forecast fetch is due, given the cadence for today.
+
+    The timer fires at the fastest rate the schedule ever needs and this decides
+    whether the run does anything, so changing the ramp does not mean touching a
+    unit file. A failed fetch backs off rather than retrying at eclipse-day
+    speed: a provider refusing us is not a reason to ask it 288 times a day.
+    """
+    try:
+        with open(os.path.join(DATA, "updated.json")) as fh:
+            last = json.load(fh)
+    except (OSError, ValueError):
+        return True, "no previous run"
+    age = now - last.get("fetched_at", 0)
+    if not last.get("forecast_ok"):
+        if age < RETRY_AFTER_FAIL:
+            return False, f"last fetch failed {age / 60:.0f} min ago, backing off"
+        return True, "retrying after a failed fetch"
+    want = interval()
+    if age < want - 30:      # allow for timer jitter
+        return False, f"last fetch {age / 60:.0f} min ago, cadence {want // 60} min"
+    return True, f"cadence {want // 60} min"
+
+
 def main():
     with open(os.path.join(DATA, "sites.json")) as fh:
         cfg = json.load(fh)
     sites, airports = cfg["sites"], cfg["airports"]
-    print(f"{len(sites)} sites, {len(airports)} aerodromes")
 
     started = time.time()
+    days = forecast_days()
+    left = (ECLIPSE_DAY - today()).days
+    due, why = forecast_due(started)
+    print(f"{len(sites)} sites, {len(airports)} aerodromes · {left} days to the "
+          f"eclipse · horizon {days} d · {why}")
+    if not due:
+        return
+
     ok = {"forecast": False, "grid": False, "metar": False}
 
     try:
-        fc = fetch_forecast(sites)
+        fc = fetch_forecast(sites, days)
         if fc["hours"]:
             fc["fetched_at"] = int(started)
             # the aerodromes get the same treatment, for the hover charts
             try:
-                fc["airports"] = fetch_forecast(airports, key="icao")["sites"]
+                fc["airports"] = fetch_forecast(airports, days, key="icao")["sites"]
             except Exception as e:
                 print(f"  airport forecast failed: {e}", file=sys.stderr)
                 fc["airports"] = {}
@@ -265,12 +327,12 @@ def main():
 
     grid_path = os.path.join(DATA, "grid.json")
     grid_fresh = (os.path.exists(grid_path)
-                  and time.time() - os.path.getmtime(grid_path) < GRID_MAX_AGE)
+                  and time.time() - os.path.getmtime(grid_path) < grid_max_age())
     if grid_fresh:
         print("  grid still fresh, skipping")
     if ok["forecast"] and cfg.get("grid") and not grid_fresh:
         try:
-            gr = fetch_grid(cfg["grid"], fc["hours"])
+            gr = fetch_grid(cfg["grid"], fc["hours"], days)
             gr["fetched_at"] = int(time.time())
             n = write_atomic("grid.json", gr)
             ok["grid"] = True
@@ -297,6 +359,8 @@ def main():
         "fetched_at": int(time.time()),
         "took_s": round(time.time() - started, 1),
         "forecast_ok": ok["forecast"],
+        "horizon_days": days,
+        "next_in_s": interval(),
         "grid_ok": ok["grid"] or grid_fresh,
         "metar_ok": ok["metar"],
     })
