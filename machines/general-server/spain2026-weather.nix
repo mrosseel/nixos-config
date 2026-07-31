@@ -49,11 +49,11 @@ in {
   };
 
   systemd.timers.spain2026-weather = {
-    description = "Refresh spain2026.miker.be weather data every 20 minutes";
+    description = "Refresh spain2026.miker.be weather data every 30 minutes";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "3m";
-      OnUnitActiveSec = "20m";
+      OnUnitActiveSec = "30m";
       # Spread load off the exact minute; Open-Meteo is a free service.
       RandomizedDelaySec = "2m";
       Persistent = true;

@@ -16,8 +16,16 @@ WEB = os.environ.get("SPAIN2026_WEB", "/var/www/spain2026.miker.be")
 DATA = os.path.join(WEB, "data")
 UA = "spain2026.miker.be weather refresh (mike.rosseel@gmail.com)"
 CHUNK = 25            # Open-Meteo multi-location batch
-FORECAST_DAYS = 16
+# Open-Meteo's free tier bills a request as
+# (variables / 10) x (days / 14) x locations, so the horizon is not free: the
+# 16-day window this used to ask for put the day's total over the 10 000 cap and
+# every fetch after that returned 429 until midnight. 14 days still reaches
+# eclipse evening from any plausible refresh date.
+FORECAST_DAYS = 14
 TIMEOUT = 90
+# The map raster is the expensive half of a run and it is a coarse background
+# layer, so it refreshes at half the rate of the site forecast.
+GRID_MAX_AGE = 50 * 60
 
 
 def get(url):
@@ -255,7 +263,12 @@ def main():
     except Exception as e:
         print(f"  forecast failed, keeping previous: {e}", file=sys.stderr)
 
-    if ok["forecast"] and cfg.get("grid"):
+    grid_path = os.path.join(DATA, "grid.json")
+    grid_fresh = (os.path.exists(grid_path)
+                  and time.time() - os.path.getmtime(grid_path) < GRID_MAX_AGE)
+    if grid_fresh:
+        print("  grid still fresh, skipping")
+    if ok["forecast"] and cfg.get("grid") and not grid_fresh:
         try:
             gr = fetch_grid(cfg["grid"], fc["hours"])
             gr["fetched_at"] = int(time.time())
@@ -284,7 +297,7 @@ def main():
         "fetched_at": int(time.time()),
         "took_s": round(time.time() - started, 1),
         "forecast_ok": ok["forecast"],
-        "grid_ok": ok["grid"],
+        "grid_ok": ok["grid"] or grid_fresh,
         "metar_ok": ok["metar"],
     })
     # A partial refresh still leaves usable data on disk, so only fail the unit
