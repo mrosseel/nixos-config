@@ -28,19 +28,24 @@
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
     path = [ pkgs.git pkgs.openssh ];
+    # The attrset form, not serviceConfig.Environment: systemd splits an
+    # unquoted Environment= value on spaces, which silently mangles the ssh
+    # command into a series of invalid assignments.
+    environment = {
+      PLAN_FILE = "/var/lib/thailand-planner/plan.json";
+      PORT = "8010";
+      PLAN_GIT_REMOTE = "git@github.com:mrosseel/thailand-plan-history.git";
+      # git needs a HOME for its config lookups; StateDirectory is the only
+      # writable path this unit has.
+      HOME = "/var/lib/thailand-planner";
+      # $CREDENTIALS_DIRECTORY is expanded by the shell git runs this through,
+      # not by systemd.
+      GIT_SSH_COMMAND = "ssh -i $CREDENTIALS_DIRECTORY/deploy_key"
+        + " -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+        + " -o UserKnownHostsFile=/var/lib/thailand-planner/known_hosts";
+    };
     serviceConfig = {
       ExecStart = "${pkgs.python3}/bin/python3 ${./plan-server.py}";
-      Environment = [
-        "PLAN_FILE=/var/lib/thailand-planner/plan.json"
-        "PORT=8010"
-        "PLAN_GIT_REMOTE=git@github.com:mrosseel/thailand-plan-history.git"
-        # git needs a HOME for its config lookups; StateDirectory is the only
-        # writable path this unit has.
-        "HOME=/var/lib/thailand-planner"
-        ("GIT_SSH_COMMAND=ssh -i \${CREDENTIALS_DIRECTORY}/deploy_key"
-         + " -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-         + " -o UserKnownHostsFile=/var/lib/thailand-planner/known_hosts")
-      ];
       LoadCredential = "deploy_key:/var/lib/thailand-planner-secrets/deploy_key";
       DynamicUser = true;
       StateDirectory = "thailand-planner";
