@@ -47,12 +47,25 @@
     serviceConfig = {
       ExecStart = "${pkgs.python3}/bin/python3 ${./plan-server.py}";
       LoadCredential = "deploy_key:/var/lib/thailand-planner-secrets/deploy_key";
-      DynamicUser = true;
+      # A fixed user rather than DynamicUser: the state directory is a git repo
+      # you sometimes want to inspect, and the Drive exporter has to read it.
+      # DynamicUser hid it behind /var/lib/private under an unpredictable uid.
+      User = "thailand-planner";
+      Group = "thailand-planner";
       StateDirectory = "thailand-planner";
+      StateDirectoryMode = "0750";
       Restart = "on-failure";
       ProtectSystem = "strict";
       ProtectHome = true;
       NoNewPrivileges = true;
+      PrivateTmp = true;
     };
   };
+
+  users.users.thailand-planner = {
+    isSystemUser = true;
+    group = "thailand-planner";
+    description = "Thailand trip planner store";
+  };
+  users.groups.thailand-planner = { };
 }

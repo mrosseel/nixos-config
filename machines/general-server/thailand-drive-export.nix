@@ -33,8 +33,10 @@ in {
     wants = [ "network-online.target" ];
     path = [ pkgs.rclone ];
     environment = {
-      PLAN_FILE = "/var/lib/private/thailand-planner/plan.json";
-      RCLONE_CONF = "/var/lib/thailand-planner-secrets/rclone.conf";
+      PLAN_FILE = "/var/lib/thailand-planner/plan.json";
+      # systemd hands the unit a private 0400 copy, so the config — which holds
+      # a Drive refresh token — stays root-only on disk.
+      RCLONE_CONF = "%d/rclone.conf";
       DRIVE_REMOTE = "gdrive:Thailand";
       DRIVE_SHEET_NAME = "Reisplan (automatisch)";
     };
@@ -45,14 +47,16 @@ in {
       ExecCondition = "${pkgs.coreutils}/bin/test -f /var/lib/thailand-planner-secrets/rclone.conf";
       ExecStart = "${python}/bin/python3 ${./drive-export.py}";
       TimeoutStartSec = "10m";
+      # Runs as the planner's own user: it only reads the plan, and this way it
+      # needs no privilege beyond what the service that owns the data already has.
+      User = "thailand-planner";
+      Group = "thailand-planner";
       PrivateTmp = true;
       ProtectSystem = "strict";
       ProtectHome = true;
       NoNewPrivileges = true;
-      ReadOnlyPaths = [
-        "/var/lib/private/thailand-planner"
-        "/var/lib/thailand-planner-secrets"
-      ];
+      LoadCredential = "rclone.conf:/var/lib/thailand-planner-secrets/rclone.conf";
+      ReadOnlyPaths = [ "/var/lib/thailand-planner" ];
     };
   };
 
