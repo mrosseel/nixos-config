@@ -122,8 +122,22 @@ def cell(v):
     return str(v or '').replace('|', r'\|').replace('\n', ' ')
 
 
+def short_url(url):
+    """Booking links are hundreds of characters of tracking parameters, which
+    makes the rendered table unreadable. Link the text, keep the target."""
+    try:
+        rest = url.split('://', 1)[1]
+        host, _, path = rest.partition('/')
+        tail = [p for p in path.split('?')[0].split('/') if p]
+        label = host[4:] if host.startswith('www.') else host
+        return f"[{label}{'/' + tail[-1] if tail else ''}]({url})"
+    except IndexError:
+        return url
+
+
 def node_line(n):
     data = n.get('data') or {}
+    url = data.get('url') or data.get('bookingUrl')
     bits = [b for b in (
         data.get('name') or n.get('title'),
         data.get('price'),
@@ -131,7 +145,7 @@ def node_line(n):
         f"check-out {data['checkOut']}" if data.get('checkOut') else None,
         f"cancel before {data['cancelBefore']}" if data.get('cancelBefore') else None,
         f"booked by {data['bookedBy']}" if data.get('bookedBy') else None,
-        data.get('url') or data.get('bookingUrl'),
+        short_url(url) if url else None,
     ) if b]
     return ' · '.join(str(b) for b in bits)
 
