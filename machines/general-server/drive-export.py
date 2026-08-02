@@ -16,6 +16,7 @@ Needs, both placed once by hand and not in the nix store:
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,21 @@ PLAN = os.environ.get('PLAN_FILE', '/var/lib/thailand-planner/plan.json')
 RCLONE_CONF = os.environ.get('RCLONE_CONF', '/var/lib/thailand-planner-secrets/rclone.conf')
 REMOTE = os.environ.get('DRIVE_REMOTE', 'gdrive:Thailand')
 SHEET_NAME = os.environ.get('DRIVE_SHEET_NAME', 'Reisplan (automatisch)')
+
+TAG_RE = re.compile(r'<[^>]+>')
+BREAK_RE = re.compile(r'</(p|div|li|ul|ol|h3|h4|blockquote)>|<br\s*/?>', re.I)
+
+
+def plain(v):
+    """Notes are rich text in the app; a spreadsheet cell wants words."""
+    if not v:
+        return ''
+    s = BREAK_RE.sub('\n', str(v))
+    s = TAG_RE.sub('', s)
+    for a, b in (('&amp;', '&'), ('&lt;', '<'), ('&gt;', '>'), ('&nbsp;', ' '), ('&quot;', '"')):
+        s = s.replace(a, b)
+    return s.strip()
+
 
 DOW_NL = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag']
 
@@ -79,7 +95,7 @@ def sheet_plan(wb, plan, dates, stamp):
             dt.strftime('%d/%m/%Y'),
             DOW_NL[dt.weekday()],
             place or '(vrije dag)',
-            ('★ ' if day.get('special') else '') + (day.get('notes') or ''),
+            ('★ ' if day.get('special') else '') + plain(day.get('notes')),
             day.get('weather') or '',
             data.get('name') or (stay or {}).get('title') or '',
             (stay or {}).get('status') or '',
@@ -140,12 +156,12 @@ def sheet_notes(wb, plan, dates):
             d = n.get('data') or {}
             ws.append([dt.strftime('%d/%m/%Y'), day.get('place') or '',
                        n.get('title') or n['type'],
-                       d.get('notes') or d.get('url') or ''])
+                       plain(d.get('notes')) or d.get('url') or ''])
     if plan.get('notes'):
         ws.append([])
         ws.append(['', '', 'Planning', ''])
         for note in plan['notes']:
-            ws.append(['', '', '', note])
+            ws.append(['', '', '', plain(note)])
     style_header(ws, [12, 18, 22, 110])
     for row in ws.iter_rows(min_row=2):
         row[3].alignment = Alignment(vertical='top', wrap_text=True)

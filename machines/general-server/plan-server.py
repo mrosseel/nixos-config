@@ -23,6 +23,7 @@ UI browses and the only off-site copy of the trip.
 
 import http.server
 import json
+import re
 import os
 import subprocess
 import threading
@@ -118,8 +119,23 @@ def day_dates(plan):
     return [start + timedelta(days=i) for i in range(len(plan['days']))]
 
 
+TAG_RE = re.compile(r'<[^>]+>')
+BREAK_RE = re.compile(r'</(p|div|li|ul|ol|h3|h4|blockquote)>|<br\s*/?>', re.I)
+
+
+def plain(v):
+    """Notes are rich text in the app; the rendered plan is words only."""
+    if not v:
+        return ''
+    s = BREAK_RE.sub('\n', str(v))
+    s = TAG_RE.sub('', s)
+    for a, b in (('&amp;', '&'), ('&lt;', '<'), ('&gt;', '>'), ('&nbsp;', ' '), ('&quot;', '"')):
+        s = s.replace(a, b)
+    return s.strip()
+
+
 def cell(v):
-    return str(v or '').replace('|', r'\|').replace('\n', ' ')
+    return plain(v).replace('|', r'\|').replace('\n', ' ')
 
 
 def short_url(url):
@@ -185,7 +201,7 @@ def to_markdown(plan):
     notes = plan.get('notes') or []
     if notes:
         out += ['', '## Planning notes', '']
-        out += [f'- {n}' for n in notes]
+        out += [f'- {plain(n)}' for n in notes]
     return '\n'.join(out) + '\n'
 
 
