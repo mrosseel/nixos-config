@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 {
- imports = [ ./thailand-planner.nix ];
+ imports = [ ./thailand-planner.nix ./thailand-drive-export.nix ];
  services.caddy = {
     enable = true;
     globalConfig = ''
