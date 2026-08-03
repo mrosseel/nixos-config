@@ -20,6 +20,12 @@
       no-robots = true;
       name = "Miker's Files";
       no-reload = true;
+
+      # TLS terminates at the reverse proxy, so trust its forwarded headers.
+      # Without this, copyparty assumes http:// and cors-rejects the login POST
+      # from https://files.miker.be.
+      xff-src = "lan";
+      rproxy = -1;
     };
 
     accounts = {
