@@ -54,6 +54,11 @@ lock = threading.Lock()
 dirty = threading.Event()
 last_change = [0.0]
 
+# The off-site copy is best effort and off the request path, so a broken deploy
+# key would otherwise be silent until someone read the journal. The result of
+# the last attempt is published for the app to show.
+push_state = {'ok': None, 'at': None, 'error': None, 'commitAt': None}
+
 GIT = ['git', '-c', 'user.name=thailand-planner',
        '-c', 'user.email=planner@miker.be', '-C', ROOT]
 
@@ -227,15 +232,20 @@ def commit_and_push():
         plan = read_plan()
         rev = plan.get('rev', '?') if plan else '?'
         git('commit', '-q', '-m', f'plan: rev {rev}')
+        push_state['commitAt'] = time.time()
     except (subprocess.SubprocessError, OSError) as e:
         print(f'commit failed: {e}', flush=True)
         return
     if REMOTE:
         try:
             git('push', '-q', 'origin', 'main')
+            push_state.update(ok=True, at=time.time(), error=None)
         except (subprocess.SubprocessError, OSError) as e:
             # Off-site backup is best effort; the local history is still intact
-            # and the next successful push carries everything missed.
+            # and the next successful push carries everything missed. It is not
+            # silent, though — the app shows it.
+            detail = getattr(e, 'stderr', '') or str(e)
+            push_state.update(ok=False, at=time.time(), error=detail.strip()[-300:])
             print(f'push failed: {e}', flush=True)
 
 
@@ -309,6 +319,23 @@ class H(http.server.BaseHTTPRequestHandler):
             return
         if self.path == '/api/versions':
             self._json(200, {'versions': versions()})
+            return
+        if self.path == '/api/health':
+            # "behind" means there is a commit newer than the last successful
+            # push — the off-site copy is out of date, whatever the last error.
+            stale = (push_state['commitAt'] is not None
+                     and (push_state['at'] is None
+                          or push_state['at'] < push_state['commitAt'] - 1))
+            self._json(200, {
+                'remote': bool(REMOTE),
+                'push': {
+                    'ok': push_state['ok'],
+                    'error': push_state['error'],
+                    'agoSeconds': (round(time.time() - push_state['at'])
+                                   if push_state['at'] else None),
+                    'behind': stale,
+                },
+            })
             return
         if self.path.startswith('/api/images/'):
             path, ctype = self._image_path()
