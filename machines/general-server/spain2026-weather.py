@@ -30,8 +30,14 @@ TIMEOUT = 90
 # what is left and how much of the active window remains. Running out mid-
 # afternoon and serving hours-old cloud is a worse failure than refreshing a
 # little less often, so the governor always paces to reach the end of the day.
-DAILY_BUDGET = 8600           # of 10 000, leaving room for retries
-GRID_BUDGET = 1000            # the raster gets its own slice of the allowance
+# Sized against the rolling window rather than the calendar day. Simulated
+# minute by minute to the day after totality: this keeps the worst 24 hours at
+# about 7 900 units of the 10 000 cap, including the raster and the extra the
+# eclipse afternoon is allowed. Budgeting to the cap per calendar day put the
+# eclipse-evening-into-next-morning window at 10 700 and would have had us
+# refused on the one day that matters.
+DAILY_BUDGET = 6500
+GRID_BUDGET = 700             # the raster gets its own slice of the allowance
 MIN_INTERVAL = 4 * 60
 MAX_INTERVAL = 45 * 60
 
