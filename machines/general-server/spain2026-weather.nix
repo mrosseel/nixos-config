@@ -48,16 +48,17 @@ in {
     };
   };
 
-  # The timer fires at the fastest rate the schedule ever needs and the script
-  # decides whether a run is due, so the cadence ramp -- 20 min a fortnight out,
-  # 5 min from three days -- lives in one place next to the budget it has to fit,
-  # and a skipped run costs a process start rather than an API call.
+  # The timer fires at the fastest rate the schedule could ever want and the
+  # script decides whether a run is due. Open-Meteo bills per location, so the
+  # interval is derived from the allowance left and how much of the day remains
+  # rather than being pinned here; a skipped run costs a process start, not an
+  # API call.
   systemd.timers.spain2026-weather = {
     description = "Refresh spain2026.miker.be weather data (cadence set by the script)";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "2m";
-      OnUnitActiveSec = "5m";
+      OnUnitActiveSec = "4m";
       # Spread load off the exact minute; Open-Meteo is a free service.
       RandomizedDelaySec = "45s";
       Persistent = true;

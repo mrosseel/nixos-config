@@ -19,44 +19,77 @@ UA = "spain2026.miker.be weather refresh (mike.rosseel@gmail.com)"
 CHUNK = 25            # Open-Meteo multi-location batch
 TIMEOUT = 90
 
-# Open-Meteo's free tier bills a request as
-# (variables / 10) x (days / 14) x locations against 10 000 units a day, so the
-# horizon is not free. Asking only as far as the day after the eclipse means the
-# per-run cost falls every day, and that is what pays for the cadence below
-# rising as the eclipse gets close: on the day itself a run costs a seventh of
-# what it costs two weeks out.
+# Open-Meteo's free tier allows 10 000 API calls a day, and a multi-location
+# request is billed per location with a floor of one call each: a run covering
+# 105 sites and 15 aerodromes costs about 120 whatever horizon is asked for.
+# Shortening the horizon therefore saves nothing at this variable count -- only
+# fetching fewer points, or fetching less often, does.
+#
+# Rather than trust that arithmetic, the schedule is governed: every location
+# fetched is counted against a daily budget, and the interval is derived from
+# what is left and how much of the active window remains. Running out mid-
+# afternoon and serving hours-old cloud is a worse failure than refreshing a
+# little less often, so the governor always paces to reach the end of the day.
+DAILY_BUDGET = 8600           # of 10 000, leaving room for retries
+GRID_BUDGET = 1000            # the raster gets its own slice of the allowance
+MIN_INTERVAL = 4 * 60
+MAX_INTERVAL = 45 * 60
+
 ECLIPSE_DAY = datetime.date(2026, 8, 12)
 HORIZON_END = ECLIPSE_DAY + datetime.timedelta(days=1)
+TOTALITY_EPOCH = 1786559400   # 2026-08-12T18:30:00Z, mid-totality
 
-# Days to the eclipse -> seconds between refreshes. The timer fires at the
-# shortest of these and the script decides whether the run is due, so the
-# schedule lives here rather than in a unit file.
-CADENCE = ((3, 5 * 60), (7, 10 * 60), (10 ** 4, 20 * 60))
-IDLE = 6 * 3600       # once the eclipse is past there is nothing to forecast
-# A refused or broken fetch must not be retried at eclipse-day speed.
-RETRY_AFTER_FAIL = 30 * 60
+# A refused or broken fetch must not be retried at full speed.
+RETRY_AFTER_FAIL = 20 * 60
+STATE = "budget.json"
+
+
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def today():
-    return datetime.datetime.now(datetime.timezone.utc).date()
+    return now_utc().date()
 
 
 def forecast_days(day=None):
-    """Horizon in whole days, out to the day after the eclipse."""
+    """Horizon out to the day after the eclipse.
+
+    This no longer buys anything against the quota, but a shorter series is a
+    smaller file for every visitor to download, which is reason enough.
+    """
     return max(1, min(16, (HORIZON_END - (day or today())).days + 1))
 
 
-def interval(day=None):
-    """How often a refresh should happen, in seconds."""
-    left = (ECLIPSE_DAY - (day or today())).days
-    if left < 0:
-        return IDLE
-    return next(s for t, s in CADENCE if left <= t)
+def window_end(now):
+    """When today's budget should be spent by.
+
+    Normally midnight UTC. On eclipse day the budget is concentrated into the
+    run-up instead, so the refresh is at its fastest through the afternoon and
+    during the eclipse rather than being spread evenly over a day that is mostly
+    irrelevant by then.
+    """
+    if now.date() == ECLIPSE_DAY:
+        end = datetime.datetime.fromtimestamp(TOTALITY_EPOCH + 3600,
+                                              datetime.timezone.utc)
+        if now < end:
+            return end
+    nxt = now.date() + datetime.timedelta(days=1)
+    return datetime.datetime.combine(nxt, datetime.time(0, 0),
+                                     datetime.timezone.utc)
 
 
-def grid_max_age(day=None):
-    """The raster is the expensive half of a run, so it lags the site forecast."""
-    return max(15 * 60, min(60 * 60, 6 * interval(day)))
+def read_state():
+    try:
+        with open(os.path.join(DATA, STATE)) as fh:
+            st = json.load(fh)
+    except (OSError, ValueError):
+        st = {}
+    if st.get("day") != today().isoformat():
+        st = {"day": today().isoformat(), "spent": 0, "grid_spent": 0}
+    st.setdefault("spent", 0)
+    st.setdefault("grid_spent", 0)
+    return st
 
 
 def get(url):
@@ -145,10 +178,6 @@ def fetch_forecast(sites, days, key="id"):
             }
         time.sleep(1.0)
     return {"hours": hours, "sites": rows}
-
-
-# Mid-totality, the instant a TAF would have to cover to be worth anything here.
-TOTALITY_EPOCH = 1786559400        # 2026-08-12T18:30:00Z, mid-totality
 
 
 # Cloud cover ranked by how much of the sun it takes away.
@@ -268,28 +297,46 @@ def fetch_metar(icaos):
     return out
 
 
-def forecast_due(now):
-    """Whether a forecast fetch is due, given the cadence for today.
+# On eclipse day the allowance is held back until the morning is out, so it is
+# not evenly spread over hours nobody is deciding anything in.
+WINDOW_OPEN_UTC = datetime.time(9, 0)
+HOLDBACK_INTERVAL = 30 * 60
 
-    The timer fires at the fastest rate the schedule ever needs and this decides
-    whether the run does anything, so changing the ramp does not mean touching a
-    unit file. A failed fetch backs off rather than retrying at eclipse-day
-    speed: a provider refusing us is not a reason to ask it 288 times a day.
+
+def pace(st, cost, now):
+    """Seconds to wait between runs so the budget lasts the window out."""
+    left = max(0, DAILY_BUDGET - st["spent"])
+    if left < cost:
+        return None
+    if now.date() == ECLIPSE_DAY and now.timetz().replace(tzinfo=None) < WINDOW_OPEN_UTC:
+        return HOLDBACK_INTERVAL
+    secs = max(60.0, (window_end(now) - now).total_seconds())
+    runs_affordable = left / max(1.0, cost)
+    return max(MIN_INTERVAL, min(MAX_INTERVAL, secs / max(1.0, runs_affordable)))
+
+
+def forecast_due(st, cost, now):
+    """Whether this run should fetch, and why.
+
+    The timer fires far more often than any run is needed so that the interval
+    can be decided here against the remaining allowance rather than pinned in a
+    unit file.
     """
     try:
         with open(os.path.join(DATA, "updated.json")) as fh:
             last = json.load(fh)
     except (OSError, ValueError):
-        return True, "no previous run"
-    age = now - last.get("fetched_at", 0)
-    if not last.get("forecast_ok"):
-        if age < RETRY_AFTER_FAIL:
-            return False, f"last fetch failed {age / 60:.0f} min ago, backing off"
-        return True, "retrying after a failed fetch"
-    want = interval()
+        return True, "no previous run", pace(st, cost, now)
+    want = pace(st, cost, now)
+    if want is None:
+        return False, f"daily allowance spent ({st['spent']})", None
+    age = now.timestamp() - last.get("fetched_at", 0)
+    if not last.get("forecast_ok") and age < RETRY_AFTER_FAIL:
+        return False, f"last fetch failed {age / 60:.0f} min ago, backing off", want
     if age < want - 30:      # allow for timer jitter
-        return False, f"last fetch {age / 60:.0f} min ago, cadence {want // 60} min"
-    return True, f"cadence {want // 60} min"
+        return (False, f"last fetch {age / 60:.0f} min ago, pacing "
+                f"{want / 60:.0f} min", want)
+    return True, f"pacing {want / 60:.0f} min", want
 
 
 def main():
@@ -297,19 +344,34 @@ def main():
         cfg = json.load(fh)
     sites, airports = cfg["sites"], cfg["airports"]
 
-    started = time.time()
+    # Every point costs the same, so the region being travelled to is refreshed
+    # on every run and the rest of the path every fourth. Spreading the
+    # allowance evenly over all eight slices would mean none of them was current
+    # on the day.
+    home = cfg.get("home_slice")
+    hot = [s for s in sites if s.get("slice") == home]
+    cold = [s for s in sites if s.get("slice") != home]
+    st = read_state()
+    now = now_utc()
+    started = now.timestamp()
+    cycle = st.get("cycle", 0)
+    do_cold = (cycle % 4 == 0) or not os.path.exists(os.path.join(DATA, "forecast.json"))
+    batch = sites if do_cold else hot
+    cost = len(batch) + len(airports)
+
     days = forecast_days()
     left = (ECLIPSE_DAY - today()).days
-    due, why = forecast_due(started)
-    print(f"{len(sites)} sites, {len(airports)} aerodromes · {left} days to the "
-          f"eclipse · horizon {days} d · {why}")
+    due, why, want = forecast_due(st, cost, now)
+    print(f"{len(batch)}/{len(sites)} sites"
+          f"{'' if do_cold else ' (home slice only)'}, {len(airports)} aerodromes · "
+          f"{left} d to the eclipse · spent {st['spent']}/{DAILY_BUDGET} · {why}")
     if not due:
         return
 
     ok = {"forecast": False, "grid": False, "metar": False}
 
     try:
-        fc = fetch_forecast(sites, days)
+        fc = fetch_forecast(batch, days)
         if fc["hours"]:
             fc["fetched_at"] = int(started)
             # the aerodromes get the same treatment, for the hover charts
@@ -318,24 +380,48 @@ def main():
             except Exception as e:
                 print(f"  airport forecast failed: {e}", file=sys.stderr)
                 fc["airports"] = {}
+            # A home-slice-only run must not drop the other seven slices from
+            # the file the page reads.
+            if not do_cold:
+                try:
+                    with open(os.path.join(DATA, "forecast.json")) as fh:
+                        prev = json.load(fh)
+                    if prev.get("hours") == fc["hours"]:
+                        merged = dict(prev["sites"])
+                        merged.update(fc["sites"])
+                        fc["sites"] = merged
+                    else:
+                        print("  time axis moved, refetching every site next run",
+                              file=sys.stderr)
+                        st["cycle"] = -1
+                except (OSError, ValueError, KeyError):
+                    pass
             n = write_atomic("forecast.json", fc)
             ok["forecast"] = True
+            st["spent"] += cost
             print(f"  forecast.json {n // 1024} kB, {len(fc['sites'])} sites, "
                   f"{len(fc.get('airports', {}))} aerodromes, {len(fc['hours'])} hours")
     except Exception as e:
         print(f"  forecast failed, keeping previous: {e}", file=sys.stderr)
 
+    # The raster costs more than a whole site run, so it draws on its own
+    # allowance and refreshes at whatever rate that affords.
     grid_path = os.path.join(DATA, "grid.json")
+    ncell = len(cfg.get("grid", {}).get("points", []))
+    grid_every = (86400.0 / max(1.0, GRID_BUDGET / max(1, ncell))) if ncell else 1e9
     grid_fresh = (os.path.exists(grid_path)
-                  and time.time() - os.path.getmtime(grid_path) < grid_max_age())
-    if grid_fresh:
-        print("  grid still fresh, skipping")
+                  and time.time() - os.path.getmtime(grid_path) < grid_every)
+    if grid_fresh or st["grid_spent"] + ncell > GRID_BUDGET:
+        if not grid_fresh:
+            print(f"  grid allowance spent ({st['grid_spent']})")
+        grid_fresh = True
     if ok["forecast"] and cfg.get("grid") and not grid_fresh:
         try:
             gr = fetch_grid(cfg["grid"], fc["hours"], days)
             gr["fetched_at"] = int(time.time())
             n = write_atomic("grid.json", gr)
             ok["grid"] = True
+            st["grid_spent"] += ncell
             print(f"  grid.json {n // 1024} kB, {gr['filled']}/{gr['n']} cells")
         except Exception as e:
             print(f"  grid failed, keeping previous: {e}", file=sys.stderr)
@@ -355,12 +441,16 @@ def main():
     except Exception as e:
         print(f"  metar/taf failed, keeping previous: {e}", file=sys.stderr)
 
+    st["cycle"] = cycle + 1
+    write_atomic(STATE, st)
     write_atomic("updated.json", {
         "fetched_at": int(time.time()),
         "took_s": round(time.time() - started, 1),
         "forecast_ok": ok["forecast"],
         "horizon_days": days,
-        "next_in_s": interval(),
+        "next_in_s": int(pace(st, cost, now_utc()) or MAX_INTERVAL),
+        "spent": st["spent"],
+        "budget": DAILY_BUDGET,
         "grid_ok": ok["grid"] or grid_fresh,
         "metar_ok": ok["metar"],
     })
