@@ -370,6 +370,10 @@ def main():
 
     ok = {"forecast": False, "grid": False, "metar": False}
 
+    # Counted on attempt, not on success: a refused request has still been
+    # counted at the other end, so crediting only successes would let a day of
+    # 429s look free and keep the governor asking at full speed.
+    st["spent"] += cost
     try:
         fc = fetch_forecast(batch, days)
         if fc["hours"]:
@@ -398,7 +402,6 @@ def main():
                     pass
             n = write_atomic("forecast.json", fc)
             ok["forecast"] = True
-            st["spent"] += cost
             print(f"  forecast.json {n // 1024} kB, {len(fc['sites'])} sites, "
                   f"{len(fc.get('airports', {}))} aerodromes, {len(fc['hours'])} hours")
     except Exception as e:
@@ -416,12 +419,12 @@ def main():
             print(f"  grid allowance spent ({st['grid_spent']})")
         grid_fresh = True
     if ok["forecast"] and cfg.get("grid") and not grid_fresh:
+        st["grid_spent"] += ncell
         try:
             gr = fetch_grid(cfg["grid"], fc["hours"], days)
             gr["fetched_at"] = int(time.time())
             n = write_atomic("grid.json", gr)
             ok["grid"] = True
-            st["grid_spent"] += ncell
             print(f"  grid.json {n // 1024} kB, {gr['filled']}/{gr['n']} cells")
         except Exception as e:
             print(f"  grid failed, keeping previous: {e}", file=sys.stderr)
