@@ -303,16 +303,40 @@ WINDOW_OPEN_UTC = datetime.time(9, 0)
 HOLDBACK_INTERVAL = 30 * 60
 
 
+# How much faster than a flat rate the eclipse afternoon is allowed to run.
+# Not much: see the note in pace().
+ECLIPSE_BOOST = 1.6
+
+
 def pace(st, cost, now):
-    """Seconds to wait between runs so the budget lasts the window out."""
+    """Seconds to wait between runs.
+
+    Two lower bounds, whichever is longer. The first is a flat rate: the day's
+    allowance spread evenly over a full 24 hours. The provider's daily limit
+    behaves like a rolling window rather than resetting at midnight -- an
+    address that spent its allowance yesterday is still refused today -- so
+    pacing to "use it up before midnight" burns at three times the sustainable
+    rate late in the day and keeps us suppressed into the next one. That is what
+    had happened here.
+
+    The second bound only ever slows things further, as the day's allowance runs
+    down. Eclipse afternoon is permitted a modest boost over the flat rate,
+    deliberately modest for the same reason: being refused at totality would be
+    the worst possible moment to discover the limit is a rolling one.
+    """
     left = max(0, DAILY_BUDGET - st["spent"])
     if left < cost:
         return None
     if now.date() == ECLIPSE_DAY and now.timetz().replace(tzinfo=None) < WINDOW_OPEN_UTC:
         return HOLDBACK_INTERVAL
+
+    steady = cost * 86400.0 / DAILY_BUDGET
+    if now.date() == ECLIPSE_DAY:
+        steady /= ECLIPSE_BOOST
+
     secs = max(60.0, (window_end(now) - now).total_seconds())
-    runs_affordable = left / max(1.0, cost)
-    return max(MIN_INTERVAL, min(MAX_INTERVAL, secs / max(1.0, runs_affordable)))
+    window = secs / max(1.0, left / max(1.0, cost))
+    return max(MIN_INTERVAL, steady, min(MAX_INTERVAL, max(steady, window)))
 
 
 def forecast_due(st, cost, now):
