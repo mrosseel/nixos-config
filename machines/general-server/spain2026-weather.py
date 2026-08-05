@@ -43,6 +43,16 @@ MAX_INTERVAL = 45 * 60
 
 ECLIPSE_DAY = datetime.date(2026, 8, 12)
 HORIZON_END = ECLIPSE_DAY + datetime.timedelta(days=1)
+
+# Days to run on the eclipse-day schedule as a rehearsal. The point is to prove
+# the branch behaves against the live API over whole days rather than in a
+# simulation, while there is still time to fix it. Same daily volume, just
+# concentrated into the afternoon; these dates simply pass and stop applying.
+ECLIPSE_TEST_DAYS = {datetime.date(2026, 8, 6), datetime.date(2026, 8, 7)}
+
+
+def eclipse_pace_day(d):
+    return d == ECLIPSE_DAY or d in ECLIPSE_TEST_DAYS
 TOTALITY_EPOCH = 1786559400   # 2026-08-12T18:30:00Z, mid-totality
 
 # A refused or broken fetch must not be retried at full speed.
@@ -75,9 +85,9 @@ def window_end(now):
     during the eclipse rather than being spread evenly over a day that is mostly
     irrelevant by then.
     """
-    if now.date() == ECLIPSE_DAY:
-        end = datetime.datetime.fromtimestamp(TOTALITY_EPOCH + 3600,
-                                              datetime.timezone.utc)
+    if eclipse_pace_day(now.date()):
+        end = datetime.datetime.combine(
+            now.date(), datetime.time(19, 30), datetime.timezone.utc)
         if now < end:
             return end
     nxt = now.date() + datetime.timedelta(days=1)
@@ -333,11 +343,12 @@ def pace(st, cost, now):
     left = max(0, DAILY_BUDGET - st["spent"])
     if left < cost:
         return None
-    if now.date() == ECLIPSE_DAY and now.timetz().replace(tzinfo=None) < WINDOW_OPEN_UTC:
+    if eclipse_pace_day(now.date()) \
+            and now.timetz().replace(tzinfo=None) < WINDOW_OPEN_UTC:
         return HOLDBACK_INTERVAL
 
     steady = cost * 86400.0 / DAILY_BUDGET
-    if now.date() == ECLIPSE_DAY:
+    if eclipse_pace_day(now.date()):
         steady /= ECLIPSE_BOOST
 
     secs = max(60.0, (window_end(now) - now).total_seconds())
@@ -394,7 +405,9 @@ def main():
     due, why, want = forecast_due(st, cost, now)
     print(f"{len(batch)}/{len(sites)} sites"
           f"{'' if do_cold else ' (home slice only)'}, {len(airports)} aerodromes · "
-          f"{left} d to the eclipse · spent {st['spent']}/{DAILY_BUDGET} · {why}")
+          f"{left} d to the eclipse"
+          f"{' · ECLIPSE PACE (rehearsal)' if today() in ECLIPSE_TEST_DAYS else ''}"
+          f" · spent {st['spent']}/{DAILY_BUDGET} · {why}")
     if not due:
         return
 
