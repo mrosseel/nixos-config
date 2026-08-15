@@ -411,7 +411,14 @@
               enable = true;
               username = "mike";
             };
-            voxtype.enable = true;
+            voxtype = {
+              enable = true;
+              # Personal dictation vocabulary (initial_prompt + replacements for
+              # PiFinder, Hyprland, NixOS...). Seeded once; edits at runtime stick.
+              config_file = ./machines/nixtop/voxtype.toml;
+            };
+            # Bound below as SUPER + F1..F10; this only teaches the bar to show them.
+            shell.workspace_count = 20;
           };
 
           home-manager = {
@@ -442,6 +449,40 @@
 
                 # Hard-recover the Wave:3 mic if its USB firmware hangs (-110); fix-wave3 lives in nixtop/config.nix
                 bindd = SUPER CTRL, R, Fix Wave3 mic, exec, fix-wave3
+
+                # Second workspace bank. Omarchy binds SUPER + 1..0 to workspaces
+                # 1-10 and ships no more, so the function row drives 11-20 with the
+                # same three actions. Pairs with omarchy.shell.workspace_count = 20.
+                bindd = SUPER, F1, Switch to workspace 11, workspace, 11
+                bindd = SUPER SHIFT, F1, Move window to workspace 11, movetoworkspace, 11
+                bindd = SUPER SHIFT ALT, F1, Move window silently to workspace 11, movetoworkspacesilent, 11
+                bindd = SUPER, F2, Switch to workspace 12, workspace, 12
+                bindd = SUPER SHIFT, F2, Move window to workspace 12, movetoworkspace, 12
+                bindd = SUPER SHIFT ALT, F2, Move window silently to workspace 12, movetoworkspacesilent, 12
+                bindd = SUPER, F3, Switch to workspace 13, workspace, 13
+                bindd = SUPER SHIFT, F3, Move window to workspace 13, movetoworkspace, 13
+                bindd = SUPER SHIFT ALT, F3, Move window silently to workspace 13, movetoworkspacesilent, 13
+                bindd = SUPER, F4, Switch to workspace 14, workspace, 14
+                bindd = SUPER SHIFT, F4, Move window to workspace 14, movetoworkspace, 14
+                bindd = SUPER SHIFT ALT, F4, Move window silently to workspace 14, movetoworkspacesilent, 14
+                bindd = SUPER, F5, Switch to workspace 15, workspace, 15
+                bindd = SUPER SHIFT, F5, Move window to workspace 15, movetoworkspace, 15
+                bindd = SUPER SHIFT ALT, F5, Move window silently to workspace 15, movetoworkspacesilent, 15
+                bindd = SUPER, F6, Switch to workspace 16, workspace, 16
+                bindd = SUPER SHIFT, F6, Move window to workspace 16, movetoworkspace, 16
+                bindd = SUPER SHIFT ALT, F6, Move window silently to workspace 16, movetoworkspacesilent, 16
+                bindd = SUPER, F7, Switch to workspace 17, workspace, 17
+                bindd = SUPER SHIFT, F7, Move window to workspace 17, movetoworkspace, 17
+                bindd = SUPER SHIFT ALT, F7, Move window silently to workspace 17, movetoworkspacesilent, 17
+                bindd = SUPER, F8, Switch to workspace 18, workspace, 18
+                bindd = SUPER SHIFT, F8, Move window to workspace 18, movetoworkspace, 18
+                bindd = SUPER SHIFT ALT, F8, Move window silently to workspace 18, movetoworkspacesilent, 18
+                bindd = SUPER, F9, Switch to workspace 19, workspace, 19
+                bindd = SUPER SHIFT, F9, Move window to workspace 19, movetoworkspace, 19
+                bindd = SUPER SHIFT ALT, F9, Move window silently to workspace 19, movetoworkspacesilent, 19
+                bindd = SUPER, F10, Switch to workspace 20, workspace, 20
+                bindd = SUPER SHIFT, F10, Move window to workspace 20, movetoworkspace, 20
+                bindd = SUPER SHIFT ALT, F10, Move window silently to workspace 20, movetoworkspacesilent, 20
 
                 # Screenshots: save to file + copy to clipboard
                 bindd = , Print, Screenshot region, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim -g "$(slurp)" - | tee "$FILE" | wl-copy -t image/png'
