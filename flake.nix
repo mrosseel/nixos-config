@@ -50,6 +50,14 @@
 
     nix-minecraft.url = "github:Infinidoge/nix-minecraft";
 
+    # PiFinder server infra (attic cache + delta server) — own repo, consumed
+    # as NixOS modules on general-server. Caddy vhosts stay in this repo; see
+    # docs/caddy.md over there.
+    pifinder-server = {
+      url = "github:mrosseel/pifinder-server";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     claude-code.url = "github:sadjow/claude-code-nix";
     codex-cli-nix.url = "github:sadjow/codex-cli-nix";
 
@@ -330,8 +338,7 @@
         ./machines/general-server/asterisms-votes.nix
         ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
-        ./machines/general-server/attic-service.nix
-        ./machines/general-server/pifinder-differ.nix
+        inputs.pifinder-server.nixosModules.default
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix

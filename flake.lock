@@ -1077,6 +1077,26 @@
         "type": "github"
       }
     },
+    "pifinder-server": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787426436,
+        "narHash": "sha256-m+oACFg0wholcbf9dNl2j2d0NQXL18qJ95YowU5TJ6w=",
+        "owner": "mrosseel",
+        "repo": "pifinder-server",
+        "rev": "6a0df072f6dcc8b74d383643732be0efb5e314d1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mrosseel",
+        "repo": "pifinder-server",
+        "type": "github"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_3",
@@ -1140,6 +1160,7 @@
         "nixpkgs-stable": "nixpkgs-stable",
         "nixpkgs-vetted": "nixpkgs-vetted",
         "omarchy-nix": "omarchy-nix",
+        "pifinder-server": "pifinder-server",
         "sketchybar": "sketchybar"
       }
     },
