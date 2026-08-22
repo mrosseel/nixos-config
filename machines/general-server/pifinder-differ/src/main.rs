@@ -67,6 +67,13 @@ const MIN_FREE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
 const DEMAND_QUEUE_CAP: usize = 64;
 const WARM_QUEUE_CAP: usize = 10_000;
 
+// Per-IP token bucket over ALL routes. A real upgrade makes one /delta POST
+// and one blob GET per changed path (~50-500 of each), usually inside a few
+// minutes — the burst covers that. Sustained abuse decays to REFILL_PER_SEC.
+const RL_BURST: f64 = 1500.0;
+const RL_REFILL_PER_SEC: f64 = 3.0;
+const RL_MAX_TRACKED_IPS: usize = 10_000;
+
 // ---------------------------------------------------------------- state
 
 struct App {
@@ -86,6 +93,13 @@ struct App {
     jobs_done: AtomicU64,
     jobs_failed: AtomicU64,
     warm_seq: AtomicU64,
+    rate: Mutex<HashMap<String, TokenBucket>>,
+    rate_limited: AtomicU64,
+}
+
+struct TokenBucket {
+    tokens: f64,
+    last: Instant,
 }
 
 #[derive(Clone)]
@@ -695,6 +709,56 @@ fn enqueue(app: &App, job: Job, demand: bool) -> &'static str {
     "queued"
 }
 
+// ---------------------------------------------------------------- rate limit
+
+/// Take one token for `ip`; false = over the limit.
+fn rate_allow(app: &App, ip: &str) -> bool {
+    let mut map = app.rate.lock().unwrap();
+    // Unbounded growth guard: an address-rotating attacker resets everyone's
+    // bucket rather than growing the map without limit.
+    if map.len() >= RL_MAX_TRACKED_IPS && !map.contains_key(ip) {
+        map.clear();
+    }
+    let now = Instant::now();
+    let bucket = map.entry(ip.to_string()).or_insert(TokenBucket {
+        tokens: RL_BURST,
+        last: now,
+    });
+    let elapsed = now.duration_since(bucket.last).as_secs_f64();
+    bucket.tokens = (bucket.tokens + elapsed * RL_REFILL_PER_SEC).min(RL_BURST);
+    bucket.last = now;
+    if bucket.tokens < 1.0 {
+        return false;
+    }
+    bucket.tokens -= 1.0;
+    true
+}
+
+/// Client IP: first X-Forwarded-For entry (set by Caddy; the listener is
+/// loopback-only so the header is trustworthy), else the peer address.
+fn client_ip(req: &axum::http::Request<axum::body::Body>) -> String {
+    req.headers()
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').next())
+        .map(|v| v.trim().to_string())
+        .unwrap_or_else(|| "local".into())
+}
+
+async fn rate_limit_mw(
+    State(app): State<Arc<App>>,
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Response {
+    let ip = client_ip(&req);
+    if !rate_allow(&app, &ip) {
+        app.rate_limited.fetch_add(1, Ordering::Relaxed);
+        return (StatusCode::TOO_MANY_REQUESTS, [("retry-after", "60")], "rate limited")
+            .into_response();
+    }
+    next.run(req).await
+}
+
 // ---------------------------------------------------------------- HTTP
 
 #[derive(Deserialize)]
@@ -888,6 +952,7 @@ async fn get_status(State(app): State<Arc<App>>) -> Response {
         "inflight": app.inflight.lock().unwrap().len(),
         "jobs_done": app.jobs_done.load(Ordering::Relaxed),
         "jobs_failed": app.jobs_failed.load(Ordering::Relaxed),
+        "rate_limited": app.rate_limited.load(Ordering::Relaxed),
         "warm_runs": *app.warm_runs.lock().unwrap(),
     }))
     .into_response()
@@ -966,6 +1031,8 @@ async fn main() -> Result<()> {
         jobs_done: AtomicU64::new(0),
         jobs_failed: AtomicU64::new(0),
         warm_seq: AtomicU64::new(0),
+        rate: Mutex::new(HashMap::new()),
+        rate_limited: AtomicU64::new(0),
     });
     for d in [&app.blob_dir, &app.meta_dir, &app.tmp_dir, &app.nar_cache_dir] {
         std::fs::create_dir_all(d)?;
@@ -993,6 +1060,7 @@ async fn main() -> Result<()> {
         .route("/delta", post(post_delta))
         .route("/warm", post(post_warm))
         .route("/blobs/:name", get(get_blob))
+        .layer(axum::middleware::from_fn_with_state(app.clone(), rate_limit_mw))
         .with_state(app);
 
     let listener = tokio::net::TcpListener::bind(&listen).await?;
