@@ -62,6 +62,8 @@ struct App {
     blob_dir: PathBuf,
     meta_dir: PathBuf,
     tmp_dir: PathBuf,
+    nar_cache_dir: PathBuf,
+    nar_cache_max: u64,
     attic_url: String,
     attic_db: PathBuf,
     caches: Vec<String>,
@@ -349,6 +351,63 @@ fn attic_closure(app: &App, toplevel_sph: &str) -> Result<Vec<String>> {
 
 // ---------------------------------------------------------------- NAR fetch
 
+/// LRU eviction: newest-mtime files survive, files under an hour old are
+/// never evicted (they may be open in a running zstd/sha pass).
+fn evict_nar_cache(app: &App) {
+    let Ok(rd) = std::fs::read_dir(&app.nar_cache_dir) else { return };
+    let mut files: Vec<(std::time::SystemTime, u64, PathBuf)> = rd
+        .flatten()
+        .filter_map(|e| {
+            let md = e.metadata().ok()?;
+            Some((md.modified().ok()?, md.len(), e.path()))
+        })
+        .collect();
+    let mut total: u64 = files.iter().map(|(_, s, _)| s).sum();
+    if total <= app.nar_cache_max {
+        return;
+    }
+    files.sort_by_key(|(t, _, _)| *t); // oldest first
+    let hour_ago = SystemTime::now() - Duration::from_secs(3600);
+    for (mtime, size, path) in files {
+        if total <= app.nar_cache_max || mtime > hour_ago {
+            break;
+        }
+        if std::fs::remove_file(&path).is_ok() {
+            total = total.saturating_sub(size);
+            log(&format!("narcache evicted {}", path.display()));
+        }
+    }
+}
+
+fn nar_cache_stats(app: &App) -> (usize, u64) {
+    let Ok(rd) = std::fs::read_dir(&app.nar_cache_dir) else { return (0, 0) };
+    let mut n = 0usize;
+    let mut bytes = 0u64;
+    for e in rd.flatten() {
+        if let Ok(md) = e.metadata() {
+            n += 1;
+            bytes += md.len();
+        }
+    }
+    (n, bytes)
+}
+
+/// Get a decompressed NAR, from the local LRU cache or from atticd over
+/// loopback. Returns the cache path and the NAR size.
+async fn get_nar(app: &App, cache: &str, sph: &str) -> Result<(PathBuf, u64)> {
+    let cached = app.nar_cache_dir.join(format!("{sph}.nar"));
+    if let Ok(md) = tokio::fs::metadata(&cached).await {
+        // Bump mtime so LRU keeps hot NARs.
+        let _ = run(Command::new("touch").arg(&cached).stdin(Stdio::null())).await;
+        return Ok((cached, md.len()));
+    }
+    let tmp = app.tmp_dir.join(format!("fetch-{sph}.nar"));
+    let size = fetch_nar(app, cache, sph, &tmp).await?;
+    tokio::fs::rename(&tmp, &cached).await?;
+    evict_nar_cache(app);
+    Ok((cached, size))
+}
+
 /// Fetch one NAR from atticd over loopback into `dest`, decompressed.
 async fn fetch_nar(app: &App, cache: &str, sph: &str, dest: &Path) -> Result<u64> {
     let narinfo_url = format!("{}/{}/{}.narinfo", app.attic_url, cache, sph);
@@ -459,11 +518,9 @@ async fn compute_inner(app: &App, job: &Job, t_hash: &str, work: &Path) -> Resul
         );
     }
 
-    // Fetch the two NARs over loopback and patch.
-    let base_nar = work.join("base.nar");
-    let target_nar = work.join("target.nar");
-    fetch_nar(app, &base_obj.cache, &b_hash, &base_nar).await?;
-    let target_size = fetch_nar(app, &target_obj.cache, t_hash, &target_nar).await?;
+    // NARs come from the local LRU cache, falling back to atticd/S3.
+    let (base_nar, _) = get_nar(app, &base_obj.cache, &b_hash).await?;
+    let (target_nar, target_size) = get_nar(app, &target_obj.cache, t_hash).await?;
 
     let level = if target_size < LARGE_TARGET_BYTES { FINAL_LEVEL_SMALL } else { FINAL_LEVEL_LARGE };
     let patch_tmp = work.join("patch.zst");
@@ -769,7 +826,9 @@ async fn get_pairs(State(app): State<Arc<App>>) -> Response {
 }
 
 async fn get_status(State(app): State<Arc<App>>) -> Response {
+    let (nc_files, nc_bytes) = nar_cache_stats(&app);
     Json(serde_json::json!({
+        "nar_cache": { "files": nc_files, "bytes": nc_bytes, "max_bytes": app.nar_cache_max },
         "demand_queue": app.demand.lock().unwrap().len(),
         "warm_queue": app.warm.lock().unwrap().len(),
         "inflight": app.inflight.lock().unwrap().len(),
@@ -831,11 +890,17 @@ async fn main() -> Result<()> {
         .split_whitespace()
         .map(String::from)
         .collect();
+    let nar_cache_max: u64 = std::env::var("DIFFER_NAR_CACHE_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10 * 1024 * 1024 * 1024); // 10 GiB
 
     let app = Arc::new(App {
         blob_dir: state_dir.join("blobs"),
         meta_dir: state_dir.join("meta"),
         tmp_dir: state_dir.join("tmp"),
+        nar_cache_dir: state_dir.join("narcache"),
+        nar_cache_max,
         attic_url,
         attic_db,
         caches,
@@ -848,7 +913,7 @@ async fn main() -> Result<()> {
         jobs_failed: AtomicU64::new(0),
         warm_seq: AtomicU64::new(0),
     });
-    for d in [&app.blob_dir, &app.meta_dir, &app.tmp_dir] {
+    for d in [&app.blob_dir, &app.meta_dir, &app.tmp_dir, &app.nar_cache_dir] {
         std::fs::create_dir_all(d)?;
     }
     // Stale workdirs from a previous crash.

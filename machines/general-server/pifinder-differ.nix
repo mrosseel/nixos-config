@@ -27,7 +27,7 @@
 let
   pifinder-differ = pkgs.rustPlatform.buildRustPackage {
     pname = "pifinder-differ";
-    version = "0.2.0";
+    version = "0.3.0";
     src = lib.cleanSourceWith {
       src = ./pifinder-differ;
       filter = path: _type: builtins.baseNameOf path != "target";
@@ -52,6 +52,11 @@ in
       DIFFER_ATTIC_URL = "http://127.0.0.1:8080";
       DIFFER_ATTIC_DB = "/var/lib/atticd/server.db";
       DIFFER_CACHES = "pifinder pifinder-release";
+      # Local LRU cache of decompressed NARs under the state dir. v0.2 was
+      # S3-fetch-bound (~600 s for one 202 MiB pair); with the release lane's
+      # working set (~1 GiB per toplevel diff) this holds ~10 diffs. Disk has
+      # ~270 G free — raise if warm runs still show cold fetches.
+      DIFFER_NAR_CACHE_BYTES = toString (10 * 1024 * 1024 * 1024);
     };
 
     serviceConfig = {
