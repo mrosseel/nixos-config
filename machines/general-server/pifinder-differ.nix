@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 # pifinder-differ — on-demand + self-warming zstd delta server for PiFinder
-# NixOS updates. Decision record: docs/adr/0030-delta-updates-on-demand-differ.md
+# NixOS updates. Decision record: docs/adr/0031-delta-updates-on-demand-differ.md
 # in the PiFinder repo (nixos branch). Sits beside Attic (attic-service.nix)
 # and serves byte-level patches between store-path NARs:
 #
