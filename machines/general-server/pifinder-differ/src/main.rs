@@ -56,7 +56,13 @@ const KEEP_RATIO: f64 = 0.40; // patch bigger than 40% of the NAR: not worth it
 // download (e.g. a migrating device with no shared history). Decide that from
 // the DB alone — never fetch NARs for it, so hopeless pairs cannot evict the
 // release lane's working set from the NAR cache.
+//
+// Only meaningful when the target spans enough chunks: a NAR below ~8 chunks
+// (FastCDC avg 64 KiB) is one-or-few chunks, where a 2-byte edit reads as
+// zero overlap even though the byte-level patch would be ~100 B. Small
+// targets skip the floor and rank by NAR-size closeness instead.
 const MIN_CHUNK_OVERLAP: f64 = 0.05;
+const MIN_CHUNKS_FOR_OVERLAP: usize = 8;
 const MIN_FREE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
 const DEMAND_QUEUE_CAP: usize = 64;
 const WARM_QUEUE_CAP: usize = 10_000;
@@ -509,11 +515,21 @@ async fn compute_inner(app: &App, job: &Job, t_hash: &str, work: &Path) -> Resul
     }
     let rank_ms = rank_started.elapsed().as_millis() as u64;
     let candidates_ranked = ranked.len();
-    ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    let overlap_meaningful = target_chunks.len() >= MIN_CHUNKS_FOR_OVERLAP;
+    if overlap_meaningful {
+        ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    } else {
+        // Chunking can't see sub-chunk similarity — prefer the base whose
+        // NAR size is closest to the target's.
+        let t_size = target_obj.nar_size as i64;
+        ranked.sort_by_key(|(_, _, obj)| (obj.nar_size as i64 - t_size).abs());
+    }
     // Overlap floor: a hopeless pair is decided here, from the DB alone.
     // Mark every requested pair rejected so /delta answers 204 (full
     // download) instead of looping 202, and fetch nothing.
-    if ranked.first().map(|(o, _, _)| *o < MIN_CHUNK_OVERLAP).unwrap_or(false) {
+    if overlap_meaningful
+        && ranked.first().map(|(o, _, _)| *o < MIN_CHUNK_OVERLAP).unwrap_or(false)
+    {
         let best_overlap = ranked.first().map(|(o, _, _)| *o).unwrap_or(0.0);
         for (overlap, b_hash, base_obj) in &ranked {
             let key = pair_key(b_hash, t_hash);
