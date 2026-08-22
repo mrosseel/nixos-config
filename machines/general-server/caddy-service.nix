@@ -242,6 +242,26 @@
       '';
     };
 
+    # PiFinder delta server (pifinder-differ.nix). Devices ask for byte-level
+    # patches here before falling back to full downloads from the cache.
+    # Only the device-facing routes are public; /warm, /status and /pairs are
+    # operator surface and stay loopback-only (curl on the host / SSH).
+    # NB: needs a DNS A record deltas.pifinder.eu -> this host before ACME
+    # can issue the certificate.
+    virtualHosts."deltas.pifinder.eu" = {
+      extraConfig = ''
+        @public path /delta /blobs/* /health
+
+        # Patch blobs are content-addressed (base-hash_target-hash) and
+        # immutable — cache forever, anywhere.
+        @blobs path /blobs/*
+        header @blobs Cache-Control "public, max-age=31536000, immutable"
+
+        reverse_proxy @public localhost:8090
+        respond 403
+      '';
+    };
+
     # PiFinder file host — tarballs + desync chunk store, served as static
     # files next to the Attic cache. Read-only over HTTPS; uploads happen over
     # SSH/rsync into the mike-owned web root (no upload daemon). browse renders
