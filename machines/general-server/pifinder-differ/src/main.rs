@@ -1,13 +1,30 @@
-// pifinder-differ — on-demand + self-warming binary delta server for the
+// pifinder-differ v0.2 — on-demand + self-warming binary delta server for the
 // PiFinder NixOS update transport.
 //
-// Serves zstd --patch-from patches between store-path export streams.
-// Patches are computed over `nix-store --export` output so the device can
-// verify (sha256) and `nix-store --import` the result. Pairs arrive two ways:
+// Runs beside atticd and works from the cache itself, not from a nix store:
+//   - metadata (closures, references, NAR sizes) comes from atticd's SQLite
+//     database, opened read-only;
+//   - candidate bases are ranked by FastCDC chunk overlap (Jaccard) straight
+//     from the DB — no bytes fetched to pick a winner;
+//   - NAR bytes are fetched from atticd over loopback and patched NAR-to-NAR
+//     with zstd --patch-from. NARs are canonical on both ends (`nix-store
+//     --dump` on the device), so no export-stream/deriver nondeterminism.
+//
+// Endpoints:
 //   POST /delta  — a device names a target and the bases it holds (demand)
-//   POST /warm   — enqueue every stem-paired path between two toplevels (warm)
+//   POST /warm   — enqueue every stem-paired path between two toplevels
+//   GET  /pairs  — every computed pair with sizes/ratios
+//   GET  /status — queues, counters, warm-run progress
+//   GET  /blobs/<base>_<target>.zst
+//
 // Demand jobs always run before warm jobs. All compute runs at the unit's
 // idle CPU/IO priority so co-hosted services are never starved.
+//
+// Device applies a patch as:
+//   nix-store --dump $BASE > base.nar
+//   zstd -d --long=$window_log --patch-from=base.nar patch.zst -o new.nar
+//   sha256sum new.nar == nar_sha256, then import with references+deriver
+//   from the /delta response.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -22,18 +39,19 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
-const ALGO: &str = "zstd-patch-from-v1";
-const WINDOW_LOG: u32 = 27; // 128 MiB — must match the device decoder
-const RANK_LEVEL: u32 = 3; // cheap pass used only to pick the best base
+const ALGO: &str = "zstd-patch-from-nar-v2";
+const MIN_WINDOW_LOG: u32 = 27; // 128 MiB floor; raised per pair when NARs are bigger
+const MAX_WINDOW_LOG: u32 = 30; // 1 GiB — refuse pairs the device could never decode
 const FINAL_LEVEL_SMALL: u32 = 19; // targets below the split
 const FINAL_LEVEL_LARGE: u32 = 12; // large targets: 19 costs minutes for ~% gain
 const LARGE_TARGET_BYTES: u64 = 20 * 1024 * 1024;
-const KEEP_RATIO: f64 = 0.40; // patch bigger than 40% of the export: not worth it
+const KEEP_RATIO: f64 = 0.40; // patch bigger than 40% of the NAR: not worth it
 const MIN_FREE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
 const DEMAND_QUEUE_CAP: usize = 64;
 const WARM_QUEUE_CAP: usize = 10_000;
@@ -44,7 +62,10 @@ struct App {
     blob_dir: PathBuf,
     meta_dir: PathBuf,
     tmp_dir: PathBuf,
-    substituters: Vec<String>,
+    attic_url: String,
+    attic_db: PathBuf,
+    caches: Vec<String>,
+    db: Mutex<Option<Connection>>,
     demand: Mutex<VecDeque<Job>>,
     warm: Mutex<VecDeque<Job>>,
     inflight: Mutex<HashSet<String>>, // target hashes being computed
@@ -66,7 +87,7 @@ struct WarmRun {
     id: u64,
     base_toplevel: String,
     target_toplevel: String,
-    state: String, // copying | pairing | queued | failed
+    state: String, // pairing | queued | failed
     paired: usize,
     skipped_existing: usize,
     unpaired: usize,
@@ -82,14 +103,30 @@ struct PairMeta {
     window_log: u32,
     level: u32,
     patch_size: u64,
-    target_export_size: u64,
-    export_sha256: String,
+    nar_size: u64,
+    nar_sha256: String,
+    #[serde(default)]
+    references: Vec<String>, // full store paths of the target's references
+    #[serde(default)]
+    deriver: Option<String>,
+    #[serde(default)]
+    chunk_overlap: f64, // Jaccard overlap of the chosen base, for observability
     compute_ms: u64,
     rank_ms: u64,
     candidates_ranked: usize,
     source: String,
     created_unix: u64,
     rejected: bool, // true: patch exceeded KEEP_RATIO, no blob kept
+}
+
+// Row from attic's `object` × `nar` tables.
+struct AtticObject {
+    store_path: String,
+    references: Vec<String>, // basenames ("<hash>-<name>")
+    deriver: Option<String>,
+    nar_id: i64,
+    nar_size: u64,
+    cache: String,
 }
 
 // ---------------------------------------------------------------- helpers
@@ -139,6 +176,16 @@ fn pair_key(base_hash: &str, target_hash: &str) -> String {
     format!("{base_hash}_{target_hash}")
 }
 
+/// Smallest window log (>= floor) whose window covers both NARs.
+fn window_log_for(base: u64, target: u64) -> u32 {
+    let need = base.max(target);
+    let mut w = MIN_WINDOW_LOG;
+    while w < MAX_WINDOW_LOG && (1u64 << w) < need {
+        w += 1;
+    }
+    w
+}
+
 async fn run(cmd: &mut Command) -> Result<std::process::Output> {
     let rendered = format!("{:?}", cmd.as_std());
     let out = cmd.output().await.with_context(|| format!("spawn {rendered}"))?;
@@ -150,14 +197,6 @@ async fn run(cmd: &mut Command) -> Result<std::process::Output> {
         );
     }
     Ok(out)
-}
-
-fn nix(args: &[&str]) -> Command {
-    let mut c = Command::new("nix");
-    c.args(["--extra-experimental-features", "nix-command"]);
-    c.args(args);
-    c.stdin(Stdio::null());
-    c
 }
 
 async fn free_bytes(dir: &Path) -> Result<u64> {
@@ -187,65 +226,163 @@ async fn sha256_file(p: &Path) -> Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-// ---------------------------------------------------------------- nix ops
+// ---------------------------------------------------------------- attic DB
 
-async fn path_is_local(p: &str) -> bool {
-    Command::new("nix-store")
-        .args(["--query", "--hash", p])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-/// Make sure a path (and for toplevels: its closure) exists in the local store.
-async fn ensure_local(app: &App, p: &str) -> Result<()> {
-    if path_is_local(p).await {
-        return Ok(());
+/// Run `f` against the read-only attic DB connection, (re)opening on demand.
+fn with_db<T>(app: &App, f: impl FnOnce(&Connection) -> rusqlite::Result<T>) -> Result<T> {
+    let mut guard = app.db.lock().unwrap();
+    if guard.is_none() {
+        let conn = Connection::open_with_flags(
+            &app.attic_db,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .with_context(|| format!("open {}", app.attic_db.display()))?;
+        conn.busy_timeout(Duration::from_secs(5))?;
+        *guard = Some(conn);
     }
-    let mut last = anyhow!("no substituters configured");
-    for sub in &app.substituters {
-        match run(&mut nix(&["copy", "--no-check-sigs", "--from", sub, p])).await {
-            Ok(_) => return Ok(()),
-            Err(e) => last = e.context(format!("nix copy from {sub}")),
+    match f(guard.as_ref().unwrap()) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            // Drop the connection on any error so a stale handle (e.g. after
+            // an atticd migration) heals on the next call.
+            *guard = None;
+            Err(e.into())
         }
     }
-    Err(last.context(format!("could not fetch {p}")))
 }
 
-async fn closure_paths(toplevel: &str) -> Result<Vec<String>> {
-    let out = run(Command::new("nix-store")
-        .args(["--query", "--requisites", toplevel])
+/// Look up a store path hash in the allowed caches, first cache wins.
+fn attic_object(app: &App, sph: &str) -> Result<Option<AtticObject>> {
+    with_db(app, |conn| {
+        let mut stmt = conn.prepare_cached(
+            "SELECT o.store_path, o.\"references\", o.deriver, o.nar_id,
+                    n.nar_size, c.name
+             FROM object o
+             JOIN nar n ON n.id = o.nar_id
+             JOIN cache c ON c.id = o.cache_id
+             WHERE o.store_path_hash = ?1 AND c.deleted_at IS NULL",
+        )?;
+        let rows: Vec<(String, String, Option<String>, i64, i64, String)> = stmt
+            .query_map([sph], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(rows)
+    })
+    .map(|rows| {
+        let mut best: Option<AtticObject> = None;
+        for (store_path, refs_json, deriver, nar_id, nar_size, cache) in rows {
+            let rank = app.caches.iter().position(|c| *c == cache);
+            let Some(rank) = rank else { continue };
+            let current_rank = best
+                .as_ref()
+                .and_then(|b| app.caches.iter().position(|c| *c == b.cache))
+                .unwrap_or(usize::MAX);
+            if rank < current_rank {
+                let references: Vec<String> =
+                    serde_json::from_str(&refs_json).unwrap_or_default();
+                best = Some(AtticObject {
+                    store_path,
+                    references,
+                    deriver,
+                    nar_id,
+                    nar_size: nar_size.max(0) as u64,
+                    cache,
+                });
+            }
+        }
+        best
+    })
+}
+
+fn chunk_set(app: &App, nar_id: i64) -> Result<HashSet<i64>> {
+    with_db(app, |conn| {
+        let mut stmt = conn
+            .prepare_cached("SELECT chunk_id FROM chunkref WHERE nar_id = ?1 AND chunk_id IS NOT NULL")?;
+        let ids: Vec<i64> = stmt
+            .query_map([nar_id], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(ids.into_iter().collect())
+    })
+}
+
+fn jaccard(a: &HashSet<i64>, b: &HashSet<i64>) -> f64 {
+    if a.is_empty() && b.is_empty() {
+        return 0.0;
+    }
+    let inter = a.intersection(b).count() as f64;
+    let union = (a.len() + b.len()) as f64 - inter;
+    if union == 0.0 { 0.0 } else { inter / union }
+}
+
+/// Full runtime closure of a toplevel, walked via `references` in the DB.
+/// Returns full store paths. Paths whose object rows are missing (GC holes)
+/// are skipped — they can't be patched or fetched anyway.
+fn attic_closure(app: &App, toplevel_sph: &str) -> Result<Vec<String>> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut order: Vec<String> = Vec::new();
+    let mut queue: VecDeque<String> = VecDeque::from([toplevel_sph.to_string()]);
+    let mut missing = 0usize;
+    while let Some(sph) = queue.pop_front() {
+        if !seen.insert(sph.clone()) {
+            continue;
+        }
+        match attic_object(app, &sph)? {
+            None => missing += 1,
+            Some(obj) => {
+                order.push(obj.store_path.clone());
+                for r in &obj.references {
+                    if let Some((h, _)) = split_store_path(&format!("/nix/store/{r}")) {
+                        if !seen.contains(&h) {
+                            queue.push_back(h);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if missing > 0 {
+        log(&format!("closure of {toplevel_sph}: {missing} paths missing from attic (GC holes), skipped"));
+    }
+    Ok(order)
+}
+
+// ---------------------------------------------------------------- NAR fetch
+
+/// Fetch one NAR from atticd over loopback into `dest`, decompressed.
+async fn fetch_nar(app: &App, cache: &str, sph: &str, dest: &Path) -> Result<u64> {
+    let narinfo_url = format!("{}/{}/{}.narinfo", app.attic_url, cache, sph);
+    let out = run(Command::new("curl")
+        .args(["-fsS", "--max-time", "30", &narinfo_url])
         .stdin(Stdio::null()))
     .await?;
-    Ok(String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(|l| l.trim().to_string())
-        .filter(|l| !l.is_empty() && !l.ends_with(".drv"))
-        .collect())
-}
+    let narinfo = String::from_utf8_lossy(&out.stdout).to_string();
+    let field = |k: &str| {
+        narinfo
+            .lines()
+            .find_map(|l| l.strip_prefix(k))
+            .map(|v| v.trim().to_string())
+    };
+    let url = field("URL:").ok_or_else(|| anyhow!("narinfo for {sph} has no URL"))?;
+    let compression = field("Compression:").unwrap_or_else(|| "none".into());
+    let nar_url = format!("{}/{}/{}", app.attic_url, cache, url);
 
-async fn export_path(store_path: &str, dest: &Path) -> Result<u64> {
-    let f = std::fs::File::create(dest)?;
-    let status = Command::new("nix-store")
-        .args(["--export", store_path])
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(f))
-        .status()
-        .await?;
-    if !status.success() {
-        bail!("nix-store --export {store_path} failed: {status}");
-    }
+    let pipeline = match compression.as_str() {
+        "none" => format!("curl -fsS '{nar_url}' -o '{}'", dest.display()),
+        "zstd" => format!(
+            "set -o pipefail; curl -fsS '{nar_url}' | zstd -dq -o '{}'",
+            dest.display()
+        ),
+        other => bail!("unsupported NAR compression {other} for {sph}"),
+    };
+    run(Command::new("bash").args(["-c", &pipeline]).stdin(Stdio::null())).await?;
     Ok(tokio::fs::metadata(dest).await?.len())
 }
 
-async fn zstd_patch(level: u32, base: &Path, target: &Path, out: &Path) -> Result<u64> {
+async fn zstd_patch(level: u32, wlog: u32, base: &Path, target: &Path, out: &Path) -> Result<u64> {
     run(Command::new("zstd")
         .arg(format!("-{level}"))
-        .arg(format!("--long={WINDOW_LOG}"))
+        .arg(format!("--long={wlog}"))
         .arg("--single-thread")
         .arg("--force")
         .arg("--quiet")
@@ -273,8 +410,6 @@ fn load_meta(app: &App, key: &str) -> Option<PairMeta> {
     serde_json::from_slice(&raw).ok()
 }
 
-/// Compute the best patch for a job. Ranks candidate bases with a cheap zstd
-/// pass, then compresses the winner at the tiered final level.
 async fn compute(app: &App, job: &Job) -> Result<PairMeta> {
     let (t_hash, t_name) = split_store_path(&job.target)
         .ok_or_else(|| anyhow!("bad target {}", job.target))?;
@@ -285,7 +420,6 @@ async fn compute(app: &App, job: &Job) -> Result<PairMeta> {
 
     let work = app.tmp_dir.join(&t_hash);
     tokio::fs::create_dir_all(&work).await?;
-    // Whatever happens below, the workdir is removed at the end.
     let result = compute_inner(app, job, &t_hash, &work).await;
     let _ = tokio::fs::remove_dir_all(&work).await;
     result
@@ -293,43 +427,46 @@ async fn compute(app: &App, job: &Job) -> Result<PairMeta> {
 
 async fn compute_inner(app: &App, job: &Job, t_hash: &str, work: &Path) -> Result<PairMeta> {
     let started = Instant::now();
-    ensure_local(app, &job.target).await?;
-    let target_export = work.join("target.export");
-    let target_size = export_path(&job.target, &target_export).await?;
 
-    // Rank: cheap patch against every candidate the device (or warmer) named.
+    let target_obj = attic_object(app, t_hash)?
+        .ok_or_else(|| anyhow!("target {} not in attic", job.target))?;
+
+    // Rank candidates by chunk overlap — DB only, no bytes fetched.
     let rank_started = Instant::now();
-    let mut ranked: Vec<(u64, String, PathBuf)> = Vec::new();
-    for (i, base) in job.bases.iter().enumerate() {
-        if split_store_path(base).is_none() {
-            continue;
-        }
-        if ensure_local(app, base).await.is_err() {
-            continue;
-        }
-        let base_export = work.join(format!("base{i}.export"));
-        if export_path(base, &base_export).await.is_err() {
-            continue;
-        }
-        let rank_out = work.join(format!("rank{i}.zst"));
-        match zstd_patch(RANK_LEVEL, &base_export, &target_export, &rank_out).await {
-            Ok(size) => ranked.push((size, base.clone(), base_export)),
-            Err(e) => log(&format!("rank failed for {base}: {e:#}")),
-        }
-        let _ = tokio::fs::remove_file(&rank_out).await;
+    let target_chunks = chunk_set(app, target_obj.nar_id)?;
+    let mut ranked: Vec<(f64, String, AtticObject)> = Vec::new();
+    for base in &job.bases {
+        let Some((b_hash, _)) = split_store_path(base) else { continue };
+        let Some(obj) = attic_object(app, &b_hash)? else { continue };
+        let overlap = jaccard(&target_chunks, &chunk_set(app, obj.nar_id)?);
+        ranked.push((overlap, b_hash, obj));
     }
     let rank_ms = rank_started.elapsed().as_millis() as u64;
     let candidates_ranked = ranked.len();
-    ranked.sort_by_key(|(size, _, _)| *size);
-    let (_, best_base, best_export) =
-        ranked.into_iter().next().ok_or_else(|| anyhow!("no usable base"))?;
-    let (b_hash, _) = split_store_path(&best_base).unwrap();
+    ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    let (overlap, b_hash, base_obj) = ranked
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("no candidate base present in attic"))?;
 
-    // Final pass on the winner only.
+    let wlog = window_log_for(base_obj.nar_size, target_obj.nar_size);
+    if (1u64 << wlog) < base_obj.nar_size.max(target_obj.nar_size) {
+        bail!(
+            "NAR too large for max window ({} B > 2^{MAX_WINDOW_LOG})",
+            base_obj.nar_size.max(target_obj.nar_size)
+        );
+    }
+
+    // Fetch the two NARs over loopback and patch.
+    let base_nar = work.join("base.nar");
+    let target_nar = work.join("target.nar");
+    fetch_nar(app, &base_obj.cache, &b_hash, &base_nar).await?;
+    let target_size = fetch_nar(app, &target_obj.cache, t_hash, &target_nar).await?;
+
     let level = if target_size < LARGE_TARGET_BYTES { FINAL_LEVEL_SMALL } else { FINAL_LEVEL_LARGE };
     let patch_tmp = work.join("patch.zst");
-    let patch_size = zstd_patch(level, &best_export, &target_export, &patch_tmp).await?;
-    let export_sha256 = sha256_file(&target_export).await?;
+    let patch_size = zstd_patch(level, wlog, &base_nar, &target_nar, &patch_tmp).await?;
+    let nar_sha256 = sha256_file(&target_nar).await?;
 
     let key = pair_key(&b_hash, t_hash);
     let rejected = (patch_size as f64) > (target_size as f64) * KEEP_RATIO;
@@ -340,14 +477,21 @@ async fn compute_inner(app: &App, job: &Job, t_hash: &str, work: &Path) -> Resul
     }
 
     let meta = PairMeta {
-        base: best_base,
+        base: base_obj.store_path,
         target: job.target.clone(),
         algo: ALGO.into(),
-        window_log: WINDOW_LOG,
+        window_log: wlog,
         level,
         patch_size,
-        target_export_size: target_size,
-        export_sha256,
+        nar_size: target_size,
+        nar_sha256,
+        references: target_obj
+            .references
+            .iter()
+            .map(|r| format!("/nix/store/{r}"))
+            .collect(),
+        deriver: target_obj.deriver.clone(),
+        chunk_overlap: overlap,
         compute_ms: started.elapsed().as_millis() as u64,
         rank_ms,
         candidates_ranked,
@@ -381,12 +525,14 @@ async fn worker_loop(app: Arc<App>) {
             Ok(m) => {
                 app.jobs_done.fetch_add(1, Ordering::Relaxed);
                 log(&format!(
-                    "{} {} -> patch {} B / export {} B (level {}, {} ms, rank {} ms over {} bases){}",
+                    "{} {} -> patch {} B / nar {} B (overlap {:.2}, level {}, w{}, {} ms, rank {} ms over {} bases){}",
                     job.source,
                     t,
                     m.patch_size,
-                    m.target_export_size,
+                    m.nar_size,
+                    m.chunk_overlap,
                     m.level,
+                    m.window_log,
                     m.compute_ms,
                     m.rank_ms,
                     m.candidates_ranked,
@@ -451,7 +597,10 @@ struct DeltaHit {
     window_log: u32,
     url: String,
     size: u64,
-    export_sha256: String,
+    nar_size: u64,
+    nar_sha256: String,
+    references: Vec<String>,
+    deriver: Option<String>,
 }
 
 async fn post_delta(State(app): State<Arc<App>>, Json(req): Json<DeltaReq>) -> Response {
@@ -478,7 +627,10 @@ async fn post_delta(State(app): State<Arc<App>>, Json(req): Json<DeltaReq>) -> R
                 window_log: meta.window_log,
                 url: format!("/blobs/{key}.zst"),
                 size: meta.patch_size,
-                export_sha256: meta.export_sha256,
+                nar_size: meta.nar_size,
+                nar_sha256: meta.nar_sha256,
+                references: meta.references,
+                deriver: meta.deriver,
             })
             .into_response();
         }
@@ -512,7 +664,7 @@ async fn post_warm(State(app): State<Arc<App>>, Json(req): Json<WarmReq>) -> Res
         id,
         base_toplevel: req.base_toplevel.clone(),
         target_toplevel: req.target_toplevel.clone(),
-        state: "copying".into(),
+        state: "pairing".into(),
         paired: 0,
         skipped_existing: 0,
         unpaired: 0,
@@ -534,25 +686,17 @@ async fn post_warm(State(app): State<Arc<App>>, Json(req): Json<WarmReq>) -> Res
 }
 
 async fn warm_run(app: &Arc<App>, id: u64, base_top: &str, target_top: &str) -> Result<()> {
-    let set_state = |state: &str, paired: usize, skipped: usize, unpaired: usize| {
-        let mut runs = app.warm_runs.lock().unwrap();
-        if let Some(r) = runs.iter_mut().find(|r| r.id == id) {
-            r.state = state.into();
-            r.paired = paired;
-            r.skipped_existing = skipped;
-            r.unpaired = unpaired;
-        }
-    };
+    let (base_sph, _) = split_store_path(base_top).unwrap();
+    let (target_sph, _) = split_store_path(target_top).unwrap();
 
-    ensure_local(app, base_top).await?;
-    ensure_local(app, target_top).await?;
-    set_state("pairing", 0, 0, 0);
-
-    let base_closure = closure_paths(base_top).await?;
-    let target_closure = closure_paths(target_top).await?;
+    // Closure walks are pure DB reads — cheap enough to run inline.
+    let base_closure = attic_closure(app, &base_sph)?;
+    let target_closure = attic_closure(app, &target_sph)?;
+    if target_closure.is_empty() {
+        bail!("target toplevel not in attic");
+    }
     let base_set: HashSet<&String> = base_closure.iter().collect();
 
-    // Index base closure by stem.
     let mut by_stem: HashMap<String, Vec<String>> = HashMap::new();
     for p in &base_closure {
         if let Some((_, name)) = split_store_path(p) {
@@ -577,7 +721,15 @@ async fn warm_run(app: &Arc<App>, id: u64, base_top: &str, target_top: &str) -> 
             _ => unpaired += 1,
         }
     }
-    set_state("queued", paired, skipped, unpaired);
+    {
+        let mut runs = app.warm_runs.lock().unwrap();
+        if let Some(r) = runs.iter_mut().find(|r| r.id == id) {
+            r.state = "queued".into();
+            r.paired = paired;
+            r.skipped_existing = skipped;
+            r.unpaired = unpaired;
+        }
+    }
     log(&format!(
         "warm {id}: {paired} queued, {skipped} already known, {unpaired} unpaired"
     ));
@@ -598,16 +750,16 @@ async fn get_pairs(State(app): State<Arc<App>>) -> Response {
     pairs.sort_by(|a, b| b.created_unix.cmp(&a.created_unix));
     let kept: Vec<&PairMeta> = pairs.iter().filter(|p| !p.rejected).collect();
     let total_patch: u64 = kept.iter().map(|p| p.patch_size).sum();
-    let total_export: u64 = kept.iter().map(|p| p.target_export_size).sum();
+    let total_nar: u64 = kept.iter().map(|p| p.nar_size).sum();
     Json(serde_json::json!({
         "pairs": pairs,
         "summary": {
             "kept": kept.len(),
             "rejected": pairs.len() - kept.len(),
             "total_patch_bytes": total_patch,
-            "total_target_export_bytes": total_export,
-            "overall_ratio": if total_export > 0 {
-                total_patch as f64 / total_export as f64
+            "total_target_nar_bytes": total_nar,
+            "overall_ratio": if total_nar > 0 {
+                total_patch as f64 / total_nar as f64
             } else { 0.0 },
         }
     }))
@@ -667,10 +819,13 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|| {
             std::thread::available_parallelism().map(|n| n.get().saturating_sub(1).max(1)).unwrap_or(1)
         });
-    let substituters: Vec<String> = std::env::var("DIFFER_SUBSTITUTERS")
-        .unwrap_or_else(|_| {
-            "https://cache.pifinder.eu/pifinder https://cache.pifinder.eu/pifinder-release".into()
-        })
+    let attic_url =
+        std::env::var("DIFFER_ATTIC_URL").unwrap_or_else(|_| "http://127.0.0.1:8080".into());
+    let attic_db = PathBuf::from(
+        std::env::var("DIFFER_ATTIC_DB").unwrap_or_else(|_| "/var/lib/atticd/server.db".into()),
+    );
+    let caches: Vec<String> = std::env::var("DIFFER_CACHES")
+        .unwrap_or_else(|_| "pifinder pifinder-release".into())
         .split_whitespace()
         .map(String::from)
         .collect();
@@ -679,7 +834,10 @@ async fn main() -> Result<()> {
         blob_dir: state_dir.join("blobs"),
         meta_dir: state_dir.join("meta"),
         tmp_dir: state_dir.join("tmp"),
-        substituters,
+        attic_url,
+        attic_db,
+        caches,
+        db: Mutex::new(None),
         demand: Mutex::new(VecDeque::new()),
         warm: Mutex::new(VecDeque::new()),
         inflight: Mutex::new(HashSet::new()),
@@ -701,7 +859,11 @@ async fn main() -> Result<()> {
     for _ in 0..workers {
         tokio::spawn(worker_loop(app.clone()));
     }
-    log(&format!("listening on {listen}, {workers} workers, state {}", state_dir.display()));
+    log(&format!(
+        "v0.2 listening on {listen}, {workers} workers, state {}, attic {}",
+        state_dir.display(),
+        app.attic_db.display()
+    ));
 
     let router = Router::new()
         .route("/health", get(get_health))

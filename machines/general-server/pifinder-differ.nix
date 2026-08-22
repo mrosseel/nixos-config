@@ -10,17 +10,24 @@
 #   GET  /status  queues, counters, warm-run progress
 #   GET  /blobs/* the patch blobs
 #
+# v0.2 works from the cache itself, not from a nix store: closures,
+# references and chunk lists come from atticd's SQLite DB (read-only),
+# candidate bases are ranked by FastCDC chunk overlap, and NAR bytes are
+# fetched from atticd over loopback. Patches are NAR-to-NAR (device dumps
+# its base with `nix-store --dump`), so GC holes in the cache degrade
+# per-path instead of failing whole closures.
+#
 # Test phase: bound to loopback only — reach it via SSH port-forward or
 # curl on the host. No Caddy vhost until the device-side applier lands.
 #
 # The server hosts other apps. All compute is idle-priority and one core is
 # always left free: 2 workers on this 4-core / 6 GiB machine (zstd -19
-# --long=27 peaks ~800 MiB per job).
+# with a large window peaks ~800 MiB per job).
 
 let
   pifinder-differ = pkgs.rustPlatform.buildRustPackage {
     pname = "pifinder-differ";
-    version = "0.1.0";
+    version = "0.2.0";
     src = lib.cleanSourceWith {
       src = ./pifinder-differ;
       filter = path: _type: builtins.baseNameOf path != "target";
@@ -35,15 +42,16 @@ in
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
 
-    # nix / nix-store for copy+export, zstd for patches, df for the disk guard.
-    path = [ config.nix.package pkgs.zstd pkgs.coreutils ];
+    # curl fetches NARs from loopback atticd, zstd patches, df disk guard.
+    path = [ pkgs.curl pkgs.zstd pkgs.coreutils pkgs.bash ];
 
     environment = {
       DIFFER_LISTEN = "127.0.0.1:8090";
       DIFFER_STATE_DIR = "/var/lib/pifinder-differ";
       DIFFER_WORKERS = "2";
-      DIFFER_SUBSTITUTERS =
-        "https://cache.pifinder.eu/pifinder https://cache.pifinder.eu/pifinder-release";
+      DIFFER_ATTIC_URL = "http://127.0.0.1:8080";
+      DIFFER_ATTIC_DB = "/var/lib/atticd/server.db";
+      DIFFER_CACHES = "pifinder pifinder-release";
     };
 
     serviceConfig = {
@@ -52,8 +60,10 @@ in
       Restart = "on-failure";
       RestartSec = 5;
 
-      # Root: `nix copy --no-check-sigs` into the store needs a trusted user.
-      # Loopback-only endpoint on our own cache content keeps this acceptable.
+      # Root only because /var/lib/atticd is 0700 root:root and the differ
+      # reads server.db in there. Nothing else needs privilege any more
+      # (v0.2 dropped all nix-store use) — a dedicated user + a group on
+      # the atticd dir would let this drop root entirely.
 
       # Never compete with the co-hosted services.
       Nice = 19;
