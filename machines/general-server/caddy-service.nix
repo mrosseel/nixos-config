@@ -252,13 +252,18 @@
       extraConfig = ''
         @public path /delta /update-start /blobs/* /health
 
-        # Patch blobs are content-addressed (base-hash_target-hash) and
-        # immutable — cache forever, anywhere.
-        @blobs path /blobs/*
-        header @blobs Cache-Control "public, max-age=31536000, immutable"
-
-        reverse_proxy @public localhost:8090
-        respond 403
+        # handle blocks, not a bare `respond`: respond sorts BEFORE
+        # reverse_proxy in Caddy's directive order and would 403 everything.
+        handle @public {
+          # Patch blobs are content-addressed (base-hash_target-hash) and
+          # immutable — cache forever, anywhere.
+          @blobs path /blobs/*
+          header @blobs Cache-Control "public, max-age=31536000, immutable"
+          reverse_proxy localhost:8090
+        }
+        handle {
+          respond 403
+        }
       '';
     };
 
