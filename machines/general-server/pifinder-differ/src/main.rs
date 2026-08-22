@@ -367,10 +367,12 @@ async fn fetch_nar(app: &App, cache: &str, sph: &str, dest: &Path) -> Result<u64
     let compression = field("Compression:").unwrap_or_else(|| "none".into());
     let nar_url = format!("{}/{}/{}", app.attic_url, cache, url);
 
+    // -L: atticd 307-redirects single-chunk NARs to presigned S3 URLs and
+    // streams multi-chunk NARs inline; both must work.
     let pipeline = match compression.as_str() {
-        "none" => format!("curl -fsS '{nar_url}' -o '{}'", dest.display()),
+        "none" => format!("curl -fsSL '{nar_url}' -o '{}'", dest.display()),
         "zstd" => format!(
-            "set -o pipefail; curl -fsS '{nar_url}' | zstd -dq -o '{}'",
+            "set -o pipefail; curl -fsSL '{nar_url}' | zstd -dq -o '{}'",
             dest.display()
         ),
         other => bail!("unsupported NAR compression {other} for {sph}"),
