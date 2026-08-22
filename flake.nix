@@ -326,6 +326,7 @@
         ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
         ./machines/general-server/attic-service.nix
+        ./machines/general-server/pifinder-differ.nix
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix
