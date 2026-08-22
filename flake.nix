@@ -8,6 +8,10 @@
     # (nixos-unstable: same channel, slower-vetted via Hydra) via an overlay.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-vetted.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Temporary: ollama 0.32.12+ only (see overlays/ollama.nix). Pinned to a rev
+    # rather than the master branch to keep the lock stable. Drop this input and
+    # the overlay once nixpkgs-unstable carries 0.32.12 or newer.
+    nixpkgs-master.url = "github:NixOS/nixpkgs/4c1ce41ae6abea5c8895e698356ecb84ff4f5385";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager/master";
@@ -83,7 +87,7 @@
       allowUnsupportedSystem = false;
       permittedInsecurePackages = [
         "libsoup-2.74.3"
-        "ventoy-1.1.12"
+        "ventoy-1.1.17"
         "electron-39.8.10"
         "electron-40.10.5"  # vesktop 1.6.5 (Electron Discord client); EOL but low-risk
       ];
@@ -95,6 +99,7 @@
     overlays = with inputs; [
       claude-code.overlays.default
       (import ./overlays/brave.nix)
+      (import ./overlays/ollama.nix nixpkgs-master)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).

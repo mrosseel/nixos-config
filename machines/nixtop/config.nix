@@ -443,7 +443,7 @@ in
   services.resolved.enable = true;
   services.mullvad-vpn = {
     enable = true;
-    package = pkgs.mullvad-vpn;
+    gui.enable = true;
   };
 
   # Syncthing
