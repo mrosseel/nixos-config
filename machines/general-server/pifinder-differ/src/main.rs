@@ -52,6 +52,11 @@ const FINAL_LEVEL_SMALL: u32 = 19; // targets below the split
 const FINAL_LEVEL_LARGE: u32 = 12; // large targets: 19 costs minutes for ~% gain
 const LARGE_TARGET_BYTES: u64 = 20 * 1024 * 1024;
 const KEEP_RATIO: f64 = 0.40; // patch bigger than 40% of the NAR: not worth it
+// Best-candidate chunk overlap below this: the pair is effectively a full
+// download (e.g. a migrating device with no shared history). Decide that from
+// the DB alone — never fetch NARs for it, so hopeless pairs cannot evict the
+// release lane's working set from the NAR cache.
+const MIN_CHUNK_OVERLAP: f64 = 0.05;
 const MIN_FREE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
 const DEMAND_QUEUE_CAP: usize = 64;
 const WARM_QUEUE_CAP: usize = 10_000;
@@ -505,6 +510,39 @@ async fn compute_inner(app: &App, job: &Job, t_hash: &str, work: &Path) -> Resul
     let rank_ms = rank_started.elapsed().as_millis() as u64;
     let candidates_ranked = ranked.len();
     ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    // Overlap floor: a hopeless pair is decided here, from the DB alone.
+    // Mark every requested pair rejected so /delta answers 204 (full
+    // download) instead of looping 202, and fetch nothing.
+    if ranked.first().map(|(o, _, _)| *o < MIN_CHUNK_OVERLAP).unwrap_or(false) {
+        let best_overlap = ranked.first().map(|(o, _, _)| *o).unwrap_or(0.0);
+        for (overlap, b_hash, base_obj) in &ranked {
+            let key = pair_key(b_hash, t_hash);
+            let meta = PairMeta {
+                base: base_obj.store_path.clone(),
+                target: job.target.clone(),
+                algo: ALGO.into(),
+                window_log: 0,
+                level: 0,
+                patch_size: 0,
+                nar_size: target_obj.nar_size,
+                nar_sha256: String::new(),
+                references: Vec::new(),
+                deriver: None,
+                chunk_overlap: *overlap,
+                compute_ms: started.elapsed().as_millis() as u64,
+                rank_ms,
+                candidates_ranked,
+                source: job.source.into(),
+                created_unix: now_unix(),
+                rejected: true,
+            };
+            let tmp_meta = work.join(format!("meta-{key}.json"));
+            tokio::fs::write(&tmp_meta, serde_json::to_vec_pretty(&meta)?).await?;
+            tokio::fs::rename(&tmp_meta, meta_path(app, &key)).await?;
+        }
+        bail!("best chunk overlap {best_overlap:.3} below floor {MIN_CHUNK_OVERLAP} — full download, nothing fetched");
+    }
+
     let (overlap, b_hash, base_obj) = ranked
         .into_iter()
         .next()
