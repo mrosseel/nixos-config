@@ -51,6 +51,7 @@ struct App {
     warm_runs: Mutex<Vec<WarmRun>>,
     jobs_done: AtomicU64,
     jobs_failed: AtomicU64,
+    warm_seq: AtomicU64,
 }
 
 #[derive(Clone)]
@@ -506,7 +507,7 @@ async fn post_warm(State(app): State<Arc<App>>, Json(req): Json<WarmReq>) -> Res
     {
         return (StatusCode::BAD_REQUEST, "toplevels must be store paths").into_response();
     }
-    let id = now_unix();
+    let id = app.warm_seq.fetch_add(1, Ordering::Relaxed) + 1;
     app.warm_runs.lock().unwrap().push(WarmRun {
         id,
         base_toplevel: req.base_toplevel.clone(),
@@ -516,7 +517,7 @@ async fn post_warm(State(app): State<Arc<App>>, Json(req): Json<WarmReq>) -> Res
         skipped_existing: 0,
         unpaired: 0,
         error: None,
-        started_unix: id,
+        started_unix: now_unix(),
     });
     let app2 = app.clone();
     tokio::spawn(async move {
@@ -685,6 +686,7 @@ async fn main() -> Result<()> {
         warm_runs: Mutex::new(Vec::new()),
         jobs_done: AtomicU64::new(0),
         jobs_failed: AtomicU64::new(0),
+        warm_seq: AtomicU64::new(0),
     });
     for d in [&app.blob_dir, &app.meta_dir, &app.tmp_dir] {
         std::fs::create_dir_all(d)?;
