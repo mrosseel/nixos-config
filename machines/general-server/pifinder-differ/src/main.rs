@@ -67,12 +67,22 @@ const MIN_FREE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
 const DEMAND_QUEUE_CAP: usize = 64;
 const WARM_QUEUE_CAP: usize = 10_000;
 
-// Per-IP token bucket over ALL routes. A real upgrade makes one /delta POST
-// and one blob GET per changed path (~50-500 of each), usually inside a few
-// minutes — the burst covers that. Sustained abuse decays to REFILL_PER_SEC.
-const RL_BURST: f64 = 1500.0;
-const RL_REFILL_PER_SEC: f64 = 3.0;
+// Rate limiting is budgeted PER UPDATE, not per IP: a device opens a session
+// naming its target toplevel, and the session's request budget is derived
+// from that closure's real size — exactly what a legitimate upgrade needs,
+// NAT-friendly (every device behind one hotspot gets its own budget), and
+// useless to inflate (targets must exist in the attic DB).
+//
+// The only per-IP bucket left guards the cheap unauthenticated routes
+// (/update-start minting and /health). Loopback traffic (no X-Forwarded-For,
+// i.e. not via Caddy) bypasses limiting entirely — that is the ops surface.
+const RL_IP_BURST: f64 = 100.0;
+const RL_IP_REFILL_PER_SEC: f64 = 1.0;
+const RL_MINT_COST: f64 = 5.0;
 const RL_MAX_TRACKED_IPS: usize = 10_000;
+const SESSION_TTL: Duration = Duration::from_secs(3600);
+const SESSION_SLACK: i64 = 200; // headroom over 2×closure for retries
+const MAX_SESSIONS: usize = 10_000;
 
 // ---------------------------------------------------------------- state
 
@@ -94,12 +104,18 @@ struct App {
     jobs_failed: AtomicU64,
     warm_seq: AtomicU64,
     rate: Mutex<HashMap<String, TokenBucket>>,
+    sessions: Mutex<HashMap<String, Session>>,
     rate_limited: AtomicU64,
 }
 
 struct TokenBucket {
     tokens: f64,
     last: Instant,
+}
+
+struct Session {
+    budget: i64,
+    expires: Instant,
 }
 
 #[derive(Clone)]
@@ -711,8 +727,8 @@ fn enqueue(app: &App, job: Job, demand: bool) -> &'static str {
 
 // ---------------------------------------------------------------- rate limit
 
-/// Take one token for `ip`; false = over the limit.
-fn rate_allow(app: &App, ip: &str) -> bool {
+/// Take `cost` tokens from the per-IP bucket; false = over the limit.
+fn ip_allow(app: &App, ip: &str, cost: f64) -> bool {
     let mut map = app.rate.lock().unwrap();
     // Unbounded growth guard: an address-rotating attacker resets everyone's
     // bucket rather than growing the map without limit.
@@ -721,28 +737,61 @@ fn rate_allow(app: &App, ip: &str) -> bool {
     }
     let now = Instant::now();
     let bucket = map.entry(ip.to_string()).or_insert(TokenBucket {
-        tokens: RL_BURST,
+        tokens: RL_IP_BURST,
         last: now,
     });
     let elapsed = now.duration_since(bucket.last).as_secs_f64();
-    bucket.tokens = (bucket.tokens + elapsed * RL_REFILL_PER_SEC).min(RL_BURST);
+    bucket.tokens = (bucket.tokens + elapsed * RL_IP_REFILL_PER_SEC).min(RL_IP_BURST);
     bucket.last = now;
-    if bucket.tokens < 1.0 {
+    if bucket.tokens < cost {
         return false;
     }
-    bucket.tokens -= 1.0;
+    bucket.tokens -= cost;
     true
 }
 
-/// Client IP: first X-Forwarded-For entry (set by Caddy; the listener is
-/// loopback-only so the header is trustworthy), else the peer address.
-fn client_ip(req: &axum::http::Request<axum::body::Body>) -> String {
+/// Client IP: first X-Forwarded-For entry, set by Caddy (trustworthy: the
+/// listener is loopback-only). Absent header = direct loopback = ops traffic.
+fn client_ip(req: &axum::http::Request<axum::body::Body>) -> Option<String> {
     req.headers()
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.split(',').next())
         .map(|v| v.trim().to_string())
-        .unwrap_or_else(|| "local".into())
+}
+
+/// Spend one unit of an update session's budget; false = unknown, expired,
+/// or exhausted.
+fn session_spend(app: &App, token: &str) -> bool {
+    let mut sessions = app.sessions.lock().unwrap();
+    let now = Instant::now();
+    match sessions.get_mut(token) {
+        Some(s) if s.expires > now && s.budget > 0 => {
+            s.budget -= 1;
+            true
+        }
+        _ => false,
+    }
+}
+
+fn new_session(app: &App, budget: i64) -> String {
+    let mut raw = [0u8; 16];
+    // /dev/urandom: no rng dependency, and this is an ephemeral token.
+    use std::io::Read;
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut raw))
+        .expect("urandom");
+    let token = hex::encode(raw);
+    let mut sessions = app.sessions.lock().unwrap();
+    let now = Instant::now();
+    if sessions.len() >= MAX_SESSIONS {
+        sessions.retain(|_, s| s.expires > now && s.budget > 0);
+        if sessions.len() >= MAX_SESSIONS {
+            sessions.clear(); // rotating attacker: reset rather than grow
+        }
+    }
+    sessions.insert(token.clone(), Session { budget, expires: now + SESSION_TTL });
+    token
 }
 
 async fn rate_limit_mw(
@@ -750,13 +799,66 @@ async fn rate_limit_mw(
     req: axum::http::Request<axum::body::Body>,
     next: axum::middleware::Next,
 ) -> Response {
-    let ip = client_ip(&req);
-    if !rate_allow(&app, &ip) {
+    // No X-Forwarded-For = direct loopback (ops): never limited.
+    let Some(ip) = client_ip(&req) else {
+        return next.run(req).await;
+    };
+    let path = req.uri().path();
+    let allowed = match path {
+        "/health" => ip_allow(&app, &ip, 1.0),
+        "/update-start" => ip_allow(&app, &ip, RL_MINT_COST),
+        // Everything else public is budgeted per update session.
+        _ => req
+            .headers()
+            .get("x-update-session")
+            .and_then(|v| v.to_str().ok())
+            .map(|t| session_spend(&app, t))
+            .unwrap_or(false),
+    };
+    if !allowed {
         app.rate_limited.fetch_add(1, Ordering::Relaxed);
-        return (StatusCode::TOO_MANY_REQUESTS, [("retry-after", "60")], "rate limited")
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            [("retry-after", "60")],
+            "missing/exhausted update session — POST /update-start",
+        )
             .into_response();
     }
     next.run(req).await
+}
+
+#[derive(Deserialize)]
+struct UpdateStartReq {
+    target_toplevel: String,
+}
+
+/// Open an update session. The budget is derived from the target closure's
+/// real size in the attic DB, so it covers exactly one honest upgrade
+/// (a /delta POST and a blob GET per changed path, with slack for retries)
+/// and cannot be inflated: unknown toplevels are refused.
+async fn post_update_start(
+    State(app): State<Arc<App>>,
+    Json(req): Json<UpdateStartReq>,
+) -> Response {
+    let Some((sph, _)) = split_store_path(&req.target_toplevel) else {
+        return (StatusCode::BAD_REQUEST, "not a store path").into_response();
+    };
+    let closure = match attic_closure(&app, &sph) {
+        Ok(c) if !c.is_empty() => c,
+        Ok(_) => return (StatusCode::NOT_FOUND, "toplevel not in cache").into_response(),
+        Err(e) => {
+            log(&format!("update-start failed: {e:#}"));
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    let budget = 2 * closure.len() as i64 + SESSION_SLACK;
+    let token = new_session(&app, budget);
+    Json(serde_json::json!({
+        "session": token,
+        "budget": budget,
+        "expires_in": SESSION_TTL.as_secs(),
+    }))
+    .into_response()
 }
 
 // ---------------------------------------------------------------- HTTP
@@ -953,6 +1055,7 @@ async fn get_status(State(app): State<Arc<App>>) -> Response {
         "jobs_done": app.jobs_done.load(Ordering::Relaxed),
         "jobs_failed": app.jobs_failed.load(Ordering::Relaxed),
         "rate_limited": app.rate_limited.load(Ordering::Relaxed),
+        "active_sessions": app.sessions.lock().unwrap().len(),
         "warm_runs": *app.warm_runs.lock().unwrap(),
     }))
     .into_response()
@@ -1032,6 +1135,7 @@ async fn main() -> Result<()> {
         jobs_failed: AtomicU64::new(0),
         warm_seq: AtomicU64::new(0),
         rate: Mutex::new(HashMap::new()),
+        sessions: Mutex::new(HashMap::new()),
         rate_limited: AtomicU64::new(0),
     });
     for d in [&app.blob_dir, &app.meta_dir, &app.tmp_dir, &app.nar_cache_dir] {
@@ -1058,6 +1162,7 @@ async fn main() -> Result<()> {
         .route("/status", get(get_status))
         .route("/pairs", get(get_pairs))
         .route("/delta", post(post_delta))
+        .route("/update-start", post(post_update_start))
         .route("/warm", post(post_warm))
         .route("/blobs/:name", get(get_blob))
         .layer(axum::middleware::from_fn_with_state(app.clone(), rate_limit_mw))

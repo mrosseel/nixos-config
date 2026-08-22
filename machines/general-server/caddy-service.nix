@@ -250,7 +250,7 @@
     # can issue the certificate.
     virtualHosts."deltas.pifinder.eu" = {
       extraConfig = ''
-        @public path /delta /blobs/* /health
+        @public path /delta /update-start /blobs/* /health
 
         # Patch blobs are content-addressed (base-hash_target-hash) and
         # immutable — cache forever, anywhere.
