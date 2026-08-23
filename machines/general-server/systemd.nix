@@ -46,6 +46,26 @@ in
     "d /home/mike/sun.miker.be/backend/data/store 0755 mike mike -"
   ];
 
+  # Thumbs up/down counter for rays.miker.be: stdlib Python, JSONL log,
+  # localhost only, Caddy proxies /api/* to it.
+  systemd.services.rays-votes = {
+    description = "rays.miker.be vote counter";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.python3}/bin/python3 ${./rays-votes.py}";
+      Restart = "on-failure";
+      RestartSec = 5;
+      DynamicUser = true;
+      StateDirectory = "rays-votes";
+      Environment = [ "VOTES_LOG=/var/lib/rays-votes/votes.jsonl" "PORT=8322" ];
+      NoNewPrivileges = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+    };
+  };
+
   systemd.services.pifinder-web-catalogs = {
     description = "PiFinder Web Catalogs API";
     wantedBy = [ "multi-user.target" ];

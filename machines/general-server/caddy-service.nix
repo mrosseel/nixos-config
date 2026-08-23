@@ -197,6 +197,10 @@
     virtualHosts."rays.miker.be" = {
       extraConfig = ''
         encode gzip
+        # thumbs up/down counter, see rays-votes.py
+        handle /api/* {
+          reverse_proxy 127.0.0.1:8322
+        }
         root * /var/www/rays.miker.be
         file_server
         header {
