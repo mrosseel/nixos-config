@@ -207,9 +207,15 @@
           Cache-Control "public, max-age=3600, must-revalidate"
           -Server
         }
-        # Feature images and their manifest are re-rendered in place when
-        # the renderer improves, so they are cacheable but not immutable.
-        @assets path /img/*
+        # Feature images are re-rendered in place when the renderer
+        # improves: cacheable, not immutable. The manifest names them and
+        # must always be revalidated or the page shows stale cards.
+        @manifest path /img/manifest.json
+        header @manifest {
+          Cache-Control "no-cache"
+          defer
+        }
+        @assets path /img/*.webp
         header @assets {
           Cache-Control "public, max-age=86400"
           defer
