@@ -191,6 +191,37 @@
         }
       '';
     };
+    # Lunar ray (clair-obscur) event predictor: static page driven by a
+    # precomputed event blob, plus DEM-rendered feature images. Regenerated
+    # from ~/dev/LunarRays (py/lunar_rays.py generate) and rsync'd.
+    virtualHosts."rays.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/rays.miker.be
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+        # Feature images and their manifest are re-rendered in place when
+        # the renderer improves, so they are cacheable but not immutable.
+        @assets path /img/*
+        header @assets {
+          Cache-Control "public, max-age=86400"
+          defer
+        }
+        # The event blob is regenerated only when the date range is extended.
+        @blob path /events.bin /events.features.json
+        header @blob {
+          Cache-Control "public, max-age=86400"
+          defer
+        }
+      '';
+    };
     # Hidden Treasures observing scorecard: a single static page regenerated from
     # a PiFinder observation log and rsync'd from the workstation
     # (~/dev/amateur_astro/hiddentreasures.miker.be/deploy.sh).
@@ -488,5 +519,7 @@
     "d /var/www/hiddentreasures.miker.be 0755 mike users -"
     # Eclipse siting guide, same rsync-deploy pattern.
     "d /var/www/spain2026.miker.be 0755 mike users -"
+    # Lunar rays predictor, same rsync-deploy pattern (~/dev/LunarRays/deploy.sh).
+    "d /var/www/rays.miker.be 0755 mike users -"
   ];
 }
