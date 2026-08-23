@@ -214,8 +214,9 @@
         # Feature images are re-rendered in place when the renderer
         # improves: cacheable, not immutable. The manifest names them and
         # must always be revalidated or the page shows stale cards.
-        @manifest path /img/manifest.json
-        header @manifest {
+        # The page and the manifest change in place: always revalidate.
+        @fresh path / /index.html /img/manifest.json /events.bin /events.features.json
+        header @fresh {
           Cache-Control "no-cache"
           defer
         }
