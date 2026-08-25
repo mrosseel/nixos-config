@@ -453,6 +453,9 @@
               # Capture full Hyprland logs to diagnose AMDGPU/SMU-induced renderer aborts
               wayland.windowManager.hyprland.settings.debug.disable_logs = false;
 
+              # Omarchy's capture flow owns Print; only redirect where it saves.
+              wayland.windowManager.hyprland.settings.env = [ "OMARCHY_SCREENSHOT_DIR,/home/mike/Downloads" ];
+
               # Hyprwhspr speech-to-text keybinding
               wayland.windowManager.hyprland.extraConfig = ''
                 bindd = SUPER ALT, D, Speech-to-text, exec, bash -c 'if [[ -f ~/.config/hyprwhspr/recording_status && $(cat ~/.config/hyprwhspr/recording_status) == "true" ]]; then echo stop > ~/.config/hyprwhspr/recording_control; else echo start > ~/.config/hyprwhspr/recording_control; fi'
@@ -496,10 +499,6 @@
                 bindd = SUPER, F10, Switch to workspace 20, workspace, 20
                 bindd = SUPER SHIFT, F10, Move window to workspace 20, movetoworkspace, 20
                 bindd = SUPER SHIFT ALT, F10, Move window silently to workspace 20, movetoworkspacesilent, 20
-
-                # Screenshots: save to file + copy to clipboard
-                bindd = , Print, Screenshot region, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim -g "$(slurp)" - | tee "$FILE" | wl-copy -t image/png'
-                bindd = SUPER, Print, Screenshot full screen, exec, bash -c 'FILE=/home/mike/Downloads/screenshot-$(date +%Y%m%d-%H%M%S).png; grim - | tee "$FILE" | wl-copy -t image/png'
               '';
             };
           };
