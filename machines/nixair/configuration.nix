@@ -71,6 +71,18 @@
   # GNOME Remote Desktop (RDP). Enable per-user in Settings > System >
   # Remote Desktop, or with grdctl. Port open on LAN only via firewall.
   services.gnome.gnome-remote-desktop.enable = true;
+  # grdctl --system flips "enabled" by enabling this unit; /etc is
+  # read-only on NixOS, so wire it declaratively instead.
+  systemd.services.gnome-remote-desktop.wantedBy = [ "graphical.target" ];
+  # System-mode settings. Credentials live in
+  # /var/lib/gnome-remote-desktop (set once with grdctl --system).
+  environment.etc."gnome-remote-desktop/grd.conf".text = ''
+    [RDP]
+    enabled=true
+    view-only=false
+    tls-key=/var/lib/gnome-remote-desktop/rdp-tls.key
+    tls-cert=/var/lib/gnome-remote-desktop/rdp-tls.crt
+  '';
 
   # Pop!_OS-style always-on bottom dock with apps pinned.
   programs.dconf.profiles.user.databases = [
