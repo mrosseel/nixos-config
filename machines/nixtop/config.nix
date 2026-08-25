@@ -393,6 +393,9 @@ in
 
   # System packages
   programs.mosh.enable = true;
+  # mosh-server keeps running after the client goes away. Without a timeout the
+  # detached servers accumulate. Exit after 7 days with no client contact.
+  environment.sessionVariables.MOSH_SERVER_NETWORK_TMOUT = "604800";
 
   # GSettings schemas for GTK apps (OpenCode desktop, etc.)
   environment.sessionVariables.XDG_DATA_DIRS = ["${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}" "${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}"];
