@@ -261,6 +261,9 @@
             scale = 1;
             browser = "brave";
             terminal = "kitty";
+            # Upstream went opt-in for the docker group (it is root-equivalent);
+            # keep passwordless docker here. Remove to get the prompt-gated default.
+            containers.sudoless_docker = true;
             seamless_boot = {
               enable = true;
               username = "mike";
@@ -420,6 +423,9 @@
             scale = 1;
             browser = "brave";
             terminal = "kitty";
+            # Upstream went opt-in for the docker group (it is root-equivalent);
+            # keep passwordless docker here. Remove to get the prompt-gated default.
+            containers.sudoless_docker = true;
             seamless_boot = {
               enable = true;
               username = "mike";
