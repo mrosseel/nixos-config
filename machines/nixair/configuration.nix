@@ -62,6 +62,16 @@
   # Drop GNOME's bundled web browser so Brave is the only browser.
   environment.gnome.excludePackages = with pkgs; [ epiphany gnome-tour ];
 
+  # BT keyboard (Redragon Draconic Pro via ASUS BT-400 dongle) drops keys
+  # when the btusb adapter autosuspends.
+  boot.extraModprobeConfig = ''
+    options btusb enable_autosuspend=0
+  '';
+
+  # GNOME Remote Desktop (RDP). Enable per-user in Settings > System >
+  # Remote Desktop, or with grdctl. Port open on LAN only via firewall.
+  services.gnome.gnome-remote-desktop.enable = true;
+
   # Pop!_OS-style always-on bottom dock with apps pinned.
   programs.dconf.profiles.user.databases = [
     {
@@ -194,7 +204,7 @@
   ];
 
   # Open ports in the firewall.
-  networking.firewall.allowedTCPPorts = [ 24800 ]; # Barrier
+  networking.firewall.allowedTCPPorts = [ 24800 3389 ]; # Barrier, RDP
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
