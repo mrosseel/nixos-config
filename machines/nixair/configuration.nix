@@ -60,7 +60,11 @@
   # machine off the network (breaks SSH/RDP).
   services.displayManager.gdm.autoSuspend = false;
   services.desktopManager.gnome.enable = true;
-  services.xserver.xkb.layout = "us";
+  # qwerty for finn, dvorak for mike; Alt+Shift toggles (also at the
+  # GDM login screen).
+  services.xserver.xkb.layout = "us,us";
+  services.xserver.xkb.variant = ",dvorak";
+  services.xserver.xkb.options = "grp:alt_shift_toggle";
 
   # Drop GNOME's bundled web browser so Brave is the only browser.
   environment.gnome.excludePackages = with pkgs; [ epiphany gnome-tour ];
