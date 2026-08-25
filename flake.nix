@@ -456,6 +456,56 @@
               # Omarchy's capture flow owns Print; only redirect where it saves.
               wayland.windowManager.hyprland.settings.env = [ "OMARCHY_SCREENSHOT_DIR,/home/mike/Downloads" ];
 
+              # Managing this file here makes it read-only, so the omarchy-menu
+              # Setup > Monitors editor cannot write to it anymore.
+              xdg.configFile."hypr/monitors.lua".text = ''
+                -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
+                -- List current monitors and supported resolutions with: hyprctl monitors all
+
+                local omarchy_gdk_scale = 1
+                local omarchy_monitor_scale = 1
+
+                hl.env("GDK_SCALE", tostring(omarchy_gdk_scale))
+                hl.monitor({ output = "", mode = "preferred", position = "auto", scale = omarchy_monitor_scale })
+
+                -- Scratchpad override: cover 90% of the screen instead of the default 50%.
+                -- This file loads after default/hypr/qconsole.lua, so these handlers run
+                -- after its fit() on the same events and the rule written here wins.
+                local share = 0.9
+                local covering = nil
+
+                local function cover(bottom)
+                  if covering == bottom then
+                    return
+                  end
+                  covering = bottom
+
+                  hl.workspace_rule({
+                    workspace = "special:scratchpad",
+                    gaps_in = 0,
+                    gaps_out = { top = 0, right = 0, bottom = bottom, left = 0 },
+                    no_border = true,
+                    on_created_empty = "[workspace special:scratchpad silent] omarchy-agent",
+                  })
+                end
+
+                local function fit()
+                  local monitor = hl.get_active_monitor()
+                  if not monitor or not monitor.scale or monitor.scale <= 0 then
+                    return
+                  end
+
+                  local reserved = monitor.reserved
+                  local usable = monitor.height / monitor.scale - reserved.top - reserved.bottom
+
+                  cover(math.max(0, math.floor(usable * (1 - share))))
+                end
+
+                fit()
+                hl.on("monitor.layout_changed", fit)
+                hl.on("monitor.focused", fit)
+              '';
+
               # Hyprwhspr speech-to-text keybinding
               wayland.windowManager.hyprland.extraConfig = ''
                 bindd = SUPER ALT, D, Speech-to-text, exec, bash -c 'if [[ -f ~/.config/hyprwhspr/recording_status && $(cat ~/.config/hyprwhspr/recording_status) == "true" ]]; then echo stop > ~/.config/hyprwhspr/recording_control; else echo start > ~/.config/hyprwhspr/recording_control; fi'
