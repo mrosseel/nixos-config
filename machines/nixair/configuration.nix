@@ -56,6 +56,9 @@
   # GNOME desktop with GDM login.
   services.xserver.enable = true;
   services.displayManager.gdm.enable = true;
+  # Do not suspend while idle at the login screen; it takes the
+  # machine off the network (breaks SSH/RDP).
+  services.displayManager.gdm.autoSuspend = false;
   services.desktopManager.gnome.enable = true;
   services.xserver.xkb.layout = "us";
 
