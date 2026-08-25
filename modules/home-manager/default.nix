@@ -1,8 +1,8 @@
 { lib, pkgs, hostname ? "", ... }:
 
 let
-  isDarwin = pkgs.stdenv.isDarwin;
-  isNixOS = pkgs.stdenv.isLinux && builtins.pathExists "/etc/nixos";
+  isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+  isNixOS = pkgs.stdenv.hostPlatform.isLinux && builtins.pathExists "/etc/nixos";
   isHyprland = builtins.elem hostname [ "nixtop" ];
   rsyncAliases = {
     "airelon" = {
