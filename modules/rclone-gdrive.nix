@@ -14,7 +14,10 @@
     "d /home/mike/GoogleDrive 0755 mike users -"
   ];
 
-  # Systemd service to mount Google Drive
+  # Systemd service to mount Google Drive.
+  # The remote uses a private OAuth client id, so it no longer shares the throttled
+  # default rclone quota. The pacer can therefore run at 10ms instead of the 100ms
+  # default. dir-cache-time is long because --poll-interval picks up remote changes.
   systemd.user.services.rclone-gdrive = {
     description = "RClone mount for Google Drive";
     after = [ "network-online.target" ];
@@ -35,10 +38,13 @@
           --vfs-read-chunk-size 128M \
           --vfs-read-chunk-size-limit off \
           --buffer-size 64M \
-          --dir-cache-time 30m \
+          --dir-cache-time 1000h \
           --attr-timeout 1m \
           --allow-other \
           --poll-interval 15s \
+          --vfs-fast-fingerprint \
+          --drive-pacer-min-sleep 10ms \
+          --drive-pacer-burst 200 \
           --drive-acknowledge-abuse \
           --log-level INFO
       '';
