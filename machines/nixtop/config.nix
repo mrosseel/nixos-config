@@ -85,9 +85,27 @@ let
     # The device can re-enumerate cleanly yet stream nothing, so "source exists"
     # is not enough — count actual captured bytes.
     capture_works() {
+      src=$(pactl list sources short 2>/dev/null | grep -iE 'input.*wave' | awk '{print $2}' | head -1)
       [ -n "$src" ] || return 1
-      bytes=$(timeout 2 parec --device="$src" --raw 2>/dev/null | wc -c)
+      # parec needs ~1.3s to connect and flushes in 64K blocks, so a 2s window
+      # reports zero bytes on a healthy mic roughly half the time. 4s is stable.
+      bytes=$(timeout 4 parec --device="$src" --raw 2>/dev/null | wc -c)
       [ "$bytes" -gt 0 ]
+    }
+
+    # After a port power-cycle the device re-enumerates and wireplumber re-exports
+    # the source asynchronously, so a single capture_works call races the recovery
+    # and reports a false failure. Poll instead; $1 = attempts, ~4s apart.
+    wait_for_capture() {
+      i=0
+      while [ "$i" -lt "$1" ]; do
+        if capture_works; then
+          return 0
+        fi
+        i=$((i + 1))
+        sleep 2
+      done
+      return 1
     }
 
     echo "Power-cycling Elgato Wave:3 (hub 3-2.1.1 port 1; StreamDeck on port 3 untouched)..."
@@ -95,7 +113,7 @@ let
     sleep 4
     restore_audio
 
-    if ! capture_works; then
+    if ! wait_for_capture 5; then
       echo "Wave:3 re-enumerated but captures zero frames - escalating to parent hub 3-2.1 port 1 (StreamDeck drops briefly)..."
       sudo uhubctl -l 3-2.1 -p 1 -a off
       sleep 8
@@ -104,7 +122,7 @@ let
       restore_audio
     fi
 
-    if capture_works; then
+    if wait_for_capture 10; then
       echo "Wave:3 recovered. Default source: $src"
       notify-send -i audio-input-microphone "Wave:3 mic" "Recovered and set as default" 2>/dev/null || true
     else
