@@ -517,8 +517,10 @@
               wayland.windowManager.hyprland.extraConfig = ''
                 bindd = SUPER ALT, D, Speech-to-text, exec, bash -c 'if [[ -f ~/.config/hyprwhspr/recording_status && $(cat ~/.config/hyprwhspr/recording_status) == "true" ]]; then echo stop > ~/.config/hyprwhspr/recording_control; else echo start > ~/.config/hyprwhspr/recording_control; fi'
 
-                # Override voxtype stop to reset Elgato mic profile after (ready for next recording)
-                binddr = SUPER CTRL, X, Stop dictation, exec, bash -c 'voxtype record stop; for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk "{print \$2}"); do pactl set-card-profile "$card" off 2>/dev/null; sleep 0.1; pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null; done'
+                # Override voxtype stop to reset Elgato mic profile after (ready for next recording).
+                # The sleep lets the stop beep finish first: killing the card profile mid-beep leaves
+                # voxtype spinning on a dead output stream (100% CPU, millions of ALSA errors in the log).
+                binddr = SUPER CTRL, X, Stop dictation, exec, bash -c 'voxtype record stop; sleep 1; for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk "{print \$2}"); do pactl set-card-profile "$card" off 2>/dev/null; sleep 0.1; pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null; done'
 
                 # Hard-recover the Wave:3 mic if its USB firmware hangs (-110); fix-wave3 lives in nixtop/config.nix
                 bindd = SUPER CTRL, R, Fix Wave3 mic, exec, fix-wave3
