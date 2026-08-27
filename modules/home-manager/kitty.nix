@@ -10,10 +10,13 @@ in
     # Colors come from the omarchy theme (omarchy-nix includes
     # ~/.local/state/omarchy/current/theme/kitty.conf). Setting themeFile here
     # would emit a second include that overrides it.
-    font = {
-      name = "Hack Nerd Font mono";
-      size = 16;
-    };
+
+    # Family follows the omarchy default (JetBrainsMono Nerd Font, mkDefault).
+    # Size tracks the omarchy "Text Size" setting: it anchors 12px to 9pt, so
+    # 14px is 11pt. `omarchy display text size` sets this by sed-ing
+    # ~/.config/kitty/kitty.conf, which is a read-only store symlink here, so
+    # the value has to live in nix or every rebuild reverts it.
+    font.size = 11;
     keybindings = {
       "kitty_mod+e" = "kitten hints"; # https://sw.kovidgoyal.net/kitty/kittens/hints/
     };
