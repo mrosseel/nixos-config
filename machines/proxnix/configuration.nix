@@ -24,6 +24,14 @@
     fsType = "ext4";
   };
 
+  # Music library on a second virtual disk (scsi1), kept off the root disk so
+  # the root stays small and the library can move to another VM later.
+  fileSystems."/srv/music" = {
+    device = "/dev/disk/by-label/music";
+    fsType = "ext4";
+    options = [ "noatime" "discard" "nofail" ];
+  };
+
   networking.hostName = "proxnix";
   networking.useDHCP = false;
   networking.interfaces.ens18 = {

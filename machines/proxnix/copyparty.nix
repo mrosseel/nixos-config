@@ -30,6 +30,8 @@
 
     accounts = {
       mike.passwordFile = "/etc/copyparty/mike.passwd";
+      # Shared login for people who need to drop a file off.
+      guest.passwordFile = "/etc/copyparty/guest.passwd";
     };
 
     volumes = {
@@ -43,8 +45,10 @@
       "/dump" = {
         path = "/srv/copyparty/dump";
         access = {
-          rw = "*";
-          mda = "mike";
+          # Write-only for the guest login: uploads work, listing and
+          # downloading do not. Anonymous access is off.
+          w = "guest";
+          rwmda = "mike";
         };
         flags = {
           maxb = "500m,300";
@@ -53,6 +57,12 @@
       };
       "/private" = {
         path = "/srv/copyparty/private";
+        access = {
+          rwmda = "mike";
+        };
+      };
+      "/music" = {
+        path = "/srv/music";
         access = {
           rwmda = "mike";
         };
@@ -67,5 +77,6 @@
     "d /srv/copyparty/public 0755 copyparty copyparty -"
     "d /srv/copyparty/dump 0755 copyparty copyparty -"
     "d /srv/copyparty/private 0700 copyparty copyparty -"
+    "d /srv/music 0755 copyparty copyparty -"
   ];
 }

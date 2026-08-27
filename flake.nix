@@ -249,6 +249,7 @@
         ./modules/linux/avahi.nix
         ./modules/automatic-nix-gc.nix
         { services.automatic-nix-gc.enable = true; }
+        ./modules/rclone-gdrive.nix
         omarchy-nix.nixosModules.default
         home-manager.nixosModules.home-manager
         {
@@ -569,6 +570,7 @@
         ./machines/proxnix/configuration.nix
         ./machines/proxnix/config.nix
         ./machines/proxnix/copyparty.nix
+        ./machines/proxnix/samba.nix
         ./machines/proxnix/couchdb.nix
         ./machines/proxnix/minecraft.nix
         ./machines/proxnix/homepage.nix
