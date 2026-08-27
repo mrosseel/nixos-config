@@ -31,6 +31,10 @@
       # Must use the setuid wrapper: ${pkgs.fuse}/bin/fusermount is not setuid, so
       # unmounting fails with "Operation not permitted" whatever flags are passed.
       ExecStartPre = "-/run/wrappers/bin/fusermount -uz /home/mike/GoogleDrive";
+      # Skip cleanly on a machine where `rclone config` has not been run yet.
+      # Without this the mount fails and Restart=on-failure retries every 10s
+      # forever, because the remote and its token are user state, not in git.
+      ExecCondition = "${pkgs.coreutils}/bin/test -f /home/mike/.config/rclone/rclone.conf";
       ExecStart = ''
         ${pkgs.rclone}/bin/rclone mount gdrive: /home/mike/GoogleDrive \
           --vfs-cache-mode full \
