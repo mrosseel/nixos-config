@@ -502,7 +502,7 @@
                     return
                   end
 
-                  local reserved = monitor.reserved
+                  local reserved = monitor.reserved or { top = 0, bottom = 0 }
                   local usable = monitor.height / monitor.scale - reserved.top - reserved.bottom
 
                   cover(math.max(0, math.floor(usable * (1 - share))))
