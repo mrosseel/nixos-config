@@ -573,6 +573,7 @@
         ./machines/proxnix/config.nix
         ./machines/proxnix/copyparty.nix
         ./machines/proxnix/samba.nix
+        ./machines/proxnix/music-mirror.nix
         ./machines/proxnix/couchdb.nix
         ./machines/proxnix/minecraft.nix
         ./machines/proxnix/homepage.nix

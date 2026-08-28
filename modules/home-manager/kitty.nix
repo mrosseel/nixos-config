@@ -12,6 +12,9 @@ in
     # would emit a second include that overrides it.
 
     # Family follows the omarchy default (JetBrainsMono Nerd Font, mkDefault).
+    # Named here too, at a lower priority, so hosts without omarchy (servers
+    # like proxnix) still evaluate: font.size below forces font.name.
+    font.name = lib.mkDefault "JetBrainsMono Nerd Font";
     # Size tracks the omarchy "Text Size" setting: it anchors 12px to 9pt, so
     # 14px is 11pt. `omarchy display text size` sets this by sed-ing
     # ~/.config/kitty/kitty.conf, which is a read-only store symlink here, so
