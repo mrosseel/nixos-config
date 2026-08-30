@@ -81,6 +81,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # 1901: a face-to-face Diplomacy adjudicator. Served on general-server at
+    # 1901.miker.be (machines/general-server/1901.nix). The repo's default
+    # branch is master; there is no main branch. The input cannot be called
+    # "1901": `nix flake update` rejects an all-digit input name.
+    #
+    # No `inputs.nixpkgs.follows` here: 1901's go.mod needs a newer Go than
+    # our nixpkgs carries, so it keeps the nixpkgs its own flake pins.
+    diplomacy1901.url = "github:mrosseel/1901/master";
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -342,6 +351,7 @@
         ./machines/general-server/asterisms-votes.nix
         ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
+        ./machines/general-server/1901.nix
         inputs.pifinder-server.nixosModules.default
         ./modules/simple-mail-server.nix
         ./modules/python.nix

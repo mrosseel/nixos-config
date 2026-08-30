@@ -475,6 +475,28 @@
         }
       '';
     };
+    # 1901 — face-to-face Diplomacy adjudicator (see 1901.nix). The Go server
+    # serves both the API and the built frontend, so this is a plain proxy.
+    # No CSP here: the SPA is versioned with the server, not with this file.
+    virtualHosts."1901.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        reverse_proxy localhost:8190
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+        # Vite-hashed bundles are content-addressed by filename.
+        @assets path /assets/*
+        header @assets {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
+      '';
+    };
     virtualHosts."shop.starnights.be" = {
       extraConfig = ''
         encode gzip
