@@ -33,7 +33,13 @@ in
     volumes = [
       "/var/lib/homepage:/app/config"
     ];
-    extraOptions = [ "--network=host" ];
+    # The image has no mDNS resolver, so `.local` names do not resolve inside it
+    # and every siteMonitor pointing at one reports the service as down.
+    extraOptions = [
+      "--network=host"
+      "--add-host=proxnix.local:192.168.5.12"
+      "--add-host=rigel.local:192.168.5.9"
+    ];
   };
 
   networking.firewall.extraCommands = lib.mkAfter ''

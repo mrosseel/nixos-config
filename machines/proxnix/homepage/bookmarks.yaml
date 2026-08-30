@@ -21,3 +21,28 @@
     - Home Manager options:
         - abbr: HM
           href: https://home-manager-options.extranix.com/
+
+# Direct IP fallbacks. mDNS `.local` names do not resolve over Tailscale;
+# OPNsense advertises 192.168.5.0/24, so these IPs work on LAN and remotely.
+- Direct IP:
+    - Dashboard:
+        - abbr: HP
+          href: http://192.168.5.12:3000
+    - Proxmox:
+        - abbr: PX
+          href: https://192.168.5.2:8006
+    - CopyParty:
+        - abbr: CP
+          href: http://192.168.5.12
+    - CouchDB:
+        - abbr: DB
+          href: http://192.168.5.12:5984/_utils/
+    - BlueMap:
+        - abbr: MC
+          href: http://192.168.5.12:8100
+    - rigel:
+        - abbr: NAS
+          href: http://192.168.5.9
+    - FreshRSS:
+        - abbr: RSS
+          href: http://192.168.5.9:5555
