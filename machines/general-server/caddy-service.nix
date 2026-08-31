@@ -485,7 +485,12 @@
         header {
           Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
           X-Content-Type-Options "nosniff"
-          X-Frame-Options "DENY"
+          # SAMEORIGIN, not DENY: the design gallery at /dev/screens shows each
+          # screen in a real iframe of this same site, because a div with a
+          # width on it is not a phone — media queries, 100vh and every fixed
+          # sheet answer to the viewport. Other sites still cannot frame this
+          # one, which is what the header is for.
+          X-Frame-Options "SAMEORIGIN"
           Referrer-Policy "strict-origin-when-cross-origin"
           -Server
         }
