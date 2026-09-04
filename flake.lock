@@ -159,11 +159,11 @@
         "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1788447775,
-        "narHash": "sha256-eeVzJmATk5MoW6G3oEX+UfkBZWo6d3MmtxeF/8h0nQ0=",
+        "lastModified": 1788556576,
+        "narHash": "sha256-XiE4GwGLxerVLBrrUn3CdVeA0iOGlIoZq3rRqP3UgGw=",
         "owner": "mrosseel",
         "repo": "1901",
-        "rev": "1a583ffa9f93c6881b0049d1593106ef70471362",
+        "rev": "d1f065e1ce7505d2f2812c6aa884c734a5e830d5",
         "type": "github"
       },
       "original": {
