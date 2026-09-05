@@ -141,6 +141,28 @@
         redir https://miker.be{uri} permanent
       '';
     };
+    # 3D dice tray: shake or tilt the phone to throw. Served top level
+    # and same origin on purpose. An embedded page is refused the
+    # accelerometer, which kills the only input that matters here.
+    # The site is a single file in ./dice, so a rebuild ships it.
+    virtualHosts."dice.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * ${./dice}
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          # Also stops anyone else embedding it, which would break motion.
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          # The sensors the dice need. Omit these and shake and tilt die.
+          Permissions-Policy "accelerometer=(self), gyroscope=(self)"
+          Cache-Control "no-cache, must-revalidate"
+          -Server
+        }
+      '';
+    };
     # Private family trip planner (static Vite SPA). Basic-auth gated so the
     # itinerary isn't public. Files rsync'd to /var/www/thailand.miker.be.
     virtualHosts."thailand.miker.be" = {
@@ -502,6 +524,45 @@
         }
       '';
     };
+    # Hexagonia — a settlement game (see hexagonia.nix). The Rust server holds
+    # the games and the bots; the frontend is static files that rsync puts in
+    # /var/www. Caddy decides which is which, so the bundle can ask its own
+    # origin and work under any host name.
+    virtualHosts."hextopia.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        # Two handlers, and they must not share: `try_files` rewrites a path
+        # that names no file to /index.html, which would rewrite the API paths
+        # out from under the proxy before it ever saw them.
+        @api path /auth/* /me /rooms /rooms/* /lobby/* /bot/* /boards/* /healthz
+        handle @api {
+          # The websocket upgrade needs no special handling here: the proxy
+          # carries it.
+          reverse_proxy localhost:8191
+        }
+        handle {
+          root * /var/www/hextopia.miker.be
+          # One page, many addresses: a table lives at /?room=..., and a
+          # reload must reach the same file rather than a 404.
+          try_files {path} /index.html
+          file_server
+        }
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+        # Vite hashes every bundle into its filename, so a name never changes
+        # meaning. The WebAssembly engine is hashed with them.
+        @assets path /assets/*
+        header @assets {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
+        }
+      '';
+    };
     virtualHosts."shop.starnights.be" = {
       extraConfig = ''
         encode gzip
@@ -535,6 +596,17 @@
           Cache-Control "public, max-age=1800, must-revalidate"
           -Server
         }
+      '';
+    };
+    # Catch-all for names that resolve here through the *.miker.be
+    # wildcard but have no site of their own. Declared vhosts are more
+    # specific and still win, including their automatic HTTPS redirect.
+    # Over HTTPS an undeclared name still fails at the handshake: Caddy
+    # holds no certificate for it, and issuing one on demand would let
+    # anyone mint certificates on this box.
+    virtualHosts."http://" = {
+      extraConfig = ''
+        respond "Not found" 404
       '';
     };
   };

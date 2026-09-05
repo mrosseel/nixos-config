@@ -3,11 +3,19 @@
 
   inputs = {
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.11";
-    # Main package set tracks nixpkgs-unstable (rolls fast, matches HM master).
-    # When a specific package breaks here, override it from nixpkgs-vetted
-    # (nixos-unstable: same channel, slower-vetted via Hydra) via an overlay.
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nixpkgs-vetted.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Main package set tracks nixos-unstable, not nixpkgs-unstable.
+    #
+    # Both branches carry the same commits; they differ in what Hydra must
+    # finish before the branch moves. nixpkgs-unstable advances without gating
+    # on the full package set, so it can hand you a rev whose builds are still
+    # queued — then they compile locally. Thunderbird 155.0 did exactly that on
+    # 2026-09-03. nixos-unstable gates on the `tested` job, so its builds are
+    # done and in cache.nixos.org by the time the branch moves. It trails by
+    # roughly two days.
+    #
+    # When two days is too long for one package, pin that package to a newer
+    # nixpkgs rev via an overlay, the way overlays/ollama.nix does.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # Temporary: ollama 0.32.12+ only (see overlays/ollama.nix). Pinned to a rev
     # rather than the master branch to keep the lock stable. Drop this input and
     # the overlay once nixpkgs-unstable carries 0.32.12 or newer.
@@ -58,6 +66,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # claude-code: tracks upstream releases faster than nixpkgs does. Keep it
+    # for that lead time; nixpkgs trails by a patch release or two.
     claude-code.url = "github:sadjow/claude-code-nix";
     codex-cli-nix.url = "github:sadjow/codex-cli-nix";
 
@@ -89,6 +99,18 @@
     # No `inputs.nixpkgs.follows` here: 1901's go.mod needs a newer Go than
     # our nixpkgs carries, so it keeps the nixpkgs its own flake pins.
     diplomacy1901.url = "github:mrosseel/1901/master";
+
+    # Hexagonia: a settlement game for three or four people, with bots and
+    # hosted tables. Served on general-server at hextopia.miker.be
+    # (machines/general-server/hexagonia.nix).
+    #
+    # The repository is private, so the URL is ssh rather than github:. Only
+    # general-server's configuration reads this input, and only the machine
+    # that deploys it has to reach the repository.
+    hexagonia = {
+      url = "git+ssh://git@github.com/mrosseel/hexagonia?ref=master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # sketchybar config
     sketchybar = {
@@ -352,6 +374,7 @@
         ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
         ./machines/general-server/1901.nix
+        ./machines/general-server/hexagonia.nix
         inputs.pifinder-server.nixosModules.default
         ./modules/simple-mail-server.nix
         ./modules/python.nix
