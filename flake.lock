@@ -386,7 +386,7 @@
         "lastModified": 1788631823,
         "narHash": "sha256-M7JCL5SUxcS/qQISCO7Ob6ac+Uf9ZgodK7boi28gcqI=",
         "ref": "master",
-        "rev": "0f1cfaab44acd8d4ebd80fac115a31c37539ad41",
+        "rev": "01ff278f87e879d8f5ea7340094a0a966b8ecaad",
         "revCount": 47,
         "type": "git",
         "url": "ssh://git@github.com/mrosseel/hexagonia"
