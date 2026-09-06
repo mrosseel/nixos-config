@@ -534,7 +534,7 @@
         # Two handlers, and they must not share: `try_files` rewrites a path
         # that names no file to /index.html, which would rewrite the API paths
         # out from under the proxy before it ever saw them.
-        @api path /auth/* /me /rooms /rooms/* /lobby/* /bot/* /boards/* /healthz
+        @api path /auth/* /me /rooms /rooms/* /lobby/* /games /games/* /bot/* /boards/* /healthz
         handle @api {
           # The websocket upgrade needs no special handling here: the proxy
           # carries it.
