@@ -1,168 +1,706 @@
 {
-  "annotations": { "list": [] },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
+ "annotations": {
+  "list": []
+ },
+ "editable": true,
+ "fiscalYearStartMonth": 0,
+ "graphTooltip": 1,
+ "links": [
+  {
+   "type": "dashboards",
+   "title": "Monitoring",
+   "tags": [
+    "monitoring"
+   ],
+   "asDropdown": false,
+   "includeVars": false,
+   "keepTime": true,
+   "icon": "external link"
+  }
+ ],
+ "refresh": "1m",
+ "schemaVersion": 39,
+ "tags": [
+  "monitoring",
+  "caddy",
+  "loki"
+ ],
+ "panels": [
+  {
+   "type": "stat",
+   "title": "Total requests",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
     {
-      "type": "timeseries",
-      "title": "Requests per Host",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\"} [$__auto]))",
-        "legendFormat": "{{request_host}}"
-      }],
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } },
-          "unit": "reqps"
-        },
-        "overrides": []
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Error Rate (4xx/5xx)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": "Loki",
-      "targets": [
-        {
-          "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\", status=~\"4..\"} [$__auto]))",
-          "legendFormat": "{{request_host}} 4xx"
-        },
-        {
-          "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\", status=~\"5..\"} [$__auto]))",
-          "legendFormat": "{{request_host}} 5xx"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "fillOpacity": 20 },
-          "unit": "reqps",
-          "color": { "mode": "palette-classic" }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "type": "bargauge",
-      "title": "Total Requests by Host",
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "sum by (request_host) (count_over_time({job=\"caddy\", request_host=~\"$host\"} [$__range]))",
-        "legendFormat": "{{request_host}}"
-      }],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
-    },
-    {
-      "type": "bargauge",
-      "title": "Status Code Distribution",
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "sum by (status) (count_over_time({job=\"caddy\", request_host=~\"$host\"} [$__range]))",
-        "legendFormat": "{{status}}"
-      }],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
-    },
-    {
-      "type": "table",
-      "title": "Top Pages",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "topk(20, sum by (uri) (count_over_time({job=\"caddy\", request_host=~\"$host\"} | json | method=\"GET\" | uri!~\".*\\\\.(css|js|png|jpg|jpeg|gif|webp|avif|woff2|ico|svg|map)$\" [$__range])))",
-        "legendFormat": "{{uri}}"
-      }],
-      "transformations": [
-        { "id": "sortBy", "options": { "sort": [{ "field": "Value", "desc": true }] } }
-      ],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
-    },
-    {
-      "type": "timeseries",
-      "title": "Requests per Method",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "sum by (method) (rate({job=\"caddy\", request_host=~\"$host\"} [$__auto]))",
-        "legendFormat": "{{method}}"
-      }],
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "fillOpacity": 20 },
-          "unit": "reqps"
-        },
-        "overrides": []
-      }
-    },
-    {
-      "type": "table",
-      "title": "Top IPs",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "topk(20, sum by (remote_ip) (count_over_time({job=\"caddy\", request_host=~\"$host\"} | json [$__range])))",
-        "legendFormat": "{{remote_ip}}"
-      }],
-      "transformations": [
-        { "id": "sortBy", "options": { "sort": [{ "field": "Value", "desc": true }] } }
-      ],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
-    },
-    {
-      "type": "stat",
-      "title": "Unique IPs",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "count(sum by (remote_ip) (count_over_time({job=\"caddy\", request_host=~\"$host\"} | json [$__range])))"
-      }],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
-    },
-    {
-      "type": "stat",
-      "title": "Total Requests",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 24 },
-      "datasource": "Loki",
-      "targets": [{
-        "expr": "sum(count_over_time({job=\"caddy\", request_host=~\"$host\"} [$__range]))"
-      }],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+     "refId": "A",
+     "expr": "sum(count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" [$__range]))",
+     "legendFormat": "",
+     "queryType": "instant"
     }
-  ],
-  "refresh": "1m",
-  "schemaVersion": 39,
-  "tags": ["caddy", "loki"],
-  "templating": {
-    "list": [
-      {
-        "current": { "selected": true, "text": "All", "value": "$__all" },
-        "datasource": "Loki",
-        "definition": "label_values({job=\"caddy\"}, request_host)",
-        "includeAll": true,
-        "multi": true,
-        "name": "host",
-        "query": { "label": "request_host", "stream": "{job=\"caddy\"}", "type": 1 },
-        "type": "query",
-        "allValue": ".+"
-      }
-    ]
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
   },
-  "time": { "from": "now-24h", "to": "now" },
-  "title": "Caddy Sites Overview",
-  "uid": "caddy-sites-overview"
+  {
+   "type": "stat",
+   "title": "Unique IPs",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 6,
+    "y": 0,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(sum by (remote_ip) (count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json remote_ip=\"request.remote_ip\" [$__range])))",
+     "legendFormat": "",
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Error share",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(count_over_time({job=\"caddy\", request_host=~\"$host\", status=~\"[45]..\"} |= \"http.log.access\" [$__range])) / sum(count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" [$__range])) * 100",
+     "legendFormat": "",
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 5
+       },
+       {
+        "color": "red",
+        "value": 20
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "stat",
+   "title": "p95 latency",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 18,
+    "y": 0,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max(quantile_over_time(0.95, {job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json duration=\"duration\" | unwrap duration [$__range]) by (request_host))",
+     "legendFormat": "",
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.5
+       },
+       {
+        "color": "red",
+        "value": 2
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Requests by host",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 4,
+    "w": 12,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (request_host) (count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" [$__range]))",
+     "legendFormat": "{{request_host}}",
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "links": [
+      {
+       "title": "Drill into ${__field.labels.request_host}",
+       "url": "/d/caddy-sites-overview?var-host=${__field.labels.request_host}&${__url_time_range}"
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showUnfilled": true
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Status codes",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 4,
+    "w": 12,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (status) (count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" [$__range]))",
+     "legendFormat": "{{status}}",
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showUnfilled": true
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Requests per host",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" [$__auto]))",
+     "legendFormat": "{{request_host}}",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "fillOpacity": 20,
+      "stacking": {
+       "mode": "normal"
+      },
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Errors per host",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\", status=~\"4..\"} |= \"http.log.access\" [$__auto]))",
+     "legendFormat": "4xx {{request_host}}",
+     "queryType": "range"
+    },
+    {
+     "refId": "B",
+     "expr": "sum by (request_host) (rate({job=\"caddy\", request_host=~\"$host\", status=~\"5..\"} |= \"http.log.access\" [$__auto]))",
+     "legendFormat": "5xx {{request_host}}",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "fillOpacity": 20,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Latency percentiles",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 21,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "quantile_over_time(0.50, {job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json duration=\"duration\" | unwrap duration [$__auto]) by (request_host)",
+     "legendFormat": "p50 {{request_host}}",
+     "queryType": "range"
+    },
+    {
+     "refId": "B",
+     "expr": "quantile_over_time(0.95, {job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json duration=\"duration\" | unwrap duration [$__auto]) by (request_host)",
+     "legendFormat": "p95 {{request_host}}",
+     "queryType": "range"
+    },
+    {
+     "refId": "C",
+     "expr": "quantile_over_time(0.99, {job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json duration=\"duration\" | unwrap duration [$__auto]) by (request_host)",
+     "legendFormat": "p99 {{request_host}}",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "fillOpacity": 0,
+      "showPoints": "never",
+      "lineWidth": 2
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Bytes served",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 21,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (request_host) (sum_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json size=\"size\" | unwrap size [$__auto]))",
+     "legendFormat": "{{request_host}}",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "custom": {
+      "fillOpacity": 20,
+      "stacking": {
+       "mode": "normal"
+      },
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "table",
+   "title": "Top pages",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 29,
+    "w": 12,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(20, sum by (uri) (count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json uri=\"request.uri\" | method=\"GET\" | uri != \"\" | uri!~\".*\\\\.(css|js|png|jpg|jpeg|gif|webp|avif|woff2|ico|svg|map)$\" [$__range])))",
+     "legendFormat": "",
+     "queryType": "instant",
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "title": "Top 404s, broken links",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 29,
+    "w": 12,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(20, sum by (uri) (count_over_time({job=\"caddy\", request_host=~\"$host\", status=\"404\"} |= \"http.log.access\" | json uri=\"request.uri\" [$__range])))",
+     "legendFormat": "",
+     "queryType": "instant",
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "title": "Top 5xx paths, bugs",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 38,
+    "w": 12,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(20, sum by (uri) (count_over_time({job=\"caddy\", request_host=~\"$host\", status=~\"5..\"} |= \"http.log.access\" | json uri=\"request.uri\" [$__range])))",
+     "legendFormat": "",
+     "queryType": "instant",
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "title": "Top IPs",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 38,
+    "w": 12,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(20, sum by (remote_ip) (count_over_time({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" | json remote_ip=\"request.remote_ip\" | remote_ip != \"\" [$__range])))",
+     "legendFormat": "",
+     "queryType": "instant",
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Methods",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 0,
+    "y": 47,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (method) (rate({job=\"caddy\", request_host=~\"$host\"} |= \"http.log.access\" [$__auto]))",
+     "legendFormat": "{{method}}",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "fillOpacity": 20,
+      "stacking": {
+       "mode": "normal"
+      },
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Bots against the rest",
+   "datasource": "Loki",
+   "gridPos": {
+    "x": 12,
+    "y": 47,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(rate({job=\"caddy\", request_host=~\"$host\"} |~ \"(?i)(bot|crawl|spider|slurp|scanner|curl|wget|python-requests)\" [$__auto]))",
+     "legendFormat": "bot",
+     "queryType": "range"
+    },
+    {
+     "refId": "B",
+     "expr": "sum(rate({job=\"caddy\", request_host=~\"$host\"} !~ \"(?i)(bot|crawl|spider|slurp|scanner|curl|wget|python-requests)\" [$__auto]))",
+     "legendFormat": "human",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "fillOpacity": 20,
+      "stacking": {
+       "mode": "normal"
+      },
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  }
+ ],
+ "templating": {
+  "list": [
+   {
+    "name": "host",
+    "label": "Site",
+    "type": "query",
+    "datasource": "Loki",
+    "definition": "label_values({job=\"caddy\"}, request_host)",
+    "refresh": 1,
+    "sort": 1,
+    "options": [],
+    "current": {
+     "selected": true,
+     "text": "All",
+     "value": "$__all"
+    },
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".+",
+    "query": {
+     "label": "request_host",
+     "stream": "{job=\"caddy\"}",
+     "type": "labelValues",
+     "refId": "LokiVariableQueryEditor-VariableQuery"
+    }
+   }
+  ]
+ },
+ "time": {
+  "from": "now-24h",
+  "to": "now"
+ },
+ "timezone": "browser",
+ "title": "Site drilldown",
+ "uid": "caddy-sites-overview"
 }

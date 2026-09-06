@@ -1,6 +1,217 @@
 { config, pkgs, lib, ... }:
 
 let
+  # One list of public endpoints. The blackbox scrape jobs and the Home
+  # Assistant push both read it, so the two can no longer disagree about
+  # which sites exist.
+  #
+  # `codes` are the HTTP statuses that mean healthy. thailand sits behind
+  # basic auth and deltas refuses a bare root, so their normal answer is
+  # 401 and 403.
+  siteDefs = [
+    { host = "miker.be"; icon = "mdi:web"; }
+    { host = "astro.miker.be"; icon = "mdi:telescope"; }
+    { host = "astro.miker.be"; path = "/api/tonight"; icon = "mdi:api"; name = "astro API"; }
+    { host = "sun.miker.be"; icon = "mdi:weather-sunny"; }
+    { host = "messier.miker.be"; icon = "mdi:star-shooting"; }
+    { host = "asterisms.miker.be"; icon = "mdi:vector-triangle"; }
+    { host = "blog.miker.be"; icon = "mdi:post"; }
+    { host = "mars.miker.be"; icon = "mdi:rocket-launch"; }
+    { host = "dice.miker.be"; icon = "mdi:dice-5"; }
+    { host = "spain2026.miker.be"; icon = "mdi:weather-night"; }
+    { host = "hiddentreasures.miker.be"; icon = "mdi:treasure-chest"; }
+    { host = "rays.miker.be"; icon = "mdi:moon-waning-crescent"; }
+    { host = "hextopia.miker.be"; path = "/healthz"; icon = "mdi:hexagon-multiple"; name = "hextopia"; }
+    { host = "joeri.miker.be"; icon = "mdi:account"; }
+    { host = "1901.miker.be"; icon = "mdi:calendar"; }
+    { host = "shop.starnights.be"; icon = "mdi:cart"; }
+    { host = "pifinder.eu"; icon = "mdi:compass"; }
+    { host = "catalogs.pifinder.eu"; icon = "mdi:book-open-variant"; }
+    { host = "cache.pifinder.eu"; icon = "mdi:package-variant"; }
+    { host = "files.pifinder.eu"; icon = "mdi:file-download"; }
+    { host = "deltas.pifinder.eu"; icon = "mdi:delta"; codes = [ 403 ]; }
+    { host = "thailand.miker.be"; icon = "mdi:map-marker-path"; codes = [ 401 ]; }
+  ];
+
+  mkSite = s:
+    let
+      path = s.path or "/";
+      url = "https://${s.host}${path}";
+      slug = lib.replaceStrings [ "." "/" "-" ":" ] [ "_" "_" "_" "_" ] "${s.host}${path}";
+    in
+    {
+      inherit url;
+      id = lib.removeSuffix "_" slug;
+      name = s.name or s.host;
+      icon = s.icon or "mdi:web";
+      codes = s.codes or [ 200 ];
+    };
+
+  sites = map mkSite siteDefs;
+
+  # Blackbox needs one module per set of acceptable status codes.
+  codeSets = lib.unique (map (s: s.codes) sites);
+  moduleName = codes: "http_" + lib.concatMapStringsSep "_" toString codes;
+
+  blackboxModules = lib.listToAttrs (map
+    (codes: lib.nameValuePair (moduleName codes) {
+      prober = "http";
+      timeout = "10s";
+      http = {
+        valid_http_versions = [ "HTTP/1.1" "HTTP/2.0" ];
+        valid_status_codes = codes;
+        follow_redirects = true;
+      };
+    })
+    codeSets);
+
+  blackboxJobs = map
+    (codes: {
+      # The plain-200 job keeps its old name so 30 days of history stay
+      # attached to the same job label.
+      job_name = if codes == [ 200 ] then "blackbox-sites" else "blackbox-${moduleName codes}";
+      metrics_path = "/probe";
+      params.module = [ (moduleName codes) ];
+      static_configs = [{
+        targets = map (s: s.url) (lib.filter (s: s.codes == codes) sites);
+      }];
+      scrape_interval = "60s";
+      relabel_configs = [
+        { source_labels = [ "__address__" ]; target_label = "__param_target"; }
+        { source_labels = [ "__param_target" ]; target_label = "instance"; }
+        { target_label = "__address__"; replacement = "127.0.0.1:9115"; }
+      ];
+    })
+    codeSets;
+
+  # url|entity id|icon|friendly name, one per line, read by the push script.
+  siteTable = lib.concatMapStringsSep "\n" (s: "${s.url}|${s.id}|${s.icon}|${s.name}") sites;
+
+  alertRules = {
+    groups = [
+      {
+        name = "availability";
+        rules = [
+          {
+            alert = "SiteDown";
+            expr = "probe_success == 0";
+            "for" = "3m";
+            labels.severity = "critical";
+            annotations.summary = "{{ $labels.instance }} does not answer";
+          }
+          {
+            alert = "SiteSlow";
+            expr = "probe_duration_seconds > 5";
+            "for" = "10m";
+            labels.severity = "warning";
+            annotations.summary = "{{ $labels.instance }} takes over 5s to answer";
+          }
+          {
+            alert = "ScrapeTargetDown";
+            expr = "up == 0";
+            "for" = "5m";
+            labels.severity = "critical";
+            annotations.summary = "Prometheus cannot scrape {{ $labels.job }} at {{ $labels.instance }}";
+          }
+          {
+            alert = "CaddyUpstreamDown";
+            expr = "caddy_reverse_proxy_upstreams_healthy == 0";
+            "for" = "3m";
+            labels.severity = "critical";
+            annotations.summary = "Backend {{ $labels.upstream }} is unhealthy";
+          }
+          {
+            alert = "CaddyConfigReloadFailed";
+            expr = "caddy_config_last_reload_successful == 0";
+            "for" = "5m";
+            labels.severity = "warning";
+            annotations.summary = "Caddy rejected its last config reload";
+          }
+        ];
+      }
+      {
+        name = "tls";
+        rules = [
+          {
+            alert = "CertExpiringSoon";
+            expr = "(probe_ssl_earliest_cert_expiry - time()) / 86400 < 14";
+            "for" = "1h";
+            labels.severity = "warning";
+            annotations.summary = "TLS certificate for {{ $labels.instance }} expires in under 14 days";
+          }
+          {
+            alert = "CertExpiringCritical";
+            expr = "(probe_ssl_earliest_cert_expiry - time()) / 86400 < 3";
+            "for" = "10m";
+            labels.severity = "critical";
+            annotations.summary = "TLS certificate for {{ $labels.instance }} expires in under 3 days";
+          }
+        ];
+      }
+      {
+        name = "host";
+        rules = [
+          {
+            alert = "DiskSpaceLow";
+            expr = ''100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) > 85'';
+            "for" = "10m";
+            labels.severity = "warning";
+            annotations.summary = "Root filesystem is over 85% full";
+          }
+          {
+            alert = "DiskSpaceCritical";
+            expr = ''100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) > 93'';
+            "for" = "5m";
+            labels.severity = "critical";
+            annotations.summary = "Root filesystem is over 93% full";
+          }
+          {
+            alert = "DiskFillingUp";
+            expr = ''predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 24 * 3600) < 0'';
+            "for" = "30m";
+            labels.severity = "warning";
+            annotations.summary = "Root filesystem runs out of space within 24 hours at this rate";
+          }
+          {
+            alert = "MemoryHigh";
+            expr = "100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) > 90";
+            "for" = "15m";
+            labels.severity = "warning";
+            annotations.summary = "Memory use is over 90%";
+          }
+          {
+            alert = "CpuHigh";
+            expr = ''100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90'';
+            "for" = "20m";
+            labels.severity = "warning";
+            annotations.summary = "CPU use is over 90%";
+          }
+          {
+            alert = "SystemdUnitFailed";
+            expr = ''node_systemd_unit_state{state="failed"} == 1'';
+            "for" = "5m";
+            labels.severity = "warning";
+            annotations.summary = "systemd unit {{ $labels.name }} has failed";
+          }
+        ];
+      }
+      {
+        name = "traffic";
+        rules = [
+          {
+            # Caddy's Prometheus metrics carry no host label, so this is the
+            # whole server. Per-site error rates live in the Loki dashboard.
+            alert = "HttpErrorRateHigh";
+            expr = ''sum(rate(caddy_http_response_duration_seconds_count{code=~"5.."}[5m])) / sum(rate(caddy_http_response_duration_seconds_count[5m])) > 0.01'';
+            "for" = "10m";
+            labels.severity = "warning";
+            annotations.summary = "Over 1% of responses are 5xx";
+          }
+        ];
+      }
+    ];
+  };
+
   haMetricsScript = pkgs.writeShellScript "ha-metrics-push" ''
     set -euo pipefail
 
@@ -11,44 +222,99 @@ let
     fi
     HA_TOKEN=$(cat "$TOKEN_FILE")
     HA_URL="https://ha.miker.be"
-
-    # Query Prometheus for current metrics
     PROM="http://127.0.0.1:9090/api/v1/query"
 
-    cpu_idle=$(${pkgs.curl}/bin/curl -sf "$PROM" --data-urlencode 'query=100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)' | ${pkgs.jq}/bin/jq -r '.data.result[0].value[1] // "0"')
-    mem_used=$(${pkgs.curl}/bin/curl -sf "$PROM" --data-urlencode 'query=100 - ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100)' | ${pkgs.jq}/bin/jq -r '.data.result[0].value[1] // "0"')
-    disk_used=$(${pkgs.curl}/bin/curl -sf "$PROM" --data-urlencode 'query=100 - ((node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100)' | ${pkgs.jq}/bin/jq -r '.data.result[0].value[1] // "0"')
+    prom() {
+      ${pkgs.curl}/bin/curl -sf "$PROM" --data-urlencode "query=$1" \
+        || echo '{"data":{"result":[]}}'
+    }
 
-    # Round to 1 decimal
-    cpu_idle=$(printf "%.1f" "$cpu_idle")
-    mem_used=$(printf "%.1f" "$mem_used")
-    disk_used=$(printf "%.1f" "$disk_used")
+    # Three queries, then one jq pass that builds every payload. The old
+    # version spawned a jq per site and burned ~2.9s of CPU a minute.
+    # The vitals ride in on a single expression, tagged by a `k` label.
+    vitals=$(prom '
+      label_replace(100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100), "k", "cpu", "", "")
+      or label_replace(100 - ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100), "k", "mem", "", "")
+      or label_replace(100 - ((node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100), "k", "disk", "", "")
+      or label_replace(min((probe_ssl_earliest_cert_expiry - time()) / 86400), "k", "certdays", "", "")
+    ')
+    probes=$(prom 'probe_success')
+    alerts=$(prom 'ALERTS{alertstate="firing"}')
 
-    # Push to HA as sensor states
-    for sensor in "sensor.general_server_cpu:$cpu_idle:%:CPU Usage" "sensor.general_server_memory:$mem_used:%:Memory Usage" "sensor.general_server_disk:$disk_used:%:Disk Usage"; do
-      IFS=: read -r entity value unit friendly <<< "$sensor"
+    payloads=$(${pkgs.jq}/bin/jq -rn \
+      --argjson v "$vitals" --argjson p "$probes" --argjson a "$alerts" \
+      --arg sites "${siteTable}" '
+        def num($x): if $x == null then 0 else (try ((($x | tonumber) * 10 | round) / 10) catch 0) end;
+        def vit($k): [ $v.data.result[] | select(.metric.k == $k) | .value[1] ] | first;
+        def row($id; $body): "\($id)\t\($body | tojson)";
+        def gauge($id; $value; $unit; $name; $icon):
+          row($id; {
+            state: ($value | tostring),
+            attributes: {
+              unit_of_measurement: $unit,
+              friendly_name: $name,
+              state_class: "measurement",
+              icon: $icon
+            }
+          });
+
+        ($a.data.result // []) as $al
+        | ($al | length) as $count
+        | ($al | map(select(.metric.severity == "critical")) | length) as $crit
+        | ($al | map(.metric.alertname + (if .metric.instance then " @ " + .metric.instance else "" end))) as $detail
+        | [
+            gauge("sensor.general_server_cpu"; num(vit("cpu")); "%"; "General Server CPU Usage"; "mdi:server"),
+            gauge("sensor.general_server_memory"; num(vit("mem")); "%"; "General Server Memory Usage"; "mdi:memory"),
+            gauge("sensor.general_server_disk"; num(vit("disk")); "%"; "General Server Disk Usage"; "mdi:harddisk"),
+            gauge("sensor.general_server_cert_days"; num(vit("certdays")); "d"; "General Server soonest cert expiry"; "mdi:certificate"),
+            row("binary_sensor.general_server_alerts"; {
+              state: (if $count > 0 then "on" else "off" end),
+              attributes: {
+                friendly_name: "General Server alerts",
+                device_class: "problem",
+                icon: "mdi:fire",
+                count: $count,
+                critical: $crit,
+                alerts: ($al | map(.metric.alertname)),
+                detail: $detail,
+                text: ($detail | join(", "))
+              }
+            }),
+            row("sensor.general_server_alert_count"; {
+              state: ($count | tostring),
+              attributes: {
+                friendly_name: "General Server firing alerts",
+                state_class: "measurement",
+                icon: "mdi:alert",
+                critical: $crit,
+                detail: $detail
+              }
+            })
+          ]
+          + ( $sites | split("\n") | map(select(length > 0)) | map(
+                split("|") as $s
+                | ([ $p.data.result[] | select(.metric.instance == $s[0]) | .value[1] ] | first) as $ok
+                | row("binary_sensor.site_" + $s[1]; {
+                    state: (if $ok == "1" then "on" else "off" end),
+                    attributes: {
+                      friendly_name: $s[3],
+                      device_class: "connectivity",
+                      icon: $s[2]
+                    }
+                  })
+            ))
+        | .[]
+      ')
+
+    while IFS=$'\t' read -r entity body; do
+      [ -n "$entity" ] || continue
       ${pkgs.curl}/bin/curl -sf -X POST "$HA_URL/api/states/$entity" \
         -H "Authorization: Bearer $HA_TOKEN" \
         -H "Content-Type: application/json" \
-        -d "{\"state\": \"$value\", \"attributes\": {\"unit_of_measurement\": \"$unit\", \"friendly_name\": \"General Server $friendly\", \"icon\": \"mdi:server\"}}" > /dev/null
-    done
-
-    # Site uptime checks via blackbox exporter
-    BLACKBOX="http://127.0.0.1:9115/probe?module=http_2xx"
-    for site in "miker.be:miker_be:mdi:web" "astro.miker.be:astro_miker_be:mdi:telescope" "sun.miker.be:sun_miker_be:mdi:weather-sunny" "messier.miker.be:messier_miker_be:mdi:star-shooting" "asterisms.miker.be:asterisms_miker_be:mdi:vector-triangle" "blog.miker.be:blog_miker_be:mdi:post" "pifinder.eu:pifinder_eu:mdi:compass"; do
-      IFS=: read -r host entity_suffix icon <<< "$site"
-      probe_result=$(${pkgs.curl}/bin/curl -sf "$BLACKBOX&target=https://$host" | ${pkgs.gnugrep}/bin/grep '^probe_success ' | ${pkgs.gawk}/bin/awk '{print $2}')
-      if [ "$probe_result" = "1" ]; then
-        state="up"
-      else
-        state="down"
-      fi
-      ${pkgs.curl}/bin/curl -sf -X POST "$HA_URL/api/states/binary_sensor.site_''${entity_suffix}" \
-        -H "Authorization: Bearer $HA_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"state\": \"$([ \"$state\" = \"up\" ] && echo on || echo off)\", \"attributes\": {\"friendly_name\": \"$host\", \"device_class\": \"connectivity\", \"icon\": \"$icon\"}}" > /dev/null
-    done
+        -d "$body" > /dev/null
+    done <<< "$payloads"
   '';
+
 in
 {
   # --- Tailscale for private access to Grafana ---
@@ -74,24 +340,7 @@ in
       listenAddress = "127.0.0.1";
       port = 9115;
       configFile = pkgs.writeText "blackbox.yml" (builtins.toJSON {
-        modules.http_2xx = {
-          prober = "http";
-          timeout = "10s";
-          http = {
-            valid_http_versions = [ "HTTP/1.1" "HTTP/2.0" ];
-            valid_status_codes = [ 200 ];
-            follow_redirects = true;
-          };
-        };
-        modules.http_api = {
-          prober = "http";
-          timeout = "10s";
-          http = {
-            valid_http_versions = [ "HTTP/1.1" "HTTP/2.0" ];
-            valid_status_codes = [ 200 ];
-            fail_if_body_not_matches_regexp = [ ".*" ];
-          };
-        };
+        modules = blackboxModules;
       });
     };
 
@@ -110,37 +359,10 @@ in
         }];
         scrape_interval = "15s";
       }
-      {
-        job_name = "blackbox-sites";
-        metrics_path = "/probe";
-        params.module = [ "http_2xx" ];
-        static_configs = [{
-          targets = [
-            "https://miker.be"
-            "https://astro.miker.be"
-            "https://astro.miker.be/api/tonight"
-            "https://messier.miker.be"
-            "https://asterisms.miker.be"
-            "https://blog.miker.be"
-            "https://pifinder.eu"
-          ];
-        }];
-        scrape_interval = "60s";
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            target_label = "__param_target";
-          }
-          {
-            source_labels = [ "__param_target" ];
-            target_label = "instance";
-          }
-          {
-            target_label = "__address__";
-            replacement = "127.0.0.1:9115";
-          }
-        ];
-      }
+    ] ++ blackboxJobs;
+
+    ruleFiles = [
+      (pkgs.writeText "alerts.yml" (builtins.toJSON alertRules))
     ];
   };
 
@@ -307,32 +529,14 @@ in
   };
 
   systemd.timers.ha-metrics-push = {
-    description = "Push server metrics to Home Assistant every 5 minutes";
+    description = "Push server metrics and firing alerts to Home Assistant";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*:0/5";
+      # Every minute: the push only reads Prometheus now, so it is cheap,
+      # and an alert that reaches the phone 5 minutes late is a bad alert.
+      OnCalendar = "minutely";
       Persistent = true;
     };
-  };
-
-  # One-time Grafana DB reset to fix datasource provisioning
-  # Remove this block after first successful deploy
-  systemd.services.grafana-db-reset = {
-    description = "One-time Grafana DB reset";
-    wantedBy = [ "multi-user.target" ];
-    before = [ "grafana.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    script = ''
-      if [ -f /var/lib/grafana/.db-reset-done ]; then
-        exit 0
-      fi
-      rm -f /var/lib/grafana/grafana.db
-      touch /var/lib/grafana/.db-reset-done
-      chown grafana:grafana /var/lib/grafana/.db-reset-done
-    '';
   };
 
   # Alloy needs access to journal and Caddy logs under strict sandboxing
