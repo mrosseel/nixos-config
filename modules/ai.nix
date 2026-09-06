@@ -210,6 +210,9 @@ in
 
   environment.systemPackages = [
     pkgs.claude-code
+    # xAI's desktop agent. Packaged here because nixpkgs has only grok-build,
+    # the CLI. See packages/grok-bot.nix for where the .deb comes from.
+    (pkgs.callPackage ../packages/grok-bot.nix { })
     # pkgs.gemini-cli  # Disabled due to CVE-2024-23342 in ecdsa dependency
     pkgs.ollama
     pkgs.opencode
