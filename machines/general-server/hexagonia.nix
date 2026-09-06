@@ -51,8 +51,19 @@ in
           --cors-origin https://hextopia.miker.be \
           --db /var/lib/hexagonia/hexagonia.db
       '';
-      # The secret is read from a file the deploy writes once. A missing file
-      # is not fatal: the server says so and signs with a key of its own.
+      # Two secrets are read from a file the deploy writes once.
+      #
+      # HEXAGONIA_SECRET signs guest tokens. Without it the server says so and
+      # signs with a key of its own, so every seat is lost on a restart.
+      #
+      # HEXAGONIA_ADMIN_TOKEN is the admin key. A request sends it as the
+      # header X-Admin-Token to delete a game, export the history or import a
+      # file, and to see private games in every listing. Without it those
+      # three calls answer 403 and no header opens them; the rest of the
+      # server runs as before.
+      #
+      # A missing file is not fatal. The server starts and prints what it
+      # lacks.
       EnvironmentFile = "-/var/lib/hexagonia/secret.env";
       Restart = "on-failure";
       RestartSec = 5;
