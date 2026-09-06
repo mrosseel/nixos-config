@@ -27,5 +27,6 @@
       "Bash(journalctl --list-boots --no-pager)"
     ],
     "deny": []
-  }
+  },
+  "outputStyle": "Concise"
 }
