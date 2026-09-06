@@ -27,6 +27,14 @@ if (( bump )); then
   fi
 fi
 
+# The database is the only thing on the server that cannot be rebuilt. A
+# migration that goes wrong, or a rollback across one, has nothing to go back
+# to without this. Cheap, and the only line here that protects data rather
+# than convenience.
+echo -n "backing up the database ... "
+ssh mike@pifinder.eu "sudo cp -a /var/lib/1901/1901.db /var/lib/1901/1901.db.bak-$(date +%Y%m%d-%H%M%S)" \
+  && echo "done" || echo "FAILED — no backup was taken"
+
 nixos-rebuild switch \
   --flake .#general-server \
   --target-host mike@pifinder.eu \
@@ -35,10 +43,18 @@ nixos-rebuild switch \
 
 # The maps come from GENERATED_VARIANTS. When that breaks the server still
 # answers 200 on every page and simply has no variants, so count them.
+# The service is restarting as nixos-rebuild returns, so the first curl lands
+# on a socket nobody is listening to yet. It printed 502 on two good deploys
+# before this loop existed, which is a check that cries wolf and gets ignored.
 echo -n "checking https://1901.miker.be/variants ... "
-count=$(curl -fsS --max-time 30 https://1901.miker.be/variants | jq 'length')
+count=0
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  count=$(curl -fsS --max-time 30 https://1901.miker.be/variants 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+  (( count > 0 )) && break
+  sleep 2
+done
 if (( count < 1 )); then
-  echo "no variants. The board art did not reach the server."
+  echo "no variants after 20s. The board art did not reach the server."
   exit 1
 fi
 echo "${count} variants"
