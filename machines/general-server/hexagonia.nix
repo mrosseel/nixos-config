@@ -2,12 +2,14 @@
 
 # Hexagonia — a settlement game for three or four people. Served at
 # https://hextopia.miker.be; Caddy hands the API paths to this process and
-# every other path to the built frontend in /var/www (see caddy-service.nix).
+# every other path to the frontend bundle (see caddy-service.nix).
 #
-# Source: github:mrosseel/hexagonia, private, consumed as a flake package.
-# The package is the Rust server only. The frontend is static files, shipped
-# by ./deploy-hexagonia.sh in the game's own repository, because it is built
-# with npm and wasm-pack rather than by this flake.
+# Source: github:mrosseel/hexagonia, private, consumed as flake packages. The
+# input gives two: the Rust server here, and hexagonia-web, the built bundle
+# Caddy serves from the store. Both come from one revision, so the page and
+# the server cannot drift apart.
+#
+# Deploy with /home/mike/nixos-config/deploy-hexagonia.sh.
 #
 # The server holds every running game in memory, so a restart still ends
 # every game in progress. Finished games outlive it: they are written to
@@ -28,7 +30,6 @@ in
 
   systemd.tmpfiles.rules = [
     "d /var/lib/hexagonia 0750 hexagonia hexagonia - -"
-    "d /var/www/hextopia.miker.be 0755 mike users - -"
   ];
 
   # The key that signs a guest token. Without it the server makes one at

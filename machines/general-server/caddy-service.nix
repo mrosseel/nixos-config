@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 {
  imports = [ ./thailand-planner.nix ./thailand-drive-export.nix ];
@@ -525,9 +525,13 @@
       '';
     };
     # Hexagonia — a settlement game (see hexagonia.nix). The Rust server holds
-    # the games and the bots; the frontend is static files that rsync puts in
-    # /var/www. Caddy decides which is which, so the bundle can ask its own
-    # origin and work under any host name.
+    # the games and the bots; the frontend is a second package of the same
+    # flake, served straight from the store. Caddy decides which is which, so
+    # the bundle can ask its own origin and work under any host name.
+    #
+    # Both halves come from one flake input, so a deploy cannot leave the page
+    # on an older revision than the server. There is nothing in /var/www for
+    # this host any more.
     virtualHosts."hextopia.miker.be" = {
       extraConfig = ''
         encode gzip
@@ -541,7 +545,7 @@
           reverse_proxy localhost:8191
         }
         handle {
-          root * /var/www/hextopia.miker.be
+          root * ${inputs.hexagonia.packages.${pkgs.system}.hexagonia-web}
           # One page, many addresses: a table lives at /?room=..., and a
           # reload must reach the same file rather than a 404.
           try_files {path} /index.html
