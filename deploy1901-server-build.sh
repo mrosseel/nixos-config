@@ -34,10 +34,10 @@ nixos-rebuild switch \
   --use-substitutes \
   "$@"
 
-echo -n "checking https://1901.miker.be/variants ... "
+echo -n "checking https://1901.miker.be/api/v1/variants ... "
 count=0
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
-  count=$(curl -fsS --max-time 30 https://1901.miker.be/variants 2>/dev/null \
+  count=$(curl -fsS --max-time 30 https://1901.miker.be/api/v1/variants 2>/dev/null \
     | jq 'length' 2>/dev/null || echo 0)
   (( count > 0 )) && break
   sleep 2
