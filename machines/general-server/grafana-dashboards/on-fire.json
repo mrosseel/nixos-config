@@ -1,0 +1,712 @@
+{
+ "annotations": {
+  "list": []
+ },
+ "editable": true,
+ "fiscalYearStartMonth": 0,
+ "graphTooltip": 1,
+ "links": [
+  {
+   "type": "dashboards",
+   "title": "Monitoring",
+   "tags": [
+    "monitoring"
+   ],
+   "asDropdown": false,
+   "includeVars": false,
+   "keepTime": true,
+   "icon": "external link"
+  }
+ ],
+ "refresh": "30s",
+ "schemaVersion": 39,
+ "tags": [
+  "monitoring",
+  "overview"
+ ],
+ "panels": [
+  {
+   "type": "stat",
+   "title": "Sites",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 7,
+    "w": 24,
+    "x": 0,
+    "y": 0
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "probe_success",
+     "legendFormat": "{{instance}}",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "DOWN",
+         "color": "red",
+         "index": 0
+        },
+        "1": {
+         "text": "UP",
+         "color": "green",
+         "index": 1
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "justifyMode": "center",
+    "orientation": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "table",
+   "title": "Firing alerts",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 14,
+    "x": 0,
+    "y": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "ALERTS{alertstate=\"firing\"}",
+     "legendFormat": "",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value": true,
+       "__name__": true,
+       "alertstate": true,
+       "job": true,
+       "state": true,
+       "name": true
+      },
+      "renameByName": {
+       "alertname": "Alert",
+       "severity": "Severity",
+       "instance": "Target"
+      }
+     }
+    },
+    {
+     "id": "sortBy",
+     "options": {
+      "fields": {},
+      "sort": [
+       {
+        "field": "Severity"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Failed units",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 4,
+    "w": 5,
+    "x": 14,
+    "y": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(node_systemd_unit_state{state=\"failed\"} == 1) or vector(0)",
+     "legendFormat": "",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "stat",
+   "title": "5xx share",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 4,
+    "w": 5,
+    "x": 19,
+    "y": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 * (sum(rate(caddy_http_response_duration_seconds_count{code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(caddy_http_response_duration_seconds_count[5m])), 0.001)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       },
+       {
+        "color": "red",
+        "value": 5
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "stat",
+   "title": "p95 latency",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 4,
+    "w": 5,
+    "x": 14,
+    "y": 11
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(caddy_http_request_duration_seconds_bucket[5m])))",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.5
+       },
+       {
+        "color": "red",
+        "value": 2
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Requests / s",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 4,
+    "w": 5,
+    "x": 19,
+    "y": 11
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(rate(caddy_http_requests_total[5m]))",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "gauge",
+   "title": "CPU",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 6,
+    "w": 8,
+    "x": 0,
+    "y": 15
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 80
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showThresholdLabels": false,
+    "showThresholdMarkers": true
+   }
+  },
+  {
+   "type": "gauge",
+   "title": "Memory",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 6,
+    "w": 8,
+    "x": 8,
+    "y": 15
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 80
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showThresholdLabels": false,
+    "showThresholdMarkers": true
+   }
+  },
+  {
+   "type": "gauge",
+   "title": "Disk /",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 6,
+    "w": 8,
+    "x": 16,
+    "y": 15
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} * 100)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 80
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showThresholdLabels": false,
+    "showThresholdMarkers": true
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "TLS certificate, days left",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 9,
+    "w": 12,
+    "x": 0,
+    "y": 21
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sort((probe_ssl_earliest_cert_expiry - time()) / 86400)",
+     "legendFormat": "{{instance}}",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "d",
+     "min": 0,
+     "max": 90,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 14
+       },
+       {
+        "color": "green",
+        "value": 30
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showUnfilled": true
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Uptime, last 24h",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 9,
+    "w": 12,
+    "x": 12,
+    "y": 21
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sort(avg_over_time(probe_success[24h]) * 100)",
+     "legendFormat": "{{instance}}",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 90,
+     "max": 100,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 99
+       },
+       {
+        "color": "green",
+        "value": 99.9
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "showUnfilled": true
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Probe response time",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 30
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "probe_duration_seconds",
+     "legendFormat": "{{instance}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "fillOpacity": 0,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "5xx per host",
+   "datasource": "Loki",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 30
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (request_host) (rate({job=\"caddy\", status=~\"5..\"} |= \"http.log.access\" [$__auto]))",
+     "legendFormat": "{{request_host}}",
+     "queryType": "range"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "fillOpacity": 30,
+      "stacking": {
+       "mode": "normal"
+      },
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   }
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "timezone": "browser",
+ "title": "Is it on fire",
+ "uid": "on-fire"
+}

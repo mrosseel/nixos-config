@@ -9,10 +9,10 @@
 # by ./deploy-hexagonia.sh in the game's own repository, because it is built
 # with npm and wasm-pack rather than by this flake.
 #
-# The server holds every running game in memory. A restart therefore ends
-# every game in progress, which is what the game already survives: a room
-# that no longer answers tells its clients so, and nobody loses an account,
-# because there are no accounts yet.
+# The server holds every running game in memory, so a restart still ends
+# every game in progress. Finished games outlive it: they are written to
+# /var/lib/hexagonia/hexagonia.db, which is the one thing here that cannot
+# be rebuilt and the one thing worth backing up.
 
 let
   package = inputs.hexagonia.packages.${pkgs.system}.default;
@@ -47,7 +47,8 @@ in
       ExecStart = ''
         ${package}/bin/hexagonia-server \
           --bind 127.0.0.1:${toString port} \
-          --cors-origin https://hextopia.miker.be
+          --cors-origin https://hextopia.miker.be \
+          --db /var/lib/hexagonia/hexagonia.db
       '';
       # The secret is read from a file the deploy writes once. A missing file
       # is not fatal: the server says so and signs with a key of its own.
