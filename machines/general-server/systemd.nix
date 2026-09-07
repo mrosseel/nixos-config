@@ -92,7 +92,7 @@ in
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/pifinder_shopping/";
-      ExecStart = "${pkgs.nix}/bin/nix develop --command uv run shop_page.py --prod";
+      ExecStart = "${pkgs.nix}/bin/nix develop .#server --command uv run --no-dev shop_page.py --prod";
       Restart = "on-failure";
     };
   };
