@@ -542,7 +542,16 @@
         handle @api {
           # The websocket upgrade needs no special handling here: the proxy
           # carries it.
-          reverse_proxy localhost:8191
+          #
+          # A deploy stops the game server and starts it again, which takes
+          # about three seconds. Caddy holds a request that cannot connect for
+          # up to twenty seconds and dials again every 300 ms, so a restart
+          # costs a player a pause rather than an error. Only a failed dial is
+          # retried, so no request reaches the server twice.
+          reverse_proxy localhost:8191 {
+            lb_try_duration 20s
+            lb_try_interval 300ms
+          }
         }
         handle {
           root * ${inputs.hexagonia.packages.${pkgs.system}.hexagonia-web}
