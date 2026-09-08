@@ -383,11 +383,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1788847827,
-        "narHash": "sha256-oo0ewsWITmTkVfoNylE6Xwgl8EsGE2wn9H1SZZsBPaQ=",
+        "lastModified": 1788852441,
+        "narHash": "sha256-y2gkh5d3kJ1IilKmCWr3f4JfWGUr4IN8XEa59tGs2SQ=",
         "ref": "master",
-        "rev": "5ff08d87241367b63599795ea6005466f577b8e4",
-        "revCount": 189,
+        "rev": "5b4eaf97c3b6e35d414356b2e4749d1ce3298982",
+        "revCount": 199,
         "type": "git",
         "url": "ssh://git@github.com/mrosseel/hexagonia"
       },
