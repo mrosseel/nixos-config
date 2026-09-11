@@ -51,16 +51,17 @@ in
           --cors-origin https://hextopia.miker.be \
           --db /var/lib/hexagonia/hexagonia.db
       '';
-      # Two secrets are read from a file the deploy writes once.
+      # Two settings are read from a file the deploy writes once.
       #
       # HEXAGONIA_SECRET signs guest tokens. Without it the server says so and
       # signs with a key of its own, so every seat is lost on a restart.
       #
-      # HEXAGONIA_ADMIN_TOKEN is the admin key. A request sends it as the
-      # header X-Admin-Token to delete a game, export the history or import a
-      # file, and to see private games in every listing. Without it those
-      # three calls answer 403 and no header opens them; the rest of the
-      # server runs as before.
+      # HEXAGONIA_ADMIN_EMAILS is a comma-separated list of emails. An account
+      # with one of them is promoted to the admin role when it signs in (a
+      # bootstrap; the database keeps the role from then on). An admin sees
+      # private games, deletes, exports and imports, and opens the Settings
+      # and VIPs tabs of the admin page. Without the list, roles are managed
+      # in the database only.
       #
       # A missing file is not fatal. The server starts and prints what it
       # lacks.
