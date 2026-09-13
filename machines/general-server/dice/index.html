@@ -96,10 +96,10 @@
     left: 0; right: 0; bottom: 0;
     display: flex;
     align-items: flex-end;
-    gap: 14px;
-    padding: 20px 16px;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(to top, rgba(5, 15, 13, 0.94) 34%, rgba(5, 15, 13, 0));
+    gap: 12px;
+    padding: 20px 14px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, rgba(5, 15, 13, 0.96) 62%, rgba(5, 15, 13, 0));
     pointer-events: none;
     z-index: 3;
   }
@@ -115,12 +115,12 @@
   .total-value {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-weight: 600;
-    font-size: 44px;
+    font-size: clamp(52px, 15vw, 84px);
     font-variant-numeric: tabular-nums;
     color: var(--bone);
     text-shadow: 0 2px 10px rgba(0,0,0,0.7);
   }
-  .total-value.muted { color: var(--chalk-dim); font-size: 24px; letter-spacing: 0.05em; }
+  .total-value.muted { color: var(--chalk-dim); font-size: clamp(20px, 5.5vw, 28px); letter-spacing: 0.05em; }
 
   .breakdown {
     flex: 1;
@@ -129,7 +129,7 @@
     justify-content: flex-end;
     align-content: flex-end;
     gap: 6px;
-    max-height: 82px;
+    max-height: 116px;
     overflow: hidden;
   }
 
@@ -137,17 +137,17 @@
     display: inline-flex;
     align-items: baseline;
     gap: 5px;
-    padding: 4px 9px;
+    padding: 5px 10px;
     border-radius: 3px;
     border: 1px solid var(--hair);
     background: rgba(9, 26, 21, 0.9);
     font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 12px;
+    font-size: 16px;
     font-variant-numeric: tabular-nums;
     color: var(--bone);
     white-space: nowrap;
   }
-  .chip .die-tag { color: var(--chalk-dim); font-size: 10px; }
+  .chip .die-tag { color: var(--chalk-dim); font-size: 12px; }
   .chip.crit   { border-color: var(--brass); color: var(--brass); }
   .chip.fumble { border-color: var(--oxblood); color: #e0857e; }
 
@@ -169,6 +169,26 @@
   }
   .roll-btn:active { transform: scale(0.95); background: rgba(201, 162, 39, 0.28); }
 
+  /* On a phone the three columns leave the chips about 90px of width, so a
+     roll of eight dice shows two of them. Below 520px the chips take a row
+     of their own above the total. */
+  @media (max-width: 520px) {
+    .readout { flex-wrap: wrap; align-items: center; }
+    .breakdown {
+      order: -1;
+      flex: 0 0 100%;
+      justify-content: flex-start;
+      align-content: flex-start;
+      flex-wrap: wrap;
+      max-height: 104px;
+      overflow-y: auto;
+      pointer-events: auto;
+      scrollbar-width: none;
+    }
+    .breakdown::-webkit-scrollbar { display: none; }
+    .total { flex: 1; }
+  }
+
   [hidden] { display: none !important; }
 
   /* The one control that unlocks shake and tilt. It sits on the felt,
@@ -177,7 +197,7 @@
   .motion-prompt {
     position: fixed;
     left: 50%;
-    bottom: calc(146px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--readout-h, 146px) + 12px);
     transform: translateX(-50%);
     z-index: 4;
     width: min(88vw, 430px);
@@ -1623,6 +1643,19 @@
   window.addEventListener("resize", function () {
     layoutTray();
   });
+
+  /* The readout grows a row when a big roll wraps the chips. The motion
+     prompt sits above it, so its offset follows the measured height. */
+  (function () {
+    var readout = document.querySelector(".readout");
+    function sync() {
+      document.documentElement.style.setProperty(
+        "--readout-h", readout.offsetHeight + "px");
+    }
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(readout);
+    else window.addEventListener("resize", sync);
+    sync();
+  })();
 
   /* ================================ motion =========================== */
 
