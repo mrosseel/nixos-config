@@ -1319,26 +1319,44 @@
     hideHint();
 
     var p = power == null ? 1 : Math.min(2.4, power);
-    var edge = rnd() < 0.5 ? -1 : 1;
 
-    allDice.forEach(function (d, i) {
+    /* Each die is thrown from where it already lies. Teleporting them to
+       the edge first made every shake look like a cut to a new shot. */
+    allDice.forEach(function (d) {
       d.value = null;
       var b = d.body;
-      b.position.set(
-        sym() * Math.max(0.4, halfW - 1.4),
-        3.2 + rnd() * 5 + i * 0.35,
-        edge * (halfD - 1.6) + sym() * 1.2
-      );
-      randomOrientation(b.quaternion);
-      /* Throw speed follows the tray, so a big screen is not sluggish.
-         At the tested tray depth this is the same 7 to 16 as before. */
-      var sp = (0.9 + rnd() * 1.15) * halfD * p;
-      b.velocity.set(
-        (dirX || sym() * 0.6) * sp,
-        -3 - rnd() * 6,
-        (dirZ || -edge * (0.7 + rnd() * 0.6)) * sp
-      );
-      b.angularVelocity.set(sym() * 26 * p, sym() * 26 * p, sym() * 26 * p);
+
+      /* Without a swipe direction, each die picks its own, so a tight
+         cluster spreads out instead of moving as one block. */
+      var ax = dirX || 0, az = dirZ || 0;
+      if (!ax && !az) {
+        var a = rnd() * Math.PI * 2;
+        ax = Math.cos(a);
+        az = Math.sin(a);
+      }
+      var spread = 0.5;
+      ax += sym() * spread;
+      az += sym() * spread;
+
+      /* Throw speed follows the tray, so a big screen is not sluggish. */
+      var sp = (0.55 + rnd() * 0.55) * halfD * p;
+      b.velocity.x += ax * sp;
+      b.velocity.z += az * sp;
+      b.velocity.y += (7 + rnd() * 6) * p;
+      b.angularVelocity.x += sym() * 30 * p;
+      b.angularVelocity.y += sym() * 30 * p;
+      b.angularVelocity.z += sym() * 30 * p;
+
+      /* Impulses stack, so a fast repeat shake could otherwise build a
+         speed the walls cannot hold. */
+      var vmax = halfD * 3.2;
+      var v = b.velocity;
+      var vm = Math.hypot(v.x, v.y, v.z);
+      if (vm > vmax) {
+        var f = vmax / vm;
+        v.x *= f; v.y *= f; v.z *= f;
+      }
+
       b.wakeUp();
     });
 
