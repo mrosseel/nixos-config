@@ -206,8 +206,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 14px;
-    padding: 18px 24px;
+    gap: 0;
+    padding: 0;
     border-radius: 18px;
     border: 2px solid var(--brass);
     background: rgba(30, 24, 6, 0.92);
@@ -239,6 +239,27 @@
     90% { transform: rotate(-8deg); }
   }
   @media (prefers-reduced-motion: reduce) { .shake-icon { animation: none; } }
+
+  .mp-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 62px;
+    padding: 16px 6px 16px 22px;
+  }
+  /* Its own target, well clear of the main one, so a thumb aiming to
+     grant motion does not dismiss the prompt instead. */
+  .mp-x {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding: 0 18px 0 12px;
+    opacity: 0.55;
+  }
+  .mp-x svg { width: 19px; height: 19px; }
+  .mp-x:active { opacity: 1; }
 
   .hint {
     position: fixed;
@@ -514,14 +535,21 @@
 
 <p class="hint" id="hint">Shake the phone, or stir the felt with a finger</p>
 
-<button class="motion-prompt" id="motionPrompt" hidden>
-  <svg class="shake-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <rect x="7" y="2" width="10" height="20" rx="2.4"></rect>
-    <path d="M11 18.6h2"></path>
-    <path d="M3.4 8.4L1.8 10l1.6 1.6M20.6 8.4L22.2 10l-1.6 1.6"></path>
-  </svg>
-  <span id="motionPromptText">Enable shake &amp; tilt</span>
-</button>
+<div class="motion-prompt" id="motionPrompt" hidden>
+  <button class="mp-main" id="motionPromptMain">
+    <svg class="shake-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="7" y="2" width="10" height="20" rx="2.4"></rect>
+      <path d="M11 18.6h2"></path>
+      <path d="M3.4 8.4L1.8 10l1.6 1.6M20.6 8.4L22.2 10l-1.6 1.6"></path>
+    </svg>
+    <span id="motionPromptText">Enable shake &amp; tilt</span>
+  </button>
+  <button class="mp-x" id="motionPromptDismiss" aria-label="Dismiss. Roll without shake and tilt.">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18"></path>
+    </svg>
+  </button>
+</div>
 
 <div class="readout">
   <div class="total">
@@ -560,6 +588,10 @@
         <button role="radio" data-speed="normal" aria-checked="true">Normal</button>
         <button role="radio" data-speed="fast" aria-checked="false">Fast</button>
       </div>
+    </div>
+    <div class="opt">
+      <span id="promptLabel">Shake &amp; tilt prompt<span class="sub">The button on the felt that asks for the motion sensor</span></span>
+      <button class="switch" id="promptSw" role="switch" aria-checked="true" aria-labelledby="promptLabel"></button>
     </div>
     <div class="opt">
       <span id="tiltLabel">Tilt gravity<span class="sub">Dice roll toward the low edge of the phone</span></span>
@@ -690,7 +722,7 @@
 
   /* ============================== settings =========================== */
 
-  var defaults = { counts: { d6: 2, d20: 1 }, sens: 16, speed: "normal", tilt: true, sfx: true };
+  var defaults = { counts: { d6: 2, d20: 1 }, sens: 16, speed: "normal", prompt: true, tilt: true, sfx: true };
   var settings = load();
 
   function load() {
@@ -708,6 +740,7 @@
       }
       if (s && isFinite(s.sens)) out.sens = Math.min(34, Math.max(6, s.sens));
       if (s && SPEEDS[s.speed]) out.speed = s.speed;
+      if (s && typeof s.prompt === "boolean") out.prompt = s.prompt;
       if (s && typeof s.tilt === "boolean") out.tilt = s.tilt;
       if (s && typeof s.sfx === "boolean") out.sfx = s.sfx;
     } catch (e) {}
@@ -1413,13 +1446,6 @@
       ax += sym() * spread;
       az += sym() * spread;
 
-      /* The die keeps its place but not its facing. Throwing from the
-         resting orientation left the old face correlated with the new
-         one: over 120 fast rolls of 8d6 a die repeated its previous
-         face 20.9% of the time against the 16.7% chance allows. The
-         die does not move, so this is not the jump that teleporting
-         the position was. */
-      randomOrientation(b.quaternion);
 
       /* Throw speed follows the tray, so a big screen is not sluggish. */
       var sp = (0.55 + rnd() * 0.55) * halfD * p;
@@ -1843,6 +1869,7 @@
      feature they came for, so it lives on the felt until motion is
      actually delivering events, not merely permitted. */
   function showPrompt(label) {
+    if (!settings.prompt) return;
     motionPromptText.textContent = label;
     motionPrompt.hidden = false;
     hideHint();   /* one message on the felt at a time */
@@ -1850,6 +1877,16 @@
   function hidePrompt() {
     motionPrompt.hidden = true;
   }
+
+  /* Dismissing is remembered. Motion can still be granted later from the
+     settings sheet, so this hides the prompt without closing the door. */
+  document.getElementById("motionPromptDismiss").addEventListener("click", function () {
+    settings.prompt = false;
+    save();
+    hidePrompt();
+    syncPrompt();
+    hint.textContent = "Stir the felt with a finger, or tap to roll";
+  });
   function motionLive() {
     return sensor.dmEvents > 0;
   }
@@ -1876,7 +1913,7 @@
     });
   }
 
-  motionPrompt.addEventListener("click", function () {
+  document.getElementById("motionPromptMain").addEventListener("click", function () {
     showPrompt("Asking\u2026");
     requestMotion(function (state) {
       if (state === "denied") {
@@ -2119,6 +2156,18 @@
     settings.speed = btn.dataset.speed;
     syncSpeed();
     save();
+  });
+
+  var promptSw = document.getElementById("promptSw");
+  function syncPrompt() {
+    promptSw.setAttribute("aria-checked", settings.prompt ? "true" : "false");
+  }
+  syncPrompt();
+  promptSw.addEventListener("click", function () {
+    settings.prompt = !settings.prompt;
+    save();
+    syncPrompt();
+    if (settings.prompt) startMotion(); else hidePrompt();
   });
 
   var tiltBtn = document.getElementById("tilt");
