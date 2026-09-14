@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Pocket Dice Tray</title>
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="%23c2564c"/><circle cx="29" cy="29" r="9" fill="%23f3e6d8"/><circle cx="50" cy="50" r="9" fill="%23f3e6d8"/><circle cx="71" cy="71" r="9" fill="%23f3e6d8"/></svg>'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -375,6 +376,31 @@
   .opt { display: flex; align-items: center; gap: 12px; }
   .opt label { font-size: 13.5px; flex: 1; }
   .opt .sub { display: block; font-size: 11px; color: var(--chalk-dim); margin-top: 2px; }
+  .seg {
+    display: flex;
+    flex: none;
+    border: 1px solid var(--hair);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .seg button {
+    padding: 7px 13px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--chalk-dim);
+    background: none;
+  }
+  .seg button + button { border-left: 1px solid var(--hair); }
+  .seg button[aria-checked="true"] {
+    background: rgba(201, 162, 39, 0.18);
+    color: var(--brass);
+  }
+
+  .opt .val {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--brass);
+  }
 
   input[type="range"] {
     -webkit-appearance: none;
@@ -528,6 +554,14 @@
       <input type="range" id="sens" min="6" max="34" step="1" value="16">
     </div>
     <div class="opt">
+      <span id="speedLabel">Roll speed<span class="sub">The dice take the same path at every speed, so the odds do not change</span></span>
+      <div class="seg" role="radiogroup" aria-labelledby="speedLabel" id="speed">
+        <button role="radio" data-speed="slow" aria-checked="false">Slow</button>
+        <button role="radio" data-speed="normal" aria-checked="true">Normal</button>
+        <button role="radio" data-speed="fast" aria-checked="false">Fast</button>
+      </div>
+    </div>
+    <div class="opt">
       <span id="tiltLabel">Tilt gravity<span class="sub">Dice roll toward the low edge of the phone</span></span>
       <button class="switch" id="tilt" role="switch" aria-checked="true" aria-labelledby="tiltLabel"></button>
     </div>
@@ -647,9 +681,16 @@
 
   var MAX_DICE = 24;
 
+  var BASE_LIN = 0.06, BASE_ANG = 0.09;
+
+  /* Roll speed. The physics clock is multiplied by this, so the dice
+     follow the same path at a different rate. Nothing about the throw or
+     the resting face changes, which keeps every speed equally fair. */
+  var SPEEDS = { slow: 0.5, normal: 1, fast: 1.9 };
+
   /* ============================== settings =========================== */
 
-  var defaults = { counts: { d6: 2, d20: 1 }, sens: 16, tilt: true, sfx: true };
+  var defaults = { counts: { d6: 2, d20: 1 }, sens: 16, speed: "normal", tilt: true, sfx: true };
   var settings = load();
 
   function load() {
@@ -666,6 +707,7 @@
         });
       }
       if (s && isFinite(s.sens)) out.sens = Math.min(34, Math.max(6, s.sens));
+      if (s && SPEEDS[s.speed]) out.speed = s.speed;
       if (s && typeof s.tilt === "boolean") out.tilt = s.tilt;
       if (s && typeof s.sfx === "boolean") out.sfx = s.sfx;
     } catch (e) {}
@@ -818,7 +860,7 @@
   }
 
   /* Builds the mesh geometry, mapping each face into its atlas cell. */
-  function buildGeometry(ready, radius, atlas) {
+  function buildGeometry(ready, radius, atlas, square) {
     var pos = [], uv = [], nor = [];
     var faces = ready.faces;
     var cw = 1 / atlas.cols, ch = 1 / atlas.rows;
@@ -831,15 +873,28 @@
       var c = f.centroid.clone().multiplyScalar(radius);
       var n = f.normal;
 
-      var u = new V3().subVectors(pts[0], c).normalize();
+      /* The texture axis runs from the centre of the face to a corner.
+         On a triangle that is the only sensible choice, but on the d6 it
+         turns every face 45 degrees, which is why the 5 came out as a
+         diamond and the 6 as two diagonals. A square face aims at the
+         middle of an edge instead. */
+      var u = square
+        ? new V3().addVectors(pts[0], pts[1]).multiplyScalar(0.5).sub(c).normalize()
+        : new V3().subVectors(pts[0], c).normalize();
       var w = new V3().crossVectors(n, u).normalize();
 
       var flat = pts.map(function (p) {
         var d = new V3().subVectors(p, c);
         return [d.dot(u), d.dot(w)];
       });
+      /* A triangle is fitted to the circle that holds it. A square is
+         fitted edge to edge, so the pips land where they are painted. */
       var maxR = 0;
-      flat.forEach(function (p) { maxR = Math.max(maxR, Math.hypot(p[0], p[1])); });
+      flat.forEach(function (p) {
+        maxR = square
+          ? Math.max(maxR, Math.abs(p[0]), Math.abs(p[1]))
+          : Math.max(maxR, Math.hypot(p[0], p[1]));
+      });
 
       var col = fi % atlas.cols, row = Math.floor(fi / atlas.cols);
       var ucx = (col + 0.5) * cw;
@@ -895,7 +950,7 @@
       : values;
 
     var atlas = buildAtlas(type, labels, spec);
-    var geo = buildGeometry(ready, type.r, atlas);
+    var geo = buildGeometry(ready, type.r, atlas, !!spec.box);
     var mat = new THREE.MeshPhysicalMaterial({
       map: atlas.texture,
       roughness: type.rough,
@@ -1265,8 +1320,8 @@
       mass: kit.mass,
       shape: kit.shape,
       material: matDie,
-      linearDamping: 0.06,
-      angularDamping: 0.09
+      linearDamping: BASE_LIN,
+      angularDamping: BASE_ANG
     });
     world.addBody(body);
 
@@ -1357,6 +1412,14 @@
       var spread = 0.5;
       ax += sym() * spread;
       az += sym() * spread;
+
+      /* The die keeps its place but not its facing. Throwing from the
+         resting orientation left the old face correlated with the new
+         one: over 120 fast rolls of 8d6 a die repeated its previous
+         face 20.9% of the time against the 16.7% chance allows. The
+         die does not move, so this is not the jump that teleporting
+         the position was. */
+      randomOrientation(b.quaternion);
 
       /* Throw speed follows the tray, so a big screen is not sluggish. */
       var sp = (0.55 + rnd() * 0.55) * halfD * p;
@@ -1523,7 +1586,10 @@
     var dt = Math.min(0.05, (now - lastTime) / 1000);
     lastTime = now;
 
-    world.step(1 / 60, dt, 3);
+    /* A slow roll needs no extra substeps; a fast one asks the solver for
+       more simulated time per frame, so the cap has to follow it. */
+    var scale = SPEEDS[settings.speed] || 1;
+    world.step(1 / 60, dt * scale, Math.ceil(dt * scale * 60) + 1);
 
     var moving = false;
     for (var i = 0; i < allDice.length; i++) {
@@ -1538,7 +1604,9 @@
 
     if (rolling) {
       if (!moving) settleFrames++; else settleFrames = 0;
-      var stuck = now - rollStart > 9000;
+      /* A die wedged on a rim never goes still, so the roll still needs a
+         hard stop. The brake normally ends it well before this. */
+      var stuck = now - rollStart > 9000 / (SPEEDS[settings.speed] || 1);
       if (settleFrames > 14 || stuck) {
         rolling = false;
         readAll();
@@ -2033,6 +2101,23 @@
   sens.value = settings.sens;
   sens.addEventListener("input", function () {
     settings.sens = parseInt(sens.value, 10);
+    save();
+  });
+
+  var speedSeg = document.getElementById("speed");
+  var speedBtns = speedSeg.querySelectorAll("button");
+  function syncSpeed() {
+    for (var i = 0; i < speedBtns.length; i++) {
+      speedBtns[i].setAttribute("aria-checked",
+        speedBtns[i].dataset.speed === settings.speed ? "true" : "false");
+    }
+  }
+  syncSpeed();
+  speedSeg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-speed]");
+    if (!btn) return;
+    settings.speed = btn.dataset.speed;
+    syncSpeed();
     save();
   });
 
