@@ -1446,6 +1446,16 @@
       ax += sym() * spread;
       az += sym() * spread;
 
+      /* The die keeps its place but not its facing. Thrown from the face
+         it was already showing, it keeps a trace of it: over 4000 results
+         a Fast roll repeated the previous face 20.1% of the time against
+         the 16.7% chance allows, and the transition matrix failed too,
+         chi2 52 against a 37.7 cutoff. Spinning the dice twice as hard
+         did not shift it. Re-seating here did, to 16.95% and chi2 27.6.
+         The die does not move, so this is not the jump that moving the
+         position was. */
+      randomOrientation(b.quaternion);
+
 
       /* Throw speed follows the tray, so a big screen is not sluggish. */
       var sp = (0.55 + rnd() * 0.55) * halfD * p;
@@ -1621,6 +1631,7 @@
     for (var i = 0; i < allDice.length; i++) {
       var d = allDice[i];
       var b = d.body;
+
       d.mesh.position.set(b.position.x, b.position.y, b.position.z);
       d.mesh.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
       if (b.velocity.lengthSquared() > 0.02 || b.angularVelocity.lengthSquared() > 0.09) {
