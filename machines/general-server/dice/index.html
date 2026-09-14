@@ -106,6 +106,7 @@
   }
 
   .total { display: flex; flex-direction: column; line-height: 1; flex: none; }
+  .readout { --total-size: clamp(52px, 15vw, 84px); }
   .total-label {
     font-size: 10px;
     letter-spacing: 0.2em;
@@ -116,10 +117,19 @@
   .total-value {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-weight: 600;
-    font-size: clamp(52px, 15vw, 84px);
+    font-size: var(--total-size);
     font-variant-numeric: tabular-nums;
     color: var(--bone);
     text-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    /* The readout swaps a big number for the smaller word "rolling". The
+       big line box is reserved in both states, or the Roll button beside
+       it moves every time a roll starts and ends. The width holds four
+       tabular digits, so a tray of 24 d100 totalling 2400 does not push
+       the button either. */
+    display: flex;
+    align-items: flex-end;
+    min-height: var(--total-size);
+    min-width: calc(var(--total-size) * 2.45);
   }
   .total-value.muted { color: var(--chalk-dim); font-size: clamp(20px, 5.5vw, 28px); letter-spacing: 0.05em; }
 
