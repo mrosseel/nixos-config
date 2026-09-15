@@ -496,11 +496,43 @@
               # Omarchy's capture flow owns Print; only redirect where it saves.
               wayland.windowManager.hyprland.settings.env = [ "OMARCHY_SCREENSHOT_DIR,/home/mike/Downloads" ];
 
+              # Window rules. They cannot go in extraConfig: omarchy-nix
+              # translates that line by line and only understands bind and
+              # exec directives, so a windowrule would come out as
+              # "-- [hm-untranslated 'windowrule']" and do nothing. Hyprland
+              # 0.55 loads Lua only, and the require list in hyprland.lua is
+              # fixed, so this file is pulled in from monitors.lua below.
+              xdg.configFile."hypr/windows.lua".text = ''
+                -- Window rules, loaded from monitors.lua.
+                -- See https://wiki.hypr.land/Configuring/Basics/Window-Rules/
+
+                -- The Android emulator opens two windows and both are class
+                -- Emulator: the phone, and a narrow strip of controls beside
+                -- it. Tiled, the phone takes a whole column of the workspace
+                -- for something that only needs to be glanced at, so both
+                -- float and the phone gets a size that suits a 1920x1200
+                -- screen.
+                o.window({ class = "^Emulator$", title = "^Android Emulator" }, {
+                  float = true,
+                  size = { 380, 800 },
+                  center = true,
+                })
+
+                o.window({ class = "^Emulator$", title = "^Emulator$" }, {
+                  float = true,
+                })
+              '';
+
               # Managing this file here makes it read-only, so the omarchy-menu
               # Setup > Monitors editor cannot write to it anymore.
               xdg.configFile."hypr/monitors.lua".text = ''
                 -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
                 -- List current monitors and supported resolutions with: hyprctl monitors all
+
+                -- hyprland.lua has a fixed require list and no slot for window
+                -- rules, so they are bootstrapped from here. They live in
+                -- hypr/windows.lua, not in this file.
+                require("hypr.windows")
 
                 local omarchy_gdk_scale = 1
                 local omarchy_monitor_scale = 1
