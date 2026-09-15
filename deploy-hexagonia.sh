@@ -39,12 +39,13 @@ fi
 # hexagonia.db-wal and not in hexagonia.db: on 11 September 2026 the file was
 # 4096 bytes beside a 2.2 MB WAL, and every cp backup taken until then held an
 # empty database. `.backup` reads through the WAL and writes one whole file.
+#
+# sqlite3 is in the server's systemPackages (machines/general-server/1901.nix),
+# so it is on PATH and needs no hunting through the store.
 echo -n "backing up the database ... "
-ssh mike@pifinder.eu "
-  sqlite3=\$(command -v sqlite3 || ls -1d /nix/store/*-sqlite-*/bin/sqlite3 | head -1)
-  sudo \"\$sqlite3\" /var/lib/hexagonia/hexagonia.db \
-    \".backup '/var/lib/hexagonia/hexagonia.db.bak-$(date +%Y%m%d-%H%M%S)'\"
-" && echo "done" || echo "FAILED — no backup was taken"
+ssh mike@pifinder.eu "sudo sqlite3 /var/lib/hexagonia/hexagonia.db \
+  \".backup '/var/lib/hexagonia/hexagonia.db.bak-$(date +%Y%m%d-%H%M%S)'\"" \
+  && echo "done" || echo "FAILED — no backup was taken"
 
 nixos-rebuild switch \
   --flake .#general-server \
