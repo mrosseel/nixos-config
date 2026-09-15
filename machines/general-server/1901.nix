@@ -59,4 +59,14 @@ in
       SystemCallArchitectures = "native";
     };
   };
+
+  # sqlite3 for the deploy's backup. The database runs in WAL mode, so `cp`
+  # of 1901.db alone takes the last checkpointed state and leaves everything
+  # since in the -wal file beside it. That is not theoretical: on 2026-09-15
+  # the main file had not been written since 2026-09-02 and the backup it
+  # produced held 18 dead test games and none of the live ones.
+  #
+  # `sqlite3 ... .backup` reads through the WAL and writes one consistent
+  # file, and it is safe while the service is writing. deploy1901.sh calls it.
+  environment.systemPackages = [ pkgs.sqlite ];
 }

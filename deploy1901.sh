@@ -31,9 +31,32 @@ fi
 # migration that goes wrong, or a rollback across one, has nothing to go back
 # to without this. Cheap, and the only line here that protects data rather
 # than convenience.
+#
+# It has to be sqlite3's own .backup and not cp. The database runs in WAL
+# mode, so 1901.db holds only what was last checkpointed and everything since
+# lives in 1901.db-wal next to it. The server never closes the database (it
+# ends at log.Fatal on SIGTERM), so nothing checkpoints on the way out. On
+# 2026-09-15 the main file had not been written since 2026-09-02: the cp
+# backup held 18 dead test games and not one live board.
+#
+# The verify is part of the backup, not decoration. A backup nobody counted
+# is what produced that.
+stamp=$(date +%Y%m%d-%H%M%S)
+backup=/var/lib/1901/1901.db.bak-$stamp
 echo -n "backing up the database ... "
-ssh mike@pifinder.eu "sudo cp -a /var/lib/1901/1901.db /var/lib/1901/1901.db.bak-$(date +%Y%m%d-%H%M%S)" \
-  && echo "done" || echo "FAILED — no backup was taken"
+if ssh mike@pifinder.eu "sudo -u d1901 sqlite3 /var/lib/1901/1901.db \".backup '$backup'\""; then
+  live=$(ssh mike@pifinder.eu "sudo -u d1901 sqlite3 /var/lib/1901/1901.db 'SELECT count(*) FROM game;'")
+  kept=$(ssh mike@pifinder.eu "sudo -u d1901 sqlite3 $backup 'SELECT count(*) FROM game;'")
+  if [[ $kept == "$live" && $kept -gt 0 ]]; then
+    echo "done, $kept games"
+  else
+    echo "the backup holds $kept games and the live database holds $live"
+    exit 1
+  fi
+else
+  echo "FAILED — no backup was taken"
+  exit 1
+fi
 
 nixos-rebuild switch \
   --flake .#general-server \
