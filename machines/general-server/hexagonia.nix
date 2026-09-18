@@ -65,7 +65,12 @@ in
       #
       # A missing file is not fatal. The server starts and prints what it
       # lacks.
-      EnvironmentFile = "-/var/lib/hexagonia/secret.env";
+      # The deploy script stamps the revision's deployment time separately
+      # from the secrets, so a service restart keeps the original timestamp.
+      EnvironmentFile = [
+        "-/var/lib/hexagonia/secret.env"
+        "-/var/lib/hexagonia/deploy.env"
+      ];
       Restart = "on-failure";
       RestartSec = 5;
 

@@ -16,6 +16,8 @@ set -euo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"
 
+deploy_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 bump=1
 [[ ${1-} == --no-bump ]] && { bump=0; shift; }
 
@@ -30,6 +32,8 @@ if (( bump )); then
     echo "hexagonia is already at the tip of master"
   fi
 fi
+
+ssh mike@pifinder.eu "printf 'HX_DEPLOYED_AT=%s\\n' '$deploy_at' | sudo tee /var/lib/hexagonia/deploy.env >/dev/null"
 
 # Finished games are written to /var/lib/hexagonia/hexagonia.db. Games in
 # progress live in memory and end with the restart either way, but the
