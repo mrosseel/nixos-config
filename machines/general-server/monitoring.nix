@@ -359,6 +359,19 @@ in
         }];
         scrape_interval = "15s";
       }
+      # The game server counts what nothing outside it can see: how long a bot
+      # thinks, how deep its queue is, how many games are running and how many
+      # sockets are open. Without this job the Health tab of its admin console
+      # has no history for any of them. The port is the one hexagonia.nix
+      # binds, and /metrics is open because the server listens on loopback
+      # only and Caddy forwards neither /metrics nor anything but the API.
+      {
+        job_name = "hexagonia";
+        static_configs = [{
+          targets = [ "127.0.0.1:8191" ];
+        }];
+        scrape_interval = "15s";
+      }
     ] ++ blackboxJobs;
 
     ruleFiles = [
