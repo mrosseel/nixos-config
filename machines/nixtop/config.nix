@@ -540,25 +540,94 @@ in
   '';
 
   # Service to fix Elgato Wave 3 audio on connect (follows omarchy-fix-usb-audio pattern)
+  #
+  # Re-seating the card profile is not enough on its own: the Wave:3 can
+  # re-enumerate cleanly, expose a source that pactl reports as RUNNING, and
+  # still deliver zero capture frames, with nothing logged by the kernel or by
+  # PipeWire. The only reliable signal is to capture a sample and count the
+  # bytes, so this service verifies capture before it reports success and
+  # escalates through wireplumber, then the whole PipeWire stack, if the
+  # sample comes back empty. fix-wave3 (USB port power-cycle) stays the manual
+  # last resort for the firmware-level hang that no restart can clear.
   systemd.user.services.elgato-audio-restart = {
     description = "Fix Elgato Wave 3 audio";
-    path = [ pkgs.pulseaudio pkgs.alsa-utils pkgs.coreutils ];
+    # gawk/gnugrep are required by the card-profile loop below; without them it
+    # fails silently ("awk: command not found") and no profile is ever reset.
+    path = [
+      pkgs.pulseaudio
+      pkgs.alsa-utils
+      pkgs.coreutils
+      pkgs.gawk
+      pkgs.gnugrep
+      pkgs.systemd
+      pkgs.libnotify
+    ];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = pkgs.writeShellScript "fix-elgato-audio" ''
+        wave_source() {
+          pactl list sources short 2>/dev/null | grep -iE 'input.*wave' | awk '{print $2}' | head -1
+        }
+
+        reset_audio() {
+          # Reset profile like omarchy-fix-usb-audio
+          for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk '{print $2}'); do
+            pactl set-card-profile "$card" off 2>/dev/null
+            sleep 0.3
+            pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null
+          done
+          sleep 0.5
+          # Set mic volume and unmute (USB reset causes hardware mute)
+          amixer -c Wave3 sset Mic 80% 2>/dev/null
+          src=$(wave_source)
+          if [ -n "$src" ]; then
+            pactl set-source-mute "$src" 0 2>/dev/null
+            # Set as default source
+            pactl set-default-source "$src" 2>/dev/null
+          fi
+        }
+
+        # A source that exists is not a source that records, so count real bytes.
+        # parec needs ~1.3s to connect and flushes in 64K blocks, so a 2s window
+        # reports zero on a healthy mic roughly half the time; 4s is stable.
+        capture_works() {
+          src=$(wave_source)
+          [ -n "$src" ] || return 1
+          bytes=$(timeout 4 parec --device="$src" --raw 2>/dev/null | wc -c)
+          [ "$bytes" -gt 0 ]
+        }
+
         sleep 2
-        # Reset profile like omarchy-fix-usb-audio
-        for card in $(pactl list cards short 2>/dev/null | grep -i elgato | awk '{print $2}'); do
-          pactl set-card-profile "$card" off 2>/dev/null
-          sleep 0.3
-          pactl set-card-profile "$card" output:analog-stereo+input:mono-fallback 2>/dev/null
-        done
-        sleep 0.5
-        # Set mic volume and unmute (USB reset causes hardware mute)
-        amixer -c Wave3 sset Mic 80% 2>/dev/null
-        pactl set-source-mute alsa_input.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00.mono-fallback 0 2>/dev/null
-        # Set as default source
-        pactl set-default-source alsa_input.usb-Elgato_Systems_Elgato_Wave_3_BS33J1A02510-00.mono-fallback 2>/dev/null
+        reset_audio
+
+        if capture_works; then
+          exit 0
+        fi
+
+        echo "Wave:3 exposes a source but captures nothing - restarting wireplumber" >&2
+        systemctl --user restart wireplumber
+        sleep 3
+        reset_audio
+
+        if capture_works; then
+          echo "Wave:3 capture recovered after wireplumber restart" >&2
+          exit 0
+        fi
+
+        echo "Still no capture - restarting the full PipeWire stack" >&2
+        systemctl --user restart pipewire pipewire-pulse wireplumber
+        sleep 4
+        reset_audio
+
+        if capture_works; then
+          echo "Wave:3 capture recovered after PipeWire restart" >&2
+          exit 0
+        fi
+
+        echo "Wave:3 still captures zero frames after both restarts" >&2
+        notify-send -u critical -i audio-input-microphone \
+          "Wave:3 mic" "Captures nothing after a PipeWire restart. Run fix-wave3." 2>/dev/null || true
+        exit 1
       '';
     };
   };
