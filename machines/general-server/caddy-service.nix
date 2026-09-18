@@ -5,6 +5,22 @@
  services.caddy = {
     enable = true;
     globalConfig = ''
+      # How long a reload waits for the connections of the old server before
+      # it closes them. Caddy's default is eternal, so a reload can wait for
+      # ever.
+      #
+      # A deploy is where that bites. systemd stops a backend this host
+      # proxies, and Caddy holds each waiting request against a service that
+      # is down. Clients retry every few seconds, so the set of open
+      # connections refills and never reaches zero. On 18 September 2026 a
+      # reload on hexalon.io waited until systemd killed it ninety seconds
+      # later, and the deploy reported failure on a machine that had already
+      # switched. This host runs the same shape of deploy.
+      #
+      # Ten seconds bounds it. Every ordinary request finishes well inside
+      # that, and a request cut short is one a client retries.
+      grace_period 10s
+
       servers {
         metrics
       }
