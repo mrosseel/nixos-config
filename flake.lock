@@ -193,6 +193,27 @@
         "type": "github"
       }
     },
+    "disko_2": {
+      "inputs": {
+        "nixpkgs": [
+          "hexagonia",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1781152676,
+        "narHash": "sha256-RxWs5ND31KzTG7wvMM+PMfUjyNpmIEr999lqNARaM5o=",
+        "owner": "nix-community",
+        "repo": "disko",
+        "rev": "ff8702b4de27f72b4c78573dfb89ec74e36abdf1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "disko",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -376,6 +397,7 @@
     },
     "hexagonia": {
       "inputs": {
+        "disko": "disko_2",
         "flake-utils": "flake-utils_4",
         "nixpkgs": [
           "nixpkgs"
@@ -383,11 +405,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1789684852,
-        "narHash": "sha256-gM5ilvHZag0VP1AjgaNzmNL5dSHKSzo6w3Ru63eXXf4=",
+        "lastModified": 1789740879,
+        "narHash": "sha256-q6in/LD0K2V2nQiE4zlOIbeP82XgK94rX6YiPMPJGeA=",
         "ref": "master",
-        "rev": "55cf480a96e90612bf7809b59b24fcf276d61934",
-        "revCount": 660,
+        "rev": "12bfca3d63f1a6c7d006c11a74920ea6588c289c",
+        "revCount": 714,
         "type": "git",
         "url": "ssh://git@github.com/mrosseel/hexagonia"
       },
