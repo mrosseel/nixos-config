@@ -472,6 +472,9 @@
             };
             # Bound below as SUPER + F1..F10; this only teaches the bar to show them.
             shell.workspace_count = 20;
+            # Replaces the old linuxPackages_7_0 pin in machines/nixtop/configuration.nix.
+            # "omarchy" would build upstream 7.2.5 here instead, about 37 minutes a time.
+            kernel = "zen";
           };
 
           home-manager = {

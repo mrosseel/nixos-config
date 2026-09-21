@@ -14,15 +14,14 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Kernel + firmware sourced from nixpkgs-kernel input. Pinned to the same rev as the
-  # main nixpkgs so the kernel's passthru (buildDTBs, target, ...) matches what the
-  # NixOS modules expect — an older pin skews and fails eval on those attrs.
-  # Currently tracking 7.0.12 — earlier 6.19.10 pin still hung amdgpu (sdma timeouts,
-  # MODE2 resets), so tracking the latest 7.0.x in case newer SMU/DCN3.5 paths are healthier.
-  boot.kernelPackages =
-    let kernelPkgs = import inputs.nixpkgs-kernel { system = "x86_64-linux"; config = config.nixpkgs.config; };
-    in kernelPkgs.linuxPackages_7_0;
-
+  # The kernel now comes from omarchy.kernel = "zen" (see flake.nix), which is
+  # linux-zen 7.2.3. It replaces the old linuxPackages_7_0 pin from the
+  # nixpkgs-kernel input. That pin existed because 6.19.10 hung amdgpu (sdma
+  # timeouts, MODE2 resets) and 7.0.x looked healthier on SMU/DCN3.5. 7.2.3 is
+  # newer than both, so watch amdgpu after this switch.
+  #
+  # Firmware still comes from nixpkgs-kernel: Strix Halo wants a newer
+  # linux-firmware than the main nixpkgs rev carries.
   hardware.firmware = let
     kernelPkgs = import inputs.nixpkgs-kernel { system = "x86_64-linux"; config = config.nixpkgs.config; };
   in [ kernelPkgs.linux-firmware ];
