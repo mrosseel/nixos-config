@@ -1146,11 +1146,11 @@
         "quickshell": "quickshell"
       },
       "locked": {
-        "lastModified": 1788594652,
-        "narHash": "sha256-u8ruQrzrpeH2ds8tGRao70M5h5BAC3o+jvA1Cwz5VUo=",
+        "lastModified": 1789987965,
+        "narHash": "sha256-8qD+DYiobFBxGyCoBYkKxhUph8+NGBK3iNyCg2NBqFo=",
         "owner": "mrosseel",
         "repo": "omarchy-nix",
-        "rev": "aadc5afa0da1814f5b95f8adafdfe49689074a1d",
+        "rev": "10c6bce27f0849a6a8bd42864697b6e51bbbdbcc",
         "type": "github"
       },
       "original": {
