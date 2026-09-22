@@ -51,11 +51,34 @@
       CARGO_BUILD_JOBS = "2";
     };
     serviceOverrides = {
-      # sudo cannot raise a privilege while this is on, and the module sets
-      # it on. The runner's one privileged act is the deploy script the
-      # sudoers rule in testalon.nix names, so turning it off widens nothing
-      # that the rule does not already allow.
+      # sudo needs a process that can gain root. The module's sandbox stops
+      # that in four ways, and each one is off here:
+      #
+      #   - NoNewPrivileges. systemd sets it again, whatever the unit says,
+      #     for a non-root service with a seccomp filter or a kernel
+      #     protection. The process showed NoNewPrivs 1 with the flag off.
+      #   - The seccomp filters: SystemCallFilter, RestrictAddressFamilies,
+      #     RestrictNamespaces, RestrictRealtime and RestrictSUIDSGID.
+      #   - The kernel protections: PrivateDevices, ProtectClock and the
+      #     three ProtectKernel settings.
+      #   - An empty capability bounding set, and a private user namespace.
+      #     Root has no rights in either.
+      #
+      # The rest of the sandbox stays. What sudo may run is the one script
+      # the sudoers rule in testalon.nix names.
       NoNewPrivileges = false;
+      SystemCallFilter = lib.mkForce [ ];
+      RestrictAddressFamilies = lib.mkForce [ ];
+      RestrictNamespaces = false;
+      RestrictRealtime = false;
+      RestrictSUIDSGID = false;
+      PrivateDevices = false;
+      ProtectClock = false;
+      ProtectKernelLogs = false;
+      ProtectKernelModules = false;
+      ProtectKernelTunables = false;
+      CapabilityBoundingSet = lib.mkForce [ ];
+      PrivateUsers = false;
       CPUWeight = 20;
       IOWeight = 20;
       # The tests compile here, not in the daemon: `cargo test` runs inside
