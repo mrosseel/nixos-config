@@ -540,15 +540,17 @@
         }
       '';
     };
-    # Hexagonia — a settlement game (see hexagonia.nix). The Rust server holds
-    # the games and the bots; the frontend is a second package of the same
-    # flake, served straight from the store. Caddy decides which is which, so
-    # the bundle can ask its own origin and work under any host name.
+    # Testalon, the Hexalon test deployment (see testalon.nix). The Rust
+    # server holds the games and the bots; the page is a second package of
+    # the same revision. Caddy decides which is which, so the bundle can ask
+    # its own origin and work under any host name.
     #
-    # Both halves come from one flake input, so a deploy cannot leave the page
-    # on an older revision than the server. There is nothing in /var/www for
-    # this host any more.
-    virtualHosts."hextopia.miker.be" = {
+    # Neither half is in this closure. GitHub deploys both on a push to
+    # master and moves two pointers under /var/lib/testalon, so a rebuild of
+    # this machine does not disturb what is deployed, and a deploy does not
+    # rebuild this machine. The page is read through the pointer on every
+    # request, so it needs no reload here.
+    virtualHosts."testalon.miker.be" = {
       extraConfig = ''
         encode gzip
         # Two handlers, and they must not share: `try_files` rewrites a path
@@ -564,13 +566,13 @@
           # up to twenty seconds and dials again every 300 ms, so a restart
           # costs a player a pause rather than an error. Only a failed dial is
           # retried, so no request reaches the server twice.
-          reverse_proxy localhost:8191 {
+          reverse_proxy localhost:8192 {
             lb_try_duration 20s
             lb_try_interval 300ms
           }
         }
         handle {
-          root * ${inputs.hexagonia.packages.${pkgs.system}.hexagonia-web}
+          root * /var/lib/testalon/web
           # One page, many addresses: a table lives at /?room=..., and a
           # reload must reach the same file rather than a 404.
           try_files {path} /index.html

@@ -21,7 +21,7 @@ let
     { host = "spain2026.miker.be"; icon = "mdi:weather-night"; }
     { host = "hiddentreasures.miker.be"; icon = "mdi:treasure-chest"; }
     { host = "rays.miker.be"; icon = "mdi:moon-waning-crescent"; }
-    { host = "hextopia.miker.be"; path = "/healthz"; icon = "mdi:hexagon-multiple"; name = "hextopia"; }
+    { host = "testalon.miker.be"; path = "/healthz"; icon = "mdi:hexagon-multiple"; name = "testalon"; }
     { host = "joeri.miker.be"; icon = "mdi:account"; }
     { host = "1901.miker.be"; icon = "mdi:calendar"; }
     { host = "shop.starnights.be"; icon = "mdi:cart"; }
@@ -362,13 +362,13 @@ in
       # The game server counts what nothing outside it can see: how long a bot
       # thinks, how deep its queue is, how many games are running and how many
       # sockets are open. Without this job the Health tab of its admin console
-      # has no history for any of them. The port is the one hexagonia.nix
+      # has no history for any of them. The port is the one testalon.nix
       # binds, and /metrics is open because the server listens on loopback
       # only and Caddy forwards neither /metrics nor anything but the API.
       {
-        job_name = "hexagonia";
+        job_name = "testalon";
         static_configs = [{
-          targets = [ "127.0.0.1:8191" ];
+          targets = [ "127.0.0.1:8192" ];
         }];
         scrape_interval = "15s";
       }

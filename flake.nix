@@ -100,18 +100,6 @@
     # our nixpkgs carries, so it keeps the nixpkgs its own flake pins.
     diplomacy1901.url = "github:mrosseel/1901/master";
 
-    # Hexagonia: a settlement game for three or four people, with bots and
-    # hosted tables. Served on general-server at hextopia.miker.be
-    # (machines/general-server/hexagonia.nix).
-    #
-    # The repository is private, so the URL is ssh rather than github:. Only
-    # general-server's configuration reads this input, and only the machine
-    # that deploys it has to reach the repository.
-    hexagonia = {
-      url = "git+ssh://git@github.com/mrosseel/hexagonia?ref=master";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -374,7 +362,7 @@
         ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
         ./machines/general-server/1901.nix
-        ./machines/general-server/hexagonia.nix
+        ./machines/general-server/testalon.nix
         inputs.pifinder-server.nixosModules.default
         ./modules/simple-mail-server.nix
         ./modules/python.nix
