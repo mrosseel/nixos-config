@@ -39,6 +39,11 @@
     # then lives in memory: a run died with "No space left on device" at
     # 1.5 GB, and the one before it crawled because those files were
     # counted against the service's own memory allowance.
+    #
+    # The module empties this directory every time the service starts. The
+    # checkout and its Rust target directory go with it, so the first run
+    # after a restart compiles from zero: about 13 minutes, against 5 when
+    # the target directory is there.
     workDir = "/var/lib/github-runner/testalon-work";
     # The service runs with an environment of its own, and the system's
     # nix.conf does not reach it: a job's first `nix develop` failed with
