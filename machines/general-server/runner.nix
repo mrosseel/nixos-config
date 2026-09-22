@@ -6,7 +6,7 @@
 # A push to hexagonia's master wakes this runner. It checks the commit out,
 # builds the two packages here and moves the pointers testalon.nix reads. No
 # key exists that reaches this machine from outside, and nothing is copied
-# in: see testalon.nix, where the deploy used to arrive over SSH.
+# in.
 #
 # **The limits belong on the nix daemon, not on the runner.** A build does not
 # run in the process that asked for it. `nix build` hands the work to
@@ -19,6 +19,27 @@
 # production, so `MemoryHigh` sits below that on purpose. A squeezed build is
 # slower. A killed mail server is worse.
 
+let
+  # Runs before every job, and a failure here fails the job before its first
+  # step. A workflow on any branch can ask for this runner by its label, so
+  # this is what keeps it to the one workflow it exists for.
+  #
+  # The runner sets these variables, and a workflow cannot overwrite a
+  # GITHUB_ variable. The name ends in .sh because the runner picks the
+  # interpreter by the extension.
+  jobStarted = pkgs.writeShellScript "testalon-job-started.sh" ''
+    want=mrosseel/hexagonia/.github/workflows/testalon.yml@refs/heads/master
+    echo "job: $GITHUB_EVENT_NAME $GITHUB_WORKFLOW_REF by $GITHUB_ACTOR"
+    if [[ $GITHUB_WORKFLOW_REF != "$want" ]]; then
+      echo "refused: this runner runs testalon.yml from master only" >&2
+      exit 1
+    fi
+    if [[ $GITHUB_EVENT_NAME != push && $GITHUB_EVENT_NAME != workflow_dispatch ]]; then
+      echo "refused: $GITHUB_EVENT_NAME does not start a beta deploy" >&2
+      exit 1
+    fi
+  '';
+in
 {
   services.github-runners.testalon = {
     enable = true;
@@ -54,6 +75,8 @@
       # Two compilers at a time. Cargo otherwise starts one per core and
       # four rustc processes at opt-level 3 do not fit in this machine.
       CARGO_BUILD_JOBS = "2";
+      # See jobStarted above.
+      ACTIONS_RUNNER_HOOK_JOB_STARTED = "${jobStarted}";
     };
     serviceOverrides = {
       # sudo needs a process that can gain root. The module's sandbox stops
@@ -115,10 +138,6 @@
     "d /var/lib/github-runner 0750 github-runner github-runner - -"
     "d /var/lib/github-runner/testalon-work 0750 github-runner github-runner - -"
   ];
-
-  # It builds unsigned paths and hands them straight to the store here, the
-  # same right the SSH key had before it.
-  nix.settings.trusted-users = [ "github-runner" ];
 
   systemd.services.nix-daemon.serviceConfig = {
     CPUWeight = 20;
