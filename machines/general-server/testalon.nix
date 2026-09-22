@@ -59,7 +59,10 @@ let
           ;;
       esac
 
-      read -r -a words <<< "''${SSH_ORIGINAL_COMMAND:-}"
+      # Over SSH the client's words arrive in the environment, because the
+      # key forces this command. Run here on the machine, by the runner or by
+      # hand, they are the arguments.
+      read -r -a words <<< "''${SSH_ORIGINAL_COMMAND:-testalon ''${1:-} ''${2:-}}"
       if [[ ''${#words[@]} -ne 3 || ''${words[0]} != testalon ]]; then
         echo "testalon: this key deploys testalon and does nothing else" >&2
         exit 1
@@ -114,6 +117,9 @@ in
   };
   users.groups.testalon-deploy = { };
 
+  # The runner calls it by name, and a person can too.
+  environment.systemPackages = [ deployScript ];
+
   # An unsigned store path is refused unless the user handing it over is
   # trusted. GitHub builds the closures, so nothing it sends carries this
   # machine's signature.
@@ -123,8 +129,10 @@ in
   # and only from the pointer the script moves.
   nix.settings.trusted-users = [ "testalon-deploy" ];
 
+  # The runner deploys from this machine and the key deploys into it. Both
+  # end at the same script, and the script is the whole of what either may do.
   security.sudo.extraRules = [{
-    users = [ "testalon-deploy" ];
+    users = [ "testalon-deploy" "github-runner" ];
     commands = [{
       command = "/run/current-system/sw/bin/systemctl restart testalon.service";
       options = [ "NOPASSWD" ];
@@ -139,9 +147,9 @@ in
   users.groups.testalon = { };
 
   systemd.tmpfiles.rules = [
-    "d ${dataDir} 0755 testalon-deploy testalon-deploy - -"
+    "d ${dataDir} 2775 testalon-deploy testalon-deploy - -"
     "d ${dataDir}/state 0750 testalon testalon - -"
-    "d /nix/var/nix/gcroots/testalon 0755 testalon-deploy testalon-deploy - -"
+    "d /nix/var/nix/gcroots/testalon 2775 testalon-deploy testalon-deploy - -"
   ];
 
   # The unit starts from the pointer, not from a package in this closure. It

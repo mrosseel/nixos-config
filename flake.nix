@@ -363,6 +363,7 @@
         ./machines/general-server/phpfpm-joeri.nix
         ./machines/general-server/1901.nix
         ./machines/general-server/testalon.nix
+        ./machines/general-server/runner.nix
         inputs.pifinder-server.nixosModules.default
         ./modules/simple-mail-server.nix
         ./modules/python.nix
