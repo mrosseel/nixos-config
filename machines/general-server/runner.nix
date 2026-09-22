@@ -32,6 +32,14 @@
     user = "github-runner";
     group = "github-runner";
     extraPackages = [ pkgs.git pkgs.nix pkgs.openssh ];
+    # On disk, not in RAM.
+    #
+    # Left alone the runner works in its systemd runtime directory, which is
+    # /run, which is tmpfs. A Rust target directory of several gigabytes
+    # then lives in memory: a run died with "No space left on device" at
+    # 1.5 GB, and the one before it crawled because those files were
+    # counted against the service's own memory allowance.
+    workDir = "/var/lib/github-runner/testalon-work";
     # The service runs with an environment of its own, and the system's
     # nix.conf does not reach it: a job's first `nix develop` failed with
     # nix-command disabled while /etc/nix/nix.conf enabled it. Saying it here
@@ -68,6 +76,7 @@
   # runner fails at its first write with a permission error.
   systemd.tmpfiles.rules = [
     "d /var/lib/github-runner 0750 github-runner github-runner - -"
+    "d /var/lib/github-runner/testalon-work 0750 github-runner github-runner - -"
   ];
 
   # It builds unsigned paths and hands them straight to the store here, the
