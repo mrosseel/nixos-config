@@ -28,7 +28,7 @@ let
   # secret of mrosseel/hexagonia, used by .github/workflows/testalon.yml.
   # Replace this line to rotate the key; nothing else here changes.
   deployKey =
-    "ssh-ed25519 AAAAREPLACE_ME_WITH_THE_TESTALON_DEPLOY_KEY testalon-deploy@github";
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGajKYdFxG8VkfIagza26cikTuQWG4LXhejEhU2I58nG testalon-deploy@github";
 
   # The one command that key may run.
   #
