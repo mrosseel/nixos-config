@@ -50,6 +50,13 @@
   };
   users.groups.github-runner = { };
 
+  # The runner writes under its own home. Without this the directory is
+  # root's, systemd still makes the state directory inside it, and the
+  # runner fails at its first write with a permission error.
+  systemd.tmpfiles.rules = [
+    "d /var/lib/github-runner 0750 github-runner github-runner - -"
+  ];
+
   # It builds unsigned paths and hands them straight to the store here, the
   # same right the SSH key had before it.
   nix.settings.trusted-users = [ "github-runner" ];
