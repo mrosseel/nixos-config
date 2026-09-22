@@ -101,8 +101,13 @@
     "d /var/lib/warpspeed-backups/snapshots  0750 warpspeed-backup warpspeed-backup - -"
     "d /var/lib/warpspeed-backups/litestream 0750 warpspeed-backup warpspeed-backup - -"
     # The same rule for the Hexalon chroot: root owns the root.
-    "d /var/lib/hexalon-backups           0755 root            root            - -"
-    "d /var/lib/hexalon-backups/hexagonia 0700 hexalon-backup hexalon-backup - -"
+    "d /var/lib/hexalon-backups            0755 root           root           - -"
+    "d /var/lib/hexalon-backups/snapshots  0750 hexalon-backup hexalon-backup - -"
+    "d /var/lib/hexalon-backups/litestream 0750 hexalon-backup hexalon-backup - -"
+    # Daily snapshot files older than 180 days are deleted, the same age each
+    # sender keeps. Until 22 Sept 2026 nothing deleted the warpspeed ones.
+    "e /var/lib/warpspeed-backups/snapshots - - - 180d"
+    "e /var/lib/hexalon-backups/snapshots   - - - 180d"
   ];
 
   # ── Hexalon database backup ──────────────────────────────────────────
