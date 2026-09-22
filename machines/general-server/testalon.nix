@@ -21,7 +21,10 @@
 
 let
   port = 8192;
-  domain = "testalon.miker.be";
+  # The name people are given, and the name the machine has answered to
+  # since before that. The server refuses an origin it does not know, so
+  # both are listed here and both are on the Caddy host.
+  domains = [ "beta.hexalon.io" "testalon.miker.be" ];
   dataDir = "/var/lib/testalon";
 
   # The public half of the key GitHub holds. Its private half is a repository
@@ -156,7 +159,7 @@ in
       ExecStart = ''
         ${dataDir}/current/bin/hexagonia-server \
           --bind 127.0.0.1:${toString port} \
-          --cors-origin https://${domain} \
+          --cors-origin ${lib.concatMapStringsSep "," (d: "https://${d}") domains} \
           --db ${dataDir}/state/testalon.db
       '';
       # The same two files production reads: HEXAGONIA_SECRET signs guest

@@ -551,6 +551,10 @@
     # rebuild this machine. The page is read through the pointer on every
     # request, so it needs no reload here.
     virtualHosts."testalon.miker.be" = {
+      # beta.hexalon.io is the name people are given. testalon.miker.be is
+      # the name the machine has always answered to, kept so a link from
+      # before this alias still opens. One certificate covers both.
+      serverAliases = [ "beta.hexalon.io" ];
       extraConfig = ''
         encode gzip
         # Two handlers, and they must not share: `try_files` rewrites a path
