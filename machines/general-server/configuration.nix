@@ -55,8 +55,8 @@
         X11Forwarding no
         PermitTunnel no
         AllowAgentForwarding no
-      Match User hexalon-replica
-        ChrootDirectory /var/lib/hexalon-replica
+      Match User hexalon-backup
+        ChrootDirectory /var/lib/hexalon-backups
         ForceCommand internal-sftp
         AllowTcpForwarding no
         X11Forwarding no
@@ -101,26 +101,26 @@
     "d /var/lib/warpspeed-backups/snapshots  0750 warpspeed-backup warpspeed-backup - -"
     "d /var/lib/warpspeed-backups/litestream 0750 warpspeed-backup warpspeed-backup - -"
     # The same rule for the Hexalon chroot: root owns the root.
-    "d /var/lib/hexalon-replica           0755 root            root            - -"
-    "d /var/lib/hexalon-replica/hexagonia 0700 hexalon-replica hexalon-replica - -"
+    "d /var/lib/hexalon-backups           0755 root            root            - -"
+    "d /var/lib/hexalon-backups/hexagonia 0700 hexalon-backup hexalon-backup - -"
   ];
 
-  # ── Hexalon database replica ─────────────────────────────────────────
+  # ── Hexalon database backup ──────────────────────────────────────────
   # hexalon.io streams its database here with Litestream, over SFTP, into
   # the chroot below. No shell, and nothing readable outside the chroot.
   # The key is accepted from production's two addresses only. The sending
   # side is nix/litestream.nix in the hexagonia repository.
-  users.groups.hexalon-replica = { };
-  users.users.hexalon-replica = {
+  users.groups.hexalon-backup = { };
+  users.users.hexalon-backup = {
     isSystemUser = true;
-    group = "hexalon-replica";
-    home = "/var/lib/hexalon-replica";
+    group = "hexalon-backup";
+    home = "/var/lib/hexalon-backups";
     createHome = false;
     shell = "${pkgs.shadow}/bin/nologin";
     openssh.authorizedKeys.keys = [
-      # Made on hexalon.io at /var/lib/hexalon-replica/id_ed25519. The
+      # Made on hexalon.io at /var/lib/hexalon-backup-keys/id_ed25519. The
       # private half has never left that machine.
-      "from=\"169.58.104.151,2a02:c207:2358:7996::1\",restrict ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC8yw4Es13rM7M+FCKYWcfM1wNNAvFXBgn2V2/+kWZvm hexalon-replica@hexalon"
+      "from=\"169.58.104.151,2a02:c207:2358:7996::1\",restrict ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC8yw4Es13rM7M+FCKYWcfM1wNNAvFXBgn2V2/+kWZvm hexalon-backup@hexalon"
     ];
   };
 
