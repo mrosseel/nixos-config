@@ -84,6 +84,10 @@
       ProtectKernelTunables = false;
       CapabilityBoundingSet = lib.mkForce [ ];
       PrivateUsers = false;
+      # The sandbox mounts the file system read-only. The deploy script
+      # moves symlinks in these two directories, which its group owns, and
+      # the first run stopped with "Read-only file system" on the first one.
+      ReadWritePaths = [ "/var/lib/testalon" "/nix/var/nix/gcroots/testalon" ];
       CPUWeight = 20;
       IOWeight = 20;
       # The tests compile here, not in the daemon: `cargo test` runs inside
