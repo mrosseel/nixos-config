@@ -36,12 +36,20 @@
     # nix.conf does not reach it: a job's first `nix develop` failed with
     # nix-command disabled while /etc/nix/nix.conf enabled it. Saying it here
     # settles it for every job.
-    extraEnvironment.NIX_CONFIG = "experimental-features = nix-command flakes";
+    extraEnvironment = {
+      NIX_CONFIG = "experimental-features = nix-command flakes";
+      # Two compilers at a time. Cargo otherwise starts one per core and
+      # four rustc processes at opt-level 3 do not fit in this machine.
+      CARGO_BUILD_JOBS = "2";
+    };
     serviceOverrides = {
       CPUWeight = 20;
       IOWeight = 20;
-      MemoryHigh = "512M";
-      MemoryMax = "1G";
+      # The tests compile here, not in the daemon: `cargo test` runs inside
+      # `nix develop`, which is this service's own child. A run capped at
+      # 512 MB crawled for over an hour and finished nothing.
+      MemoryHigh = "2500M";
+      MemoryMax = "3500M";
     };
   };
 
