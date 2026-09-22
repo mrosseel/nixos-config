@@ -32,6 +32,11 @@
     user = "github-runner";
     group = "github-runner";
     extraPackages = [ pkgs.git pkgs.nix pkgs.openssh ];
+    # The service runs with an environment of its own, and the system's
+    # nix.conf does not reach it: a job's first `nix develop` failed with
+    # nix-command disabled while /etc/nix/nix.conf enabled it. Saying it here
+    # settles it for every job.
+    extraEnvironment.NIX_CONFIG = "experimental-features = nix-command flakes";
     serviceOverrides = {
       CPUWeight = 20;
       IOWeight = 20;
