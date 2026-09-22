@@ -51,6 +51,11 @@
       CARGO_BUILD_JOBS = "2";
     };
     serviceOverrides = {
+      # sudo cannot raise a privilege while this is on, and the module sets
+      # it on. The runner's one privileged act is the deploy script the
+      # sudoers rule in testalon.nix names, so turning it off widens nothing
+      # that the rule does not already allow.
+      NoNewPrivileges = false;
       CPUWeight = 20;
       IOWeight = 20;
       # The tests compile here, not in the daemon: `cargo test` runs inside
