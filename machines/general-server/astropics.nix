@@ -26,6 +26,7 @@ in
     # Built on nixtop with backend/scripts/build_sky_atlas.py and copied here by hand
     # (see the astropics README). About 180 MB.
     skyAtlasPath = "/var/lib/astropics/sky-atlas.bin";
+    basemapPath = "/var/lib/astropics/world.pmtiles";
   };
 
   # This host had no Postgres before Astropics. Start on 17, the version of
