@@ -32,6 +32,29 @@
     requires = [ "postfix-tlspol.socket" ];
     after = [ "postfix-tlspol.socket" ];
   };
+
+  # rspamd asks the blocklists (Spamhaus, URIBL) through DNS. They refuse
+  # queries from public resolvers, and resolv.conf points at Tailscale, which
+  # forwards to Google. The mailserver's own kresd on 127.0.0.1 asks them
+  # directly, so rspamd uses it.
+  services.rspamd.locals."options.inc".text = ''
+    dns {
+      nameserver = ["127.0.0.1:53"];
+    }
+  '';
+
+  # Caddy renews the mail certificate, but Dovecot keeps the old one in
+  # memory until it reloads. Reload both mail daemons when the file changes.
+  systemd.paths.mail-cert-reload = {
+    wantedBy = [ "multi-user.target" ];
+    pathConfig.PathChanged = config.mailserver.x509.certificateFile;
+  };
+  systemd.services.mail-cert-reload = {
+    description = "Reload Postfix and Dovecot after a certificate renewal";
+    serviceConfig.Type = "oneshot";
+    script = "${pkgs.systemd}/bin/systemctl reload postfix.service dovecot.service";
+  };
+
   security.acme.acceptTerms = true;
   security.acme.defaults.email = "postmaster@pifinder.eu";
   environment.systemPackages = [ pkgs.dovecot_pigeonhole ];
