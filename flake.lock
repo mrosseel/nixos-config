@@ -47,11 +47,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1790191413,
-        "narHash": "sha256-63WV33y7h+LWgIsKhJSfP9Ofntr0FLDyHYU8BS3YnWs=",
+        "lastModified": 1790191793,
+        "narHash": "sha256-DR0HAAQdblzHfq2OmqcsHeWflwcYfG9Jl3MPYYl8uBg=",
         "owner": "mrosseel",
         "repo": "astropics",
-        "rev": "214074e591b89b7e118ca1a9a2486d8672f1cb6e",
+        "rev": "6a2052cc6c6c522b31c9c35f6764bf010c2a406c",
         "type": "github"
       },
       "original": {
