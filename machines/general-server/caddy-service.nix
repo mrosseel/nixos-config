@@ -43,7 +43,9 @@
     };
     virtualHosts."pifinder.eu" = {
       extraConfig = ''
-        encode gzip
+        # zstd first: it beats gzip on the large CSS the shop serves, and
+        # Caddy falls back to gzip for a browser that does not accept it.
+        encode zstd gzip
         reverse_proxy localhost:5002
         header {
           # Strict Transport Security
@@ -58,14 +60,15 @@
           # Clickjacking Protection
           X-Frame-Options "DENY"
 
-          # Content Security Policy with updated directives
-          Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"
+          # Content Security Policy.
+          # The shop serves its whole front end from /static/vendor, so no
+          # other origin is needed. 'unsafe-inline' for scripts and styles
+          # stays, because FastHTML and MonsterUI write inline blocks and
+          # inline style attributes.
+          Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
 
           # Referrer Policy
           Referrer-Policy "strict-origin-when-cross-origin"
-
-          # Cache Control
-          Cache-Control "public, max-age=15, must-revalidate"
 
           # Permissions Policy (formerly Feature Policy)
           Permissions-Policy "accelerometer=(), ambient-light-sensor=(), autoplay=(self), camera=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=()"
@@ -73,6 +76,9 @@
           # Remove Server Header (if applicable)
           -Server
         }
+
+        # Cache-Control is not set here. Caddy keeps only one value for a
+        # header across matchers, so the shop sets it per path instead.
     '';
     };
     virtualHosts."mail.pifinder.eu".extraConfig = ''
