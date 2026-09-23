@@ -186,7 +186,9 @@
     # 3D dice tray: shake or tilt the phone to throw. Served top level
     # and same origin on purpose. An embedded page is refused the
     # accelerometer, which kills the only input that matters here.
-    # The site is a single file in ./dice, so a rebuild ships it.
+    # The site is static files in ./dice, so a rebuild ships it. The 3D
+    # libraries and fonts are copies in ./dice, not CDN links, so the page
+    # makes no request to another host and the CSP can be strict.
     virtualHosts."dice.miker.be" = {
       extraConfig = ''
         encode gzip
@@ -200,8 +202,17 @@
           Referrer-Policy "strict-origin-when-cross-origin"
           # The sensors the dice need. Omit these and shake and tilt die.
           Permissions-Policy "accelerometer=(self), gyroscope=(self)"
+          # No inline script or style: the page loads app.js and app.css.
+          # data: is for the favicon.
+          Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
           Cache-Control "no-cache, must-revalidate"
           -Server
+        }
+        # The version is in each file name, so these never change.
+        @versioned path /vendor/* /fonts/*
+        header @versioned {
+          Cache-Control "public, max-age=31536000, immutable"
+          defer
         }
       '';
     };
