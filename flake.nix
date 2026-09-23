@@ -56,7 +56,12 @@
 
     copyparty.url = "github:9001/copyparty";
 
-    nix-minecraft.url = "github:Infinidoge/nix-minecraft";
+    # nix-minecraft has no release branches. Its overlay builds with our
+    # nixpkgs, so its own nixpkgs pin follows ours and does not go stale.
+    nix-minecraft = {
+      url = "github:Infinidoge/nix-minecraft";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # PiFinder server infra (attic cache + delta server) — own repo, consumed
     # as NixOS modules on general-server. Caddy vhosts stay in this repo; see
