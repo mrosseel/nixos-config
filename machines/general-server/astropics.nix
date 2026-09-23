@@ -23,6 +23,9 @@ in
     testMode = true;
     # Mails go to the journal until Mailgun is set up.
     mailBackend = "console";
+    # Built on nixtop with backend/scripts/build_sky_atlas.py and copied here by hand
+    # (see the astropics README). About 180 MB.
+    skyAtlasPath = "/var/lib/astropics/sky-atlas.bin";
   };
 
   # This host had no Postgres before Astropics. Start on 17, the version of
