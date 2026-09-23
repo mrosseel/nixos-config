@@ -560,6 +560,41 @@
         }
       '';
     };
+    # Astropics, an astronomy image website (see astropics.nix). The API
+    # also serves /media/*, the images stored on this host. The React Router
+    # SSR server answers everything else. No CSP here: the pages are
+    # versioned with the astropics repo, not with this file.
+    # Needs a DNS A record astropics.miker.be -> this host.
+    virtualHosts."astropics.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        # An upload can be 80 MB. Caddy refuses a larger body with 413.
+        request_body {
+          max_size 100MB
+        }
+        handle /api/* {
+          reverse_proxy 127.0.0.1:8300
+        }
+        handle /media/* {
+          # A stored image never changes. A new version gets a new name.
+          header {
+            Cache-Control "public, max-age=31536000, immutable"
+            defer
+          }
+          reverse_proxy 127.0.0.1:8300
+        }
+        handle {
+          reverse_proxy 127.0.0.1:8301
+        }
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          -Server
+        }
+      '';
+    };
     # Testalon, the Hexalon test deployment (see testalon.nix). The Rust
     # server holds the games and the bots; the page is a second package of
     # the same revision. Caddy decides which is which, so the bundle can ask

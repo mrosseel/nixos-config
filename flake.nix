@@ -105,6 +105,15 @@
     # our nixpkgs carries, so it keeps the nixpkgs its own flake pins.
     diplomacy1901.url = "github:mrosseel/1901/master";
 
+    # Astropics: astronomy image website. Served on general-server at
+    # astropics.miker.be (machines/general-server/astropics.nix). The repo's
+    # default branch is master. Its nixpkgs follows ours, and its uv2nix
+    # inputs follow its own nixpkgs, so they follow ours too.
+    astropics = {
+      url = "github:mrosseel/astropics";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -367,6 +376,8 @@
         ./machines/general-server/spain2026-weather.nix
         ./machines/general-server/phpfpm-joeri.nix
         ./machines/general-server/1901.nix
+        inputs.astropics.nixosModules.default
+        ./machines/general-server/astropics.nix
         ./machines/general-server/testalon.nix
         ./machines/general-server/runner.nix
         inputs.pifinder-server.nixosModules.default
