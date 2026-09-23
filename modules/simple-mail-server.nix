@@ -24,6 +24,14 @@
     x509.privateKeyFile = "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/mail.pifinder.eu/mail.pifinder.eu.key";
     x509.certificateFile = "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/mail.pifinder.eu/mail.pifinder.eu.crt";
   };
+  # postfix-tlspol can only use the socket that its .socket unit passes to it.
+  # Its sandbox blocks AF_UNIX, so it cannot open the socket itself. A switch
+  # can start the service before the socket, and then it fails every 5
+  # seconds until the next switch. This happened on 4 Aug, 22 Aug and 23 Sep.
+  systemd.services.postfix-tlspol = {
+    requires = [ "postfix-tlspol.socket" ];
+    after = [ "postfix-tlspol.socket" ];
+  };
   security.acme.acceptTerms = true;
   security.acme.defaults.email = "postmaster@pifinder.eu";
   environment.systemPackages = [ pkgs.dovecot_pigeonhole ];

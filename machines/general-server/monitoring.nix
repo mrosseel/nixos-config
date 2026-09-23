@@ -193,6 +193,17 @@ let
             labels.severity = "warning";
             annotations.summary = "systemd unit {{ $labels.name }} has failed";
           }
+          {
+            # A unit with Restart= never stays in the failed state, so
+            # SystemdUnitFailed does not see a crash loop. Count how often
+            # the unit becomes active instead. A healthy service does this
+            # once per start, and a oneshot never becomes active.
+            alert = "SystemdUnitRestartLoop";
+            expr = ''changes(node_systemd_unit_state{state="active"}[1h]) > 6'';
+            "for" = "15m";
+            labels.severity = "warning";
+            annotations.summary = "systemd unit {{ $labels.name }} keeps restarting";
+          }
         ];
       }
       {

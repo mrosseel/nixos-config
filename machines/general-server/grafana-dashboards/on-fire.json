@@ -100,7 +100,7 @@
    "datasource": "Prometheus",
    "gridPos": {
     "h": 8,
-    "w": 14,
+    "w": 12,
     "x": 0,
     "y": 7
    },
@@ -167,8 +167,8 @@
    "datasource": "Prometheus",
    "gridPos": {
     "h": 4,
-    "w": 5,
-    "x": 14,
+    "w": 4,
+    "x": 12,
     "y": 7
    },
    "targets": [
@@ -213,12 +213,63 @@
   },
   {
    "type": "stat",
+   "title": "Restarting units",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 4,
+    "w": 4,
+    "x": 16,
+    "y": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(changes(node_systemd_unit_state{state=\"active\"}[1h]) > 6) or vector(0)",
+     "legendFormat": "",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "area",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "description": "Units that became active more than 6 times in the last hour. The SystemdUnitRestartLoop alert fires when this lasts 15 minutes."
+  },
+  {
+   "type": "stat",
    "title": "5xx share",
    "datasource": "Prometheus",
    "gridPos": {
     "h": 4,
-    "w": 5,
-    "x": 19,
+    "w": 4,
+    "x": 20,
     "y": 7
    },
    "targets": [
@@ -270,8 +321,8 @@
    "datasource": "Prometheus",
    "gridPos": {
     "h": 4,
-    "w": 5,
-    "x": 14,
+    "w": 6,
+    "x": 12,
     "y": 11
    },
    "targets": [
@@ -323,8 +374,8 @@
    "datasource": "Prometheus",
    "gridPos": {
     "h": 4,
-    "w": 5,
-    "x": 19,
+    "w": 6,
+    "x": 18,
     "y": 11
    },
    "targets": [
