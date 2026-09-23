@@ -74,6 +74,23 @@
     };
     virtualHosts."mail.pifinder.eu".extraConfig = ''
     '';
+    # MTA-STS policy for inbound mail to pifinder.eu. Start in "testing":
+    # senders report TLS faults to tls-reports@ but still deliver. Change to
+    # "enforce" when the reports are clean, and then change the id in the
+    # _mta-sts.pifinder.eu TXT record so senders fetch the policy again.
+    # Needs DNS: A/AAAA mta-sts.pifinder.eu, TXT _mta-sts and _smtp._tls.
+    virtualHosts."mta-sts.pifinder.eu".extraConfig = ''
+      handle /.well-known/mta-sts.txt {
+        header Content-Type "text/plain; charset=utf-8"
+        respond <<EOF
+          version: STSv1
+          mode: testing
+          mx: mail.pifinder.eu
+          max_age: 86400
+          EOF 200
+      }
+      respond 404
+    '';
     virtualHosts."catalogs.pifinder.eu" = {
       extraConfig = ''
         encode gzip

@@ -14,7 +14,13 @@
     accounts = {
       "info@pifinder.eu" = {
         hashedPassword = "$2b$05$JPUpRnYe4HLFYMf5v13TJepsMM7WX0aAbdSKDK0rq5FFaTibLGN/i";
-        aliases = ["postmaster@pifinder.eu"];
+        # DMARC and TLS-RPT reports go to info@. The DNS records name these
+        # addresses, so they must exist.
+        aliases = [
+          "postmaster@pifinder.eu"
+          "dmarc-reports@pifinder.eu"
+          "tls-reports@pifinder.eu"
+        ];
       };
     };
 
