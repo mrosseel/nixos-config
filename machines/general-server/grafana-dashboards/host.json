@@ -255,19 +255,85 @@
    }
   },
   {
-   "type": "stat",
-   "title": "Days until / is full",
+   "type": "timeseries",
+   "title": "Disk / over 30 days",
    "datasource": "Prometheus",
+   "description": "Used space on / against the disk size. The panel shows 30 days, which is the Prometheus retention, whatever the dashboard time range is.",
+   "timeFrom": "30d",
    "gridPos": {
-    "h": 5,
-    "w": 6,
+    "h": 8,
+    "w": 24,
     "x": 0,
     "y": 24
    },
    "targets": [
     {
      "refId": "A",
-     "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"} / -deriv(node_filesystem_avail_bytes{mountpoint=\"/\"}[6h]) / 86400",
+     "expr": "node_filesystem_size_bytes{mountpoint=\"/\"} - node_filesystem_avail_bytes{mountpoint=\"/\"}",
+     "legendFormat": "used"
+    },
+    {
+     "refId": "B",
+     "expr": "node_filesystem_size_bytes{mountpoint=\"/\"}",
+     "legendFormat": "size"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "min": 0,
+     "custom": {
+      "fillOpacity": 20,
+      "showPoints": "never"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "size"
+      },
+      "properties": [
+       {
+        "id": "custom.fillOpacity",
+        "value": 0
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          10
+         ]
+        }
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "red"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Days until / is full (7-day trend)",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 5,
+    "w": 6,
+    "x": 0,
+    "y": 32
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"} / -deriv(node_filesystem_avail_bytes{mountpoint=\"/\"}[7d]) / 86400",
      "legendFormat": ""
     }
    ],
@@ -315,7 +381,7 @@
     "h": 5,
     "w": 6,
     "x": 6,
-    "y": 24
+    "y": 32
    },
    "targets": [
     {
@@ -360,7 +426,7 @@
     "h": 5,
     "w": 12,
     "x": 12,
-    "y": 24
+    "y": 32
    },
    "targets": [
     {
@@ -404,7 +470,7 @@
     "h": 8,
     "w": 12,
     "x": 0,
-    "y": 29
+    "y": 37
    },
    "targets": [
     {
@@ -432,7 +498,7 @@
     "h": 8,
     "w": 12,
     "x": 12,
-    "y": 29
+    "y": 37
    },
    "targets": [
     {

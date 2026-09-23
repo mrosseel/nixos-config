@@ -509,6 +509,8 @@ in
         admin_password = "$__file{/etc/secrets/grafana-admin-password}";
         secret_key = "$__file{/etc/secrets/grafana-secret-key}";
       };
+      # Grafana opens on "Is it on fire" instead of its generic home page.
+      dashboards.default_home_dashboard_path = "${./grafana-dashboards/on-fire.json}";
     };
 
     provision = {
