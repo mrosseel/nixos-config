@@ -513,6 +513,15 @@
                 o.window({ class = "^Emulator$", title = "^Emulator$" }, {
                   float = true,
                 })
+
+                -- The browser Claude tests pages with (Playwright, configured
+                -- in ~/.claude/playwright-mcp.json) starts with this class. It
+                -- opens on workspace 11 and does not take the focus, so a
+                -- test does not land on the screen being worked on. Go to
+                -- workspace 11 to watch it.
+                o.window({ class = "^claude-test-browser$" }, {
+                  workspace = "11 silent",
+                })
               '';
 
               # Managing this file here makes it read-only, so the omarchy-menu
