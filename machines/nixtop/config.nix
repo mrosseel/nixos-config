@@ -431,6 +431,7 @@ in
     lm_sensors
     darktable
     gimp
+    blender
     image_optim
     playerctl
     grim
