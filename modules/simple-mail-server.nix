@@ -9,6 +9,10 @@
     enablePop3Ssl = true;
     enableSubmission = true;
 
+    # 2048-bit key, made on 2026-09-23 and published as
+    # mail2026._domainkey.pifinder.eu. The old 1024-bit "mail" key is unused.
+    dkim.defaults.selector = "mail2026";
+
     # A list of all login accounts. To create the password hashes, use
     # nix-shell -p mkpasswd --run 'mkpasswd -sm bcrypt'
     accounts = {
