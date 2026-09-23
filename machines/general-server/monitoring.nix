@@ -210,8 +210,8 @@ let
         name = "traffic";
         rules = [
           {
-            # Caddy's Prometheus metrics carry no host label, so this is the
-            # whole server. Per-site error rates live in the Loki dashboard.
+            # The sum over the host label is the whole server. Caddy gives
+            # each site its own series, so a per-site rate sums by host.
             alert = "HttpErrorRateHigh";
             expr = ''sum(rate(caddy_http_response_duration_seconds_count{code=~"5.."}[5m])) / sum(rate(caddy_http_response_duration_seconds_count[5m])) > 0.01'';
             "for" = "10m";

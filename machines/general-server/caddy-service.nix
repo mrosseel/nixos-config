@@ -21,8 +21,11 @@
       # that, and a request cut short is one a client retries.
       grace_period 10s
 
-      servers {
-        metrics
+      # The HTTP metrics, with a host label on each series. Without the label
+      # every site on this host shares one count, and the Hexalon Health tab
+      # on beta counts the errors of every other site as its own.
+      metrics {
+        per_host
       }
     '';
     logFormat = ''
