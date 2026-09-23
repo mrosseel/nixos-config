@@ -10,7 +10,9 @@
   nix.settings.trusted-users = [ "root" "mike" ];
 
   boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
+  # The system disk is scsi0. Do not use /dev/sdX: the music disk (scsi1)
+  # can take /dev/sda, and GRUB then writes to the music disk.
+  boot.loader.grub.device = "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi0";
   boot.tmp.cleanOnBoot = true;
   zramSwap.enable = true;
 
