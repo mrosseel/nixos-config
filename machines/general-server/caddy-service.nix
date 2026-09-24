@@ -590,13 +590,13 @@
           max_size 100MB
         }
         # A deploy restarts the API or the web server. A restart takes a few
-        # seconds. Caddy holds a request that cannot connect for up to 10 s
+        # seconds. Caddy holds a request that cannot connect for up to 30 s
         # and dials again every 250 ms. So the browser gets a slow answer, not
         # a 502. Only a failed dial is tried again, so a POST never reaches a
         # server twice. See ADR 0058 in the astropics repo.
         handle /api/* {
           reverse_proxy 127.0.0.1:8300 {
-            lb_try_duration 10s
+            lb_try_duration 30s
             lb_try_interval 250ms
           }
         }
@@ -607,13 +607,13 @@
             defer
           }
           reverse_proxy 127.0.0.1:8300 {
-            lb_try_duration 10s
+            lb_try_duration 30s
             lb_try_interval 250ms
           }
         }
         handle {
           reverse_proxy 127.0.0.1:8301 {
-            lb_try_duration 10s
+            lb_try_duration 30s
             lb_try_interval 250ms
           }
         }
