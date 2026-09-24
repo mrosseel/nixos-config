@@ -594,10 +594,19 @@
         # and dials again every 250 ms. So the browser gets a slow answer, not
         # a 502. Only a failed dial is tried again, so a POST never reaches a
         # server twice. See ADR 0058 in the astropics repo.
+        #
+        # The API runs as two instances, 8300 and 8302 (ADR 0062 in the
+        # astropics repo). A deploy restarts them one after the other.
+        # "first": all requests go to 8300 while it answers. After a failed
+        # dial, Caddy marks the instance as down for 2 s (fail_duration) and
+        # sends the request to 8302. The roll of the astropics module waits
+        # 3 s before it stops 8302, so keep fail_duration below 3 s.
         handle /api/* {
-          reverse_proxy 127.0.0.1:8300 {
+          reverse_proxy 127.0.0.1:8300 127.0.0.1:8302 {
+            lb_policy first
             lb_try_duration 30s
             lb_try_interval 250ms
+            fail_duration 2s
           }
         }
         handle /media/* {
@@ -606,9 +615,11 @@
             Cache-Control "public, max-age=31536000, immutable"
             defer
           }
-          reverse_proxy 127.0.0.1:8300 {
+          reverse_proxy 127.0.0.1:8300 127.0.0.1:8302 {
+            lb_policy first
             lb_try_duration 30s
             lb_try_interval 250ms
+            fail_duration 2s
           }
         }
         handle {
