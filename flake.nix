@@ -371,6 +371,7 @@
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
         ./machines/general-server/systemd.nix
+        ./machines/general-server/backup-vault.nix
         ./machines/general-server/monitoring.nix
         ./machines/general-server/asterisms-votes.nix
         ./machines/general-server/spain2026-weather.nix
