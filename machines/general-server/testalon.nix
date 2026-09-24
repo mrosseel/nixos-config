@@ -63,6 +63,12 @@ let
       ln -sfn "$web" ${dataDir}/web.tmp
       mv -T ${dataDir}/web.tmp ${dataDir}/web
 
+      # The time the admin console shows as the deploy time. The server
+      # reads it at start, so it is written before the restart.
+      printf 'HX_DEPLOYED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        > ${dataDir}/deploy.env.tmp
+      mv -T ${dataDir}/deploy.env.tmp ${dataDir}/deploy.env
+
       /run/wrappers/bin/sudo \
         /run/current-system/sw/bin/systemctl restart testalon.service
       echo "testalon: $server"
@@ -121,6 +127,7 @@ in
       EnvironmentFile = [
         "-${dataDir}/state/secret.env"
         "-${dataDir}/state/deploy.env"
+        "-${dataDir}/deploy.env"
       ];
       Restart = "on-failure";
       RestartSec = 5;
