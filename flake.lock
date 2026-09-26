@@ -1092,11 +1092,11 @@
         "quickshell": "quickshell"
       },
       "locked": {
-        "lastModified": 1789987965,
-        "narHash": "sha256-8qD+DYiobFBxGyCoBYkKxhUph8+NGBK3iNyCg2NBqFo=",
+        "lastModified": 1790451136,
+        "narHash": "sha256-7Hv9DOtUI9fKwX4Zvj8JF/C1XdHhV+BsRx7gM384B7I=",
         "owner": "mrosseel",
         "repo": "omarchy-nix",
-        "rev": "10c6bce27f0849a6a8bd42864697b6e51bbbdbcc",
+        "rev": "5c6ff5d394ae1912cb11b1be03d755f1600b480e",
         "type": "github"
       },
       "original": {
