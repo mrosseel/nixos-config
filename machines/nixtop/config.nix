@@ -669,23 +669,33 @@ in
     };
   };
 
-  # OpenClaw Samba share automount
-  fileSystems."/mnt/openclaw" = {
-    device = "//openclaw.local/openclaw";
-    fsType = "cifs";
-    options = [
-      "noauto"
-      "x-systemd.automount"
-      "x-systemd.idle-timeout=60"
-      "x-systemd.device-timeout=5s"
-      "x-systemd.mount-timeout=5s"
-      "guest"
-      "uid=1000"
-      "gid=100"
-      "file_mode=0664"
-      "dir_mode=0775"
-    ];
-  };
+  # Samba share automounts, guest access. The short timeouts make an access to
+  # a powered-off host fail after 5s instead of blocking yazi or a shell for 90s.
+  # rigel (Unraid NAS) is often off, its shares go under /mnt/rigel.
+  fileSystems = builtins.listToAttrs (map ({ mountPoint, device }: {
+    name = mountPoint;
+    value = {
+      inherit device;
+      fsType = "cifs";
+      options = [
+        "noauto"
+        "x-systemd.automount"
+        "x-systemd.idle-timeout=60"
+        "x-systemd.device-timeout=5s"
+        "x-systemd.mount-timeout=5s"
+        "guest"
+        "uid=1000"
+        "gid=100"
+        "file_mode=0664"
+        "dir_mode=0775"
+      ];
+    };
+  }) ([
+    { mountPoint = "/mnt/openclaw"; device = "//openclaw.local/openclaw"; }
+  ] ++ map (share: {
+    mountPoint = "/mnt/rigel/${share}";
+    device = "//rigel.local/${share}";
+  }) [ "content" "backups" "downloads" "transfer" "isos" ]));
 
   # Firmware updates (fwupdmgr)
   services.fwupd.enable = true;

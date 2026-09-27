@@ -66,7 +66,6 @@ in {
     mc
     ncdu
     dua  # faster ncdu
-    yazi # file manager
     # yazi previewers. These otherwise only happen to be present because
     # omarchy pulls them in; declare them so previews don't break if it stops.
     poppler-utils # PDF
@@ -111,6 +110,18 @@ in {
   # nvim config is managed directly as a git-tracked directory
   # (not via home-manager, which makes files read-only nix-store symlinks)
   # Symlink is created manually: ~/.config/nvim -> ~/nixos-config/config/nvim
+  # yazi file manager. `y` opens it and cd's to the last directory on exit.
+  # The goto keys reach the network mounts: rigel's Samba shares (nixtop
+  # automounts) and the rclone Google Drive mount (modules/rclone-gdrive.nix).
+  programs.yazi = {
+    enable = true;
+    shellWrapperName = "y";
+    keymap.mgr.prepend_keymap = [
+      { on = [ "g" "r" ]; run = "cd /mnt/rigel"; desc = "Go to rigel NAS shares"; }
+      { on = [ "g" "D" ]; run = "cd ~/GoogleDrive"; desc = "Go to Google Drive"; }
+      { on = [ "g" "m" ]; run = "cd /mnt"; desc = "Go to /mnt"; }
+    ];
+  };
   programs.bat.enable = true;
   programs.bat.config.theme = "TwoDark";
   programs.fzf.enable = true;
