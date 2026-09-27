@@ -671,7 +671,9 @@ in
 
   # Samba share automounts, guest access. The short timeouts make an access to
   # a powered-off host fail after 5s instead of blocking yazi or a shell for 90s.
-  # rigel (Unraid NAS) is often off, its shares go under /mnt/rigel.
+  # rigel (Unraid NAS) is often off, its shares go under /mnt/rigel. The device
+  # uses rigel's fixed IP: with rigel.local the mount hangs until the timeout,
+  # although the name resolves.
   fileSystems = builtins.listToAttrs (map ({ mountPoint, device }: {
     name = mountPoint;
     value = {
@@ -694,7 +696,7 @@ in
     { mountPoint = "/mnt/openclaw"; device = "//openclaw.local/openclaw"; }
   ] ++ map (share: {
     mountPoint = "/mnt/rigel/${share}";
-    device = "//rigel.local/${share}";
+    device = "//192.168.5.9/${share}";
   }) [ "content" "backups" "downloads" "transfer" "isos" ]));
 
   # Firmware updates (fwupdmgr)
