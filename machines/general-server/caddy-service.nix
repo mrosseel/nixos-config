@@ -1,5 +1,21 @@
 { pkgs, inputs, ... }:
 
+let
+  # Content-Security-Policy for rays.miker.be. All script is in app.js, with
+  # no inline script and no inline handlers. Inline <style> stays.
+  raysCsp = builtins.concatStringsSep "; " [
+    "default-src 'self'"
+    "script-src 'self'"
+    "style-src 'self' 'unsafe-inline'"
+    "img-src 'self' data:"
+    "connect-src 'self'"
+    "font-src 'self'"
+    "object-src 'none'"
+    "base-uri 'none'"
+    "form-action 'none'"
+    "frame-ancestors 'none'"
+  ];
+in
 {
  imports = [ ./thailand-planner.nix ./thailand-drive-export.nix ];
  services.caddy = {
@@ -271,40 +287,68 @@
     # from ~/dev/LunarRays (py/lunar_rays.py generate) and rsync'd.
     virtualHosts."rays.miker.be" = {
       extraConfig = ''
-        encode gzip
-        # thumbs up/down counter, see rays-votes.py
-        handle /api/* {
-          reverse_proxy 127.0.0.1:8322
+        # events.bin is application/octet-stream and compresses well. The
+        # webp images are compressed already and are left out.
+        encode {
+          zstd
+          gzip
+          match {
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/octet-stream*
+            header Content-Type image/svg+xml*
+          }
         }
-        root * /var/www/rays.miker.be
-        file_server
         header {
           Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
           X-Content-Type-Options "nosniff"
           X-Frame-Options "DENY"
           Referrer-Policy "strict-origin-when-cross-origin"
-          Cache-Control "public, max-age=3600, must-revalidate"
+          Content-Security-Policy "${raysCsp}"
           -Server
         }
-        # Feature images are re-rendered in place when the renderer
-        # improves: cacheable, not immutable. The manifest names them and
-        # must always be revalidated or the page shows stale cards.
-        # The page and the manifest change in place: always revalidate.
-        @fresh path / /index.html /img/manifest.json /events.bin /events.features.json
-        header @fresh {
-          Cache-Control "no-cache"
-          defer
+        # Thumbs up/down counter, see rays-votes.py. Vote totals change
+        # all the time and must never come from a cache.
+        handle /api/* {
+          header {
+            Cache-Control "no-store"
+            defer
+          }
+          reverse_proxy 127.0.0.1:8322
         }
-        @assets path /img/*.webp
-        header @assets {
-          Cache-Control "public, max-age=86400"
-          defer
-        }
-        # The event blob is regenerated only when the date range is extended.
-        @blob path /events.bin /events.features.json
-        header @blob {
-          Cache-Control "public, max-age=86400"
-          defer
+        handle {
+          # Build metadata (events.build.json, assets.build.json) is for
+          # the deploy script only.
+          @build path *.build.json
+          respond @build 404
+
+          root * /var/www/rays.miker.be
+          file_server
+
+          # Feature images are re-rendered in place under the same slug, so
+          # they cannot be immutable. Cache them for an hour, then revalidate.
+          @img {
+            path /img/*
+            not path *.json
+          }
+          header @img {
+            Cache-Control "public, max-age=3600, must-revalidate"
+            defer
+          }
+          # Everything else changes in place: the page, app.js, events.bin
+          # and every *.json, img/manifest.json included. The browser keeps
+          # a copy and revalidates it on each use with the ETag.
+          @revalidate {
+            not {
+              path /img/*
+              not path *.json
+            }
+          }
+          header @revalidate {
+            Cache-Control "no-cache"
+            defer
+          }
         }
       '';
     };

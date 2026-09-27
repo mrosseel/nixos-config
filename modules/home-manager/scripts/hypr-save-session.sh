@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# Hyprland Session Save Script v2
-# Saves window layout, workspaces, positions, and groups
+# Hyprland Session Save Script v3
+# Saves window layout, workspaces, positions, and groups.
+# With --auto (the systemd timer) it only writes after this Hyprland
+# instance was restored, so a fresh login never overwrites the last save.
 
 set -euo pipefail
 
 SESSION_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprland-sessions"
 SESSION_FILE="${SESSION_DIR}/default-session.json"
+SNAPSHOT_KEEP=48
+MARKER_DIR="${XDG_RUNTIME_DIR:-/tmp}/hypr-session"
 
 VERBOSE=false
+AUTO=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         -f|--file) SESSION_FILE="$2"; shift 2 ;;
         -v|--verbose) VERBOSE=true; shift ;;
+        --auto) AUTO=true; shift ;;
         -h|--help)
             cat << EOF
 Usage: hypr-save-session [OPTIONS]
@@ -21,6 +27,7 @@ Save current Hyprland session (windows, workspaces, positions, groups).
 Options:
   -f, --file PATH     Save to specific file
   -v, --verbose       Show detailed output
+  --auto              Timer mode: save quietly, only after the login restore
   -h, --help          Show this help
 
 Saved data includes:
@@ -29,6 +36,9 @@ Saved data includes:
   - Floating/tiled state
   - Window groups with member order
   - Window order per class (for matching multiple browser windows)
+
+Every save also keeps one snapshot per hour in:
+  ~/.local/share/hyprland-sessions/snapshots
 EOF
             exit 0
             ;;
@@ -36,20 +46,47 @@ EOF
     esac
 done
 
-mkdir -p "$SESSION_DIR"
+# A systemd timer can hold the signature of a Hyprland that crashed. Use the
+# newest live instance in that case.
+if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || [ ! -S "${XDG_RUNTIME_DIR}/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/.socket.sock" ]; then
+    newest=$(ls -1t "${XDG_RUNTIME_DIR}/hypr" 2>/dev/null | head -1 || true)
+    if [ -z "$newest" ]; then
+        $AUTO && exit 0
+        echo "Hyprland is not running"
+        exit 1
+    fi
+    export HYPRLAND_INSTANCE_SIGNATURE="$newest"
+fi
+
+if $AUTO && [ ! -f "${MARKER_DIR}/restored-${HYPRLAND_INSTANCE_SIGNATURE}" ]; then
+    exit 0
+fi
+
+SNAPSHOT_DIR="$(dirname "$SESSION_FILE")/snapshots"
+mkdir -p "$(dirname "$SESSION_FILE")"
 $VERBOSE && echo "Capturing Hyprland session..."
 
 CLIENTS=$(hyprctl clients -j)
 WORKSPACES=$(hyprctl workspaces -j)
 MONITORS=$(hyprctl monitors -j)
 
+# Hyprland also lists unmapped and zero-size helper surfaces. They cannot be
+# restored, so they are left out.
+CLIENTS=$(echo "$CLIENTS" | jq '[.[] | select(.mapped != false and .size[0] > 0 and .workspace.id != 0)]')
+CLIENT_COUNT=$(echo "$CLIENTS" | jq 'length')
+
+if $AUTO && [ "$CLIENT_COUNT" -eq 0 ]; then
+    exit 0
+fi
+
 SESSION_DATA=$(jq -n \
     --argjson clients "$CLIENTS" \
     --argjson workspaces "$WORKSPACES" \
     --argjson monitors "$MONITORS" \
     '{
-        version: "2.0",
-        timestamp: now | strftime("%Y-%m-%d %H:%M:%S"),
+        version: "3.0",
+        timestamp: now | strflocaltime("%Y-%m-%d %H:%M:%S"),
+        activeWorkspace: ($monitors | map(select(.focused))[0].activeWorkspace.name // "1"),
         clients: [
             $clients | to_entries | sort_by(.value.workspace.id, .value.at[0], .value.at[1])[] | {
                 index: .key,
@@ -114,9 +151,29 @@ SESSION_DATA=$(jq -n \
         })
     }')
 
-echo "$SESSION_DATA" > "$SESSION_FILE"
+# The timer runs every 15 minutes. Skip the write when only the timestamp
+# changed.
+if $AUTO && [ -f "$SESSION_FILE" ]; then
+    old=$(jq -c 'del(.timestamp)' "$SESSION_FILE" 2>/dev/null || true)
+    new=$(echo "$SESSION_DATA" | jq -c 'del(.timestamp)')
+    [ "$old" = "$new" ] && exit 0
+fi
 
-CLIENT_COUNT=$(echo "$CLIENTS" | jq 'length')
+# Write to a temporary file first, so a crash during the write cannot
+# leave a half-written session.
+echo "$SESSION_DATA" > "${SESSION_FILE}.tmp"
+mv -f "${SESSION_FILE}.tmp" "$SESSION_FILE"
+
+mkdir -p "$SNAPSHOT_DIR"
+cp -f "$SESSION_FILE" "${SNAPSHOT_DIR}/$(basename "$SESSION_FILE" .json)-$(date +%Y%m%d-%H).json"
+ls -1t "$SNAPSHOT_DIR"/*.json 2>/dev/null | tail -n +$((SNAPSHOT_KEEP + 1)) | xargs -r rm -f
+
+$AUTO && exit 0
+
+# A manual save marks this state as good, so the timer can take over.
+mkdir -p "$MARKER_DIR"
+touch "${MARKER_DIR}/restored-${HYPRLAND_INSTANCE_SIGNATURE}"
+
 WORKSPACE_COUNT=$(echo "$WORKSPACES" | jq 'length')
 GROUP_COUNT=$(echo "$SESSION_DATA" | jq '.groups | length')
 SPECIAL_COUNT=$(echo "$CLIENTS" | jq '[.[] | select(.workspace.id < 0)] | length')

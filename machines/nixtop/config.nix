@@ -633,6 +633,12 @@ in
     };
   };
 
+  # Brave always reopens the last windows and tabs, also after a crash.
+  # hypr-restore-session starts it at login and then places the windows.
+  environment.etc."brave/policies/managed/session-restore.json".text = builtins.toJSON {
+    RestoreOnStartup = 1;
+  };
+
   # Brave/Chromium's audio service does not re-enumerate capture devices after the
   # PulseAudio server (pipewire-pulse) drops and returns, so the mic silently
   # vanishes from the browser until Brave restarts. Every wireplumber/pipewire-pulse

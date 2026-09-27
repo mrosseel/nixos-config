@@ -17,6 +17,8 @@ vim.keymap.set("x", "<leader>pp", [["_dP]])
 -- next greatest remap ever : asbjornHaland
 vim.keymap.set({"n", "v"}, "<leader>y", [["+y]])
 vim.keymap.set("n", "<leader>Y", [["+Y]])
+-- Ctrl+C copies a visual selection, also one made with the mouse.
+vim.keymap.set("v", "<C-c>", [["+y]])
 
 vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
 

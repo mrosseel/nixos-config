@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
-# Hyprland Session Restore Script v4
+# Hyprland Session Restore Script v5
 # Restores window layout, workspaces, positions, and groups.
 # Targets Hyprland's Lua dispatch API (0.55+), where hyprctl dispatch calls
 # hl.dispatch(hl.dsp.*). All window moves are issued as a single in-process
 # Lua batch, so restore is fast and does not spawn one hyprctl per window.
 # Matches multi-window apps (browsers) by title similarity.
+# With --auto it runs from Hyprland's autostart after every login.
 
 set -uo pipefail
 
 SESSION_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprland-sessions"
 SESSION_FILE="${SESSION_DIR}/default-session.json"
+MARKER_DIR="${XDG_RUNTIME_DIR:-/tmp}/hypr-session"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/hypr-session/restore.log"
+STAGE_WS="special:hyprrestore"
+GROUP_WS="name:hyprgroup"
 
 VERBOSE=false
 DRY_RUN=false
 WORKSPACE_ONLY=false
-GROUPS_ONLY=false
+AUTO=false
 LAUNCH_DELAY=0.4
-POLL_INTERVAL=0.3
-POLL_TIMEOUT=12
-RETURN_WS=1
+POLL_INTERVAL=0.5
+POLL_TIMEOUT=15
+SETTLE=5
+RETURN_WS=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -26,7 +32,8 @@ while [[ $# -gt 0 ]]; do
         -v|--verbose) VERBOSE=true; shift ;;
         -d|--dry-run) DRY_RUN=true; shift ;;
         -w|--workspace-only) WORKSPACE_ONLY=true; shift ;;
-        -g|--groups-only) GROUPS_ONLY=true; shift ;;
+        -g|--groups-only) WORKSPACE_ONLY=true; shift ;;
+        --auto) AUTO=true; VERBOSE=true; POLL_TIMEOUT=45; shift ;;
         --delay) LAUNCH_DELAY="$2"; shift 2 ;;
         --timeout) POLL_TIMEOUT="$2"; shift 2 ;;
         --return-ws) RETURN_WS="$2"; shift 2 ;;
@@ -40,28 +47,63 @@ Options:
   -f, --file PATH       Restore from specific file
   -v, --verbose         Show detailed output
   -d, --dry-run         Show what would be done without executing
-  -w, --workspace-only  Only move existing windows to saved workspaces
-  -g, --groups-only     Only restore window groups (best-effort)
+  -w, --workspace-only  Only move existing windows to saved places and groups
+  -g, --groups-only     Same as -w (groups are part of every placement)
+  --auto                Login mode: wait for Hyprland, log to
+                        $LOG_FILE
   --delay SECONDS       Delay between launching apps (default: 0.4)
-  --timeout SECONDS     Max wait for windows to appear (default: 12)
-  --return-ws ID        Workspace to focus when done (default: 1)
+  --timeout SECONDS     Max wait for windows to appear (default: 15)
+  --return-ws ID        Workspace to focus when done (default: the saved one)
   -h, --help            Show this help
 
 Restore Modes:
   1. Full restore (default) - Launch missing apps, then place all windows
-  2. Workspace only (-w)    - Move existing windows to saved workspaces
-  3. Groups only (-g)       - Only restore window groups (best-effort)
-  4. Dry run (-d)           - Preview restore actions
+  2. Workspace only (-w)    - Move existing windows to saved places
+  3. Dry run (-d)           - Preview restore actions
 
-Window matching for multi-window apps (browsers):
-  Windows are matched by title similarity so each window goes to
-  the correct workspace, including scratchpad/special workspaces.
+Placement:
+  - Each window goes to its saved workspace, also special ones such as
+    the scratchpad console.
+  - Tiled windows go back in their saved left-to-right order.
+  - Floating windows get their saved position and size.
+  - Window groups are built again with their saved members and order.
+  - Browser windows are matched by title similarity.
+
+After a restore, the systemd timer saves the session every 15 minutes.
 EOF
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
+
+if $AUTO; then
+    mkdir -p "$(dirname "$LOG_FILE")"
+    exec >> "$LOG_FILE" 2>&1
+    echo ""
+    echo "=== $(date '+%Y-%m-%d %H:%M:%S') auto restore"
+fi
+
+# Autosave starts once this Hyprland instance has a marker. The login
+# restore always sets it, also when the restore fails, so a failed restore
+# cannot stop the saves for the whole session.
+mark_restored() {
+    $DRY_RUN && return
+    [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return
+    mkdir -p "$MARKER_DIR"
+    touch "${MARKER_DIR}/restored-${HYPRLAND_INSTANCE_SIGNATURE}"
+}
+$AUTO && trap mark_restored EXIT
+
+if $AUTO; then
+    # Autostart can run before the IPC socket answers.
+    for _ in $(seq 1 60); do
+        hyprctl monitors -j >/dev/null 2>&1 && break
+        sleep 0.5
+    done
+    # Give the shell and the portals a moment before the apps start.
+    sleep 2
+fi
 
 if [ ! -f "$SESSION_FILE" ]; then
     echo "Session file not found: $SESSION_FILE"
@@ -74,46 +116,55 @@ SESSION_DATA=$(cat "$SESSION_FILE")
 SESSION_TIME=$(echo "$SESSION_DATA" | jq -r '.timestamp')
 CLIENT_COUNT=$(echo "$SESSION_DATA" | jq '.clients | length')
 GROUP_COUNT=$(echo "$SESSION_DATA" | jq '.groups | length // 0')
+[ -z "$RETURN_WS" ] && RETURN_WS=$(echo "$SESSION_DATA" | jq -r '.activeWorkspace // "1"')
 
 echo "Session from: $SESSION_TIME ($CLIENT_COUNT windows, $GROUP_COUNT groups)"
 
-# Collected placement plan (parallel arrays), applied later in one Lua batch.
-MOVE_ADDRS=()   # e.g. address:0x1234
-MOVE_WS=()      # Lua literal: 5  or  "special:scratchpad"
-FLOAT_ADDRS=()  # addresses whose floating state must be toggled
-
-# Get workspace target (handles special workspaces)
-get_workspace_target() {
-    local workspace_id="$1"
-    local workspace_name="$2"
-
-    if [[ "$workspace_id" =~ ^- ]] && [ -n "$workspace_name" ] && [ "$workspace_name" != "null" ]; then
-        echo "$workspace_name"
-    else
-        echo "$workspace_id"
-    fi
+# Live windows that can be placed. Hyprland also lists unmapped helper
+# surfaces, which are left out.
+live_clients() {
+    hyprctl clients -j | jq '[.[] | select(.mapped != false and .size[0] > 0 and .workspace.id != 0)]'
 }
 
-# Render a workspace target as a Lua value: a bare number for normal
-# workspaces, a quoted string for named/special ones.
-lua_ws_value() {
-    local t="$1"
-    if [[ "$t" =~ ^-?[0-9]+$ ]]; then
-        echo "$t"
-    else
-        local e=${t//\\/\\\\}
-        e=${e//\"/\\\"}
-        echo "\"$e\""
+# Launch command for a desktop file whose StartupWMClass or file name
+# matches the window class.
+desktop_command() {
+    local class="${1,,}"
+    local dirs=(
+        "$HOME/.local/share/applications"
+        "/etc/profiles/per-user/$USER/share/applications"
+        "$HOME/.nix-profile/share/applications"
+        "/run/current-system/sw/share/applications"
+    )
+    local file="" d f
+    for d in "${dirs[@]}"; do
+        [ -d "$d" ] || continue
+        for f in "$d"/*.desktop; do
+            [ -f "$f" ] || continue
+            if grep -qix "StartupWMClass=${class}" "$f" 2>/dev/null; then
+                file="$f"
+                break 2
+            fi
+        done
+    done
+    if [ -z "$file" ]; then
+        for d in "${dirs[@]}"; do
+            [ -f "$d/${class}.desktop" ] && { file="$d/${class}.desktop"; break; }
+        done
     fi
+    [ -n "$file" ] || return 1
+    grep -m1 '^Exec=' "$file" | cut -d'=' -f2- | sed -E 's/ ?%[fFuUick]//g'
 }
 
-# Find launch command for a window class
+# Find launch command for a window class. Prints nothing when the class
+# has no known command.
 find_launch_command() {
     local class="$1"
 
     local config_file="$HOME/.config/hypr/session-commands.conf"
     if [ -f "$config_file" ]; then
-        local custom_cmd=$(grep -E "^${class}=" "$config_file" 2>/dev/null | cut -d'=' -f2- || true)
+        local custom_cmd
+        custom_cmd=$(grep -E "^${class}=" "$config_file" 2>/dev/null | cut -d'=' -f2- || true)
         if [ -n "$custom_cmd" ]; then
             echo "$custom_cmd"
             return
@@ -121,298 +172,227 @@ find_launch_command() {
     fi
 
     case "${class,,}" in
-        kitty|alacritty|wezterm|foot) echo "$class" ;;
+        kitty|alacritty|wezterm|foot) echo "${class,,}" ;;
         com.mitchellh.ghostty) echo "ghostty" ;;
         firefox|firefox-developer-edition) echo "firefox" ;;
-        chromium|chrome|google-chrome) echo "chromium" ;;
-        brave-browser) echo "brave --restore-last-session --disable-session-crashed-bubble --ozone-platform=wayland" ;;
-        discord) echo "discord" ;;
-        slack) echo "slack" ;;
-        spotify) echo "spotify" ;;
-        code|vscode) echo "code" ;;
-        thunar|nautilus|dolphin) echo "$class" ;;
-        steam) echo "steam" ;;
-        obsidian) echo "obsidian --disable-gpu" ;;
-        telegram) echo "telegram-desktop" ;;
+        chromium|chrome|google-chrome) echo "chromium --restore-last-session" ;;
+        # Brave restores all its windows and tabs from its own session.
+        # The crash bubble would otherwise ask first.
+        brave-browser) echo "brave --restore-last-session --disable-session-crashed-bubble" ;;
+        obsidian|md.obsidian.obsidian) echo "obsidian" ;;
+        telegram|org.telegram.desktop) echo "telegram-desktop" ;;
         signal) echo "signal-desktop" ;;
-        ferdium) echo "ferdium" ;;
         org.keepassxc.keepassxc) echo "keepassxc" ;;
         *)
-            if [[ "${class,,}" == brave-*-default ]]; then
-                echo "SKIP_PWA"
-                return
-            fi
-            local desktop_file=""
-            desktop_file=$(find ~/.local/share/applications /usr/share/applications /run/current-system/sw/share/applications -name "*${class,,}*.desktop" 2>/dev/null | head -1 || true)
-            if [ -n "$desktop_file" ]; then
-                grep '^Exec=' "$desktop_file" 2>/dev/null | head -1 | cut -d'=' -f2- | sed 's/%[fFuU]//g' | xargs || echo "${class,,}"
-            else
-                echo "${class,,}"
-            fi
+            desktop_command "$class" && return
+            command -v "${class,,}" 2>/dev/null || true
             ;;
     esac
 }
 
-# Compute title similarity score (number of matching words)
-title_similarity() {
-    local saved_title="$1"
-    local current_title="$2"
+# Apps that open one window per launch and do not restore their own
+# windows. They are launched once per saved window.
+one_window_per_launch() {
+    case "${1,,}" in
+        kitty|alacritty|wezterm|foot|com.mitchellh.ghostty) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
-    if [ "$saved_title" = "$current_title" ]; then
-        echo 1000
+# Brave and Chrome web apps have classes like brave-<app id>-Default. The
+# browser can reopen them itself, so they are launched only after the
+# browser has settled and only when they are still missing.
+is_web_app() {
+    [[ "${1,,}" =~ ^(brave|chrome|chromium)-.+-(default|profile_[0-9]+)$ ]]
+}
+
+# Start an app through Hyprland. Its windows open on the hidden staging
+# workspace, so they do not take the focus before they are placed.
+launch() {
+    local class="$1" cmd="$2"
+    if $DRY_RUN; then
+        echo "  [DRY] launch: $cmd ($class)"
         return
     fi
+    echo "  Launching: $class"
+    $VERBOSE && echo "    Command: $cmd"
+    local rule
+    rule=$(jq -n --arg c "[workspace $STAGE_WS silent] sh -c $(printf '%q' "$cmd")" '$c')
+    hyprctl dispatch "function() hl.dispatch(hl.dsp.exec_cmd($rule)) end" >/dev/null 2>&1
+    sleep "$LAUNCH_DELAY"
+}
 
-    local score=0
-    local saved_lower="${saved_title,,}"
-    local current_lower="${current_title,,}"
-
-    for word in $saved_lower; do
-        if [ ${#word} -le 2 ]; then
-            continue
-        fi
-        if [[ "$current_lower" == *"$word"* ]]; then
-            ((score++)) || true
-        fi
-    done
-
-    echo "$score"
+# Windows that are still on the staging workspace after the placement had
+# no saved place. Move them to the return workspace.
+sweep_stage() {
+    $DRY_RUN && return
+    local lua ws
+    ws=$(jq -n --arg w "$RETURN_WS" '$w')
+    lua=$(live_clients | jq -r --arg s "$STAGE_WS" --argjson ws "$ws" '
+        [.[] | select(.workspace.name == $s)
+         | " pcall(function() hl.dispatch(hl.dsp.window.move({window=\("address:" + .address | tojson),workspace=\($ws | tojson),follow=false})) end)"]
+        | if length > 0 then "function()" + add + " end" else "" end')
+    [ -n "$lua" ] || return
+    echo "  Moving windows without a saved place to workspace $RETURN_WS"
+    hyprctl dispatch "$lua" >/dev/null 2>&1 || true
 }
 
 # Wait until every launched class has at least its expected window count,
-# or until the timeout elapses. Polls quickly instead of sleeping blindly.
+# or until the timeout elapses.
 wait_for_windows() {
     local -n want=$1
+    [ ${#want[@]} -gt 0 ] || return 0
     local elapsed_ms=0
     local timeout_ms=$(awk "BEGIN{print int($POLL_TIMEOUT*1000)}")
     local interval_ms=$(awk "BEGIN{print int($POLL_INTERVAL*1000)}")
 
+    echo ""
+    echo "Waiting for launched windows..."
     while [ "$elapsed_ms" -lt "$timeout_ms" ]; do
-        local clients counts satisfied=true
-        clients=$(hyprctl clients -j)
+        local counts satisfied=true cls have
+        counts=$(live_clients | jq -c 'group_by(.class) | map({key: .[0].class, value: length}) | from_entries')
         for cls in "${!want[@]}"; do
-            local have
-            have=$(echo "$clients" | jq --arg c "$cls" '[.[] | select(.class == $c)] | length')
+            have=$(echo "$counts" | jq --arg c "$cls" '.[$c] // 0')
             if [ "$have" -lt "${want[$cls]}" ]; then
                 satisfied=false
-                $VERBOSE && echo "    waiting: $cls $have/${want[$cls]}"
             fi
         done
         $satisfied && return 0
         sleep "$POLL_INTERVAL"
         elapsed_ms=$((elapsed_ms + interval_ms))
     done
-    $VERBOSE && echo "    timeout waiting for windows (continuing anyway)"
+    for cls in "${!want[@]}"; do
+        have=$(live_clients | jq --arg c "$cls" '[.[] | select(.class == $c)] | length')
+        [ "$have" -lt "${want[$cls]}" ] && echo "  Timeout: $cls has $have of ${want[$cls]} windows"
+    done
     return 0
 }
 
-# Apply the collected placement plan in a single Lua batch, then focus the
-# return workspace. Window moves under the Lua API follow the window, so we
-# always finish by focusing RETURN_WS.
-apply_plan() {
-    local n=${#MOVE_ADDRS[@]}
+# Match saved windows to live windows and write the placement as one Lua
+# function. The match is greedy on title similarity within each class; a
+# tie goes to the window with the same rank in its class.
+#
+# The Lua function:
+#   1. dissolves the live groups of the matched windows, because a move
+#      of one group member moves the whole group,
+#   2. moves every matched window to a hidden staging workspace,
+#   3. sets each window's floating state there,
+#   4. builds each saved group on an empty helper workspace: the first
+#      member becomes a group, and each next member joins it from the side
+#      where it is tiled. On a workspace with more windows that side can
+#      hold another window. The finished group goes back to staging,
+#   5. moves the tiled windows and groups to their workspaces in saved
+#      left-to-right, top-to-bottom order, so the layout rebuilds in that
+#      order,
+#   6. moves the floating windows and sets their position and size,
+#   7. focuses the return target.
+PLAN_JQ='
+def words: ascii_downcase | [scan("[a-z0-9]{3,}")] | unique;
+def score($a; $b):
+    if $a == $b then 1000
+    else ($a | words) as $wa | ($b | words) as $wb | ($wa - ($wa - $wb)) | length
+    end;
+def ranked: group_by(.class) | map(to_entries | map(.value + {rank: .key})) | add // [];
+def target:
+    if .workspace.id < 0 then .workspace.name
+    elif (.workspace.name | test("^[0-9]+$")) then .workspace.name
+    else "name:" + .workspace.name
+    end;
+def lua: tojson;
 
+($saved.clients | to_entries | map(.value + {sidx: .key}) | ranked) as $S
+| ($cur | to_entries | map(.value + {cidx: .key}) | ranked) as $C
+| [ $S[] as $s | $C[] | select(.class == $s.class)
+    | {s: $s.sidx, c: .cidx, score: score($s.title; .title), dist: ((.rank - $s.rank) | fabs)} ]
+| sort_by(-.score, .dist, .s)
+| reduce .[] as $p ({us: {}, uc: {}, pairs: []};
+    if .us[$p.s | tostring] or .uc[$p.c | tostring] then .
+    else .us[$p.s | tostring] = true | .uc[$p.c | tostring] = true | .pairs += [$p]
+    end)
+| [ .pairs[] as $p
+    | ($S[] | select(.sidx == $p.s)) as $s
+    | ($C[] | select(.cidx == $p.c)) as $c
+    | {addr: ("address:" + $c.address), saved: $s.address, class: $s.class, title: $s.title,
+       ws: ($s | target), float: $s.floating, toggle: ($s.floating != $c.floating),
+       at: $s.at, size: $s.size, score: $p.score} ]
+| sort_by(.ws, .at[0], .at[1])
+| . as $plan
+| ($plan | map({key: .saved, value: .addr}) | from_entries) as $live
+| ($plan | map(.addr)) as $placed
+| ([ $cur[] | select(.grouped | length > 0) | .grouped | sort ] | unique
+    | map(map("address:" + .)) | map(select(any(.[]; . as $a | $placed | index($a))))) as $dissolve
+| ([ ($saved.groups // [])[] | select(.workspace.id > 0)
+    | [ .members[].address | $live[.] // empty ] | select(length > 1) ]) as $groups
+| ([ $groups[] | .[1:][] ]) as $followers
+| {
+    plan: $plan,
+    groups: ($groups | length),
+    lua: ( "function() local d=hl.dispatch"
+        + " local function mv(a,w) pcall(function() d(hl.dsp.window.move({window=a,workspace=w,follow=false})) end) end"
+        + " local function tf(a) pcall(function() d(hl.dsp.window.float({window=a,action=\"toggle\"})) end) end"
+        + " local function pl(a,x,y,w,h) pcall(function() d(hl.dsp.window.resize({window=a,x=w,y=h})) d(hl.dsp.window.move({window=a,x=x,y=y})) end) end"
+        + " local function gt(a) pcall(function() d(hl.dsp.focus({window=a})) d(hl.dsp.group.toggle()) end) end"
+        + " local function gj(l,m) pcall(function()"
+        +   " local L=hl.get_window(l) local M=hl.get_window(m) if not L or not M then return end"
+        +   " local dx=M.at.x-L.at.x local dy=M.at.y-L.at.y local dir"
+        +   " if math.abs(dx)>=math.abs(dy) then dir=(dx>0) and \"l\" or \"r\" else dir=(dy>0) and \"u\" or \"d\" end"
+        +   " d(hl.dsp.focus({window=m})) d(hl.dsp.window.move({into_group=dir})) end) end"
+        + ([ $dissolve[] | " gt(\(.[0] | lua))" ] | add // "")
+        + ([ $plan[] | " mv(\(.addr | lua),\($stage | lua))" ] | add // "")
+        + ([ $plan[] | select(.toggle) | " tf(\(.addr | lua))" ] | add // "")
+        + ([ $groups[] | .[0] as $l
+            | " mv(\($l | lua),\($grp | lua)) gt(\($l | lua))"
+            + ([ .[1:][] | " mv(\(. | lua),\($grp | lua)) gj(\($l | lua),\(. | lua))" ] | add)
+            + " pcall(function() d(hl.dsp.focus({window=\($l | lua)})) end) mv(\($l | lua),\($stage | lua))" ] | add // "")
+        + ([ $plan[] | select(.float | not) | select(.addr as $a | $followers | index($a) | not) | " mv(\(.addr | lua),\(.ws | lua))" ] | add // "")
+        + ([ $plan[] | select(.float) | " mv(\(.addr | lua),\(.ws | lua)) pl(\(.addr | lua),\(.at[0]),\(.at[1]),\(.size[0]),\(.size[1]))" ] | add // "")
+        + $focus
+        + " end" )
+  }
+'
+
+# Place all live windows by the saved session.
+place_windows() {
+    local focus_lua="$1"
+    local current plan n g
+    current=$(live_clients)
+    plan=$(jq -n --argjson saved "$SESSION_DATA" --argjson cur "$current" \
+        --arg stage "$STAGE_WS" --arg grp "$GROUP_WS" --arg focus "$focus_lua" "$PLAN_JQ")
+    n=$(echo "$plan" | jq '.plan | length')
+    g=$(echo "$plan" | jq '.groups')
+
+    echo ""
+    echo "Placing windows..."
+    if $VERBOSE || $DRY_RUN; then
+        echo "$plan" | jq -r '.plan[] | "  \(.ws)\t\(if .float then "float \(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])" else "tiled" end)\t\(.class) (score \(.score)): \(.title[0:40])"'
+    fi
     if $DRY_RUN; then
-        local i
-        for ((i = 0; i < n; i++)); do
-            echo "  [DRY] move ${MOVE_ADDRS[$i]} -> ${MOVE_WS[$i]}"
-        done
-        local a
-        for a in "${FLOAT_ADDRS[@]:-}"; do
-            [ -n "$a" ] && echo "  [DRY] toggle float $a"
-        done
-        echo "  [DRY] focus workspace $RETURN_WS"
+        echo "  [DRY] $n windows, $g groups, focus $RETURN_WS"
         return
     fi
-
-    local lua="function()"
-    lua+=" local d=hl.dispatch"
-    lua+=" local function mv(a,w) pcall(function() d(hl.dsp.window.move({window=a,workspace=w})) end) end"
-    lua+=" local function fl(a) pcall(function() d(hl.dsp.window.float({window=a})) end) end"
-    local i
-    for ((i = 0; i < n; i++)); do
-        lua+=" mv(\"${MOVE_ADDRS[$i]}\",${MOVE_WS[$i]})"
-    done
-    local a
-    for a in "${FLOAT_ADDRS[@]:-}"; do
-        [ -n "$a" ] && lua+=" fl(\"$a\")"
-    done
-    lua+=" pcall(function() d(hl.dsp.focus({workspace=$RETURN_WS})) end)"
-    lua+=" end"
-
-    hyprctl dispatch "$lua" >/dev/null 2>&1 || true
-    echo "  Placed $n windows; focused workspace $RETURN_WS"
+    hyprctl dispatch "$(echo "$plan" | jq -r '.lua')" >/dev/null 2>&1 || true
+    echo "  Placed $n of $CLIENT_COUNT saved windows, $g groups"
 }
 
-# Restore window groups (best-effort). Group recreation depends on focus and
-# layout, so it is only run on demand (-g) and never blocks the main restore.
-restore_groups() {
-    if [ "$GROUP_COUNT" = "0" ] || [ "$GROUP_COUNT" = "null" ]; then
-        $VERBOSE && echo "No groups to restore"
-        return
-    fi
-
-    echo ""
-    echo "Restoring window groups (best-effort)..."
-
-    local current_clients=$(hyprctl clients -j)
-    local restored_groups=0
-
-    while read -r group; do
-        local member_classes=$(echo "$group" | jq -r '.members[].class')
-        local found_addresses=()
-
-        while read -r member_class; do
-            local addr=$(echo "$current_clients" | jq -r --arg c "$member_class" \
-                '.[] | select(.class == $c and (.grouped | length == 0)) | .address' | head -1 || true)
-            if [ -n "$addr" ] && [ "$addr" != "null" ]; then
-                found_addresses+=("$addr")
-                current_clients=$(echo "$current_clients" | jq --arg a "$addr" 'del(.[] | select(.address == $a))')
-            fi
-        done <<< "$member_classes"
-
-        if [ ${#found_addresses[@]} -ge 2 ]; then
-            if $DRY_RUN; then
-                echo "  [DRY] group: ${found_addresses[*]}"
-            else
-                local lua="function() local d=hl.dispatch pcall(function()"
-                lua+=" d(hl.dsp.focus({window=\"address:${found_addresses[0]}\"}))"
-                lua+=" d(hl.dsp.group.toggle())"
-                local addr
-                for addr in "${found_addresses[@]:1}"; do
-                    lua+=" d(hl.dsp.focus({window=\"address:$addr\"}))"
-                    lua+=" d(hl.dsp.group.move_window(\"l\"))"
-                done
-                lua+=" end) end"
-                hyprctl dispatch "$lua" >/dev/null 2>&1 || true
-                ((restored_groups++)) || true
-            fi
-        fi
-    done < <(echo "$SESSION_DATA" | jq -c '.groups[]')
-
-    echo "  Restored $restored_groups groups"
+# Lua that focuses a workspace when the placement is done.
+focus_workspace_lua() {
+    local ws
+    ws=$(jq -n --arg w "$1" '$w')
+    echo " pcall(function() d(hl.dsp.focus({workspace=$ws})) end)"
 }
 
-# Build the placement plan: match saved windows to live windows and record
-# where each should go. Multi-window classes match by title; single-window
-# classes match by class.
-build_plan() {
-    echo ""
-    echo "Matching windows to saved workspaces..."
-
-    local current_clients=$(hyprctl clients -j)
-
-    local multi_window_classes
-    multi_window_classes=$(echo "$SESSION_DATA" | jq -r '
-        [.clients | group_by(.class)[] | select(length > 1) | .[0].class] | .[]
-    ')
-
-    declare -A MULTI_CLASSES
-    local cls
-    for cls in $multi_window_classes; do
-        MULTI_CLASSES[$cls]=1
-    done
-
-    declare -A USED_ADDRESSES
-
-    # First pass: multi-window classes, matched by title similarity
-    for cls in $multi_window_classes; do
-        $VERBOSE && echo "  Title-matching $cls windows..."
-
-        local saved_windows current_windows current_count
-        saved_windows=$(echo "$SESSION_DATA" | jq -c --arg c "$cls" '[.clients[] | select(.class == $c)]')
-        current_windows=$(echo "$current_clients" | jq -c --arg c "$cls" '[.[] | select(.class == $c)]')
-        current_count=$(echo "$current_windows" | jq 'length')
-
-        if [ "$current_count" -eq 0 ]; then
-            $VERBOSE && echo "    No current $cls windows found"
-            continue
-        fi
-
-        while read -r saved; do
-            local saved_title ws_id ws_name floating ws_target
-            saved_title=$(echo "$saved" | jq -r '.title')
-            ws_id=$(echo "$saved" | jq -r '.workspace.id')
-            ws_name=$(echo "$saved" | jq -r '.workspace.name')
-            floating=$(echo "$saved" | jq -r '.floating')
-            ws_target=$(get_workspace_target "$ws_id" "$ws_name")
-
-            local best_addr="" best_score=-1
-            while read -r candidate; do
-                local cand_addr cand_title score
-                cand_addr=$(echo "$candidate" | jq -r '.address')
-                [ -n "${USED_ADDRESSES[$cand_addr]:-}" ] && continue
-                cand_title=$(echo "$candidate" | jq -r '.title')
-                score=$(title_similarity "$saved_title" "$cand_title")
-                if [ "$score" -gt "$best_score" ]; then
-                    best_score=$score
-                    best_addr=$cand_addr
-                fi
-            done < <(echo "$current_windows" | jq -c '.[]')
-
-            if [ -n "$best_addr" ]; then
-                USED_ADDRESSES[$best_addr]=1
-                MOVE_ADDRS+=("address:$best_addr")
-                MOVE_WS+=("$(lua_ws_value "$ws_target")")
-                local is_floating
-                is_floating=$(echo "$current_windows" | jq -r --arg a "$best_addr" '.[] | select(.address == $a) | .floating')
-                [ "$floating" != "$is_floating" ] && FLOAT_ADDRS+=("address:$best_addr")
-                $VERBOSE && echo "    $cls -> $ws_target (title score: $best_score)"
-            else
-                $VERBOSE && echo "    No match for $cls: $saved_title"
-            fi
-        done < <(echo "$saved_windows" | jq -c '.[]')
-    done
-
-    # Second pass: single-window classes, matched by class
-    while read -r client; do
-        local class
-        class=$(echo "$client" | jq -r '.class')
-        [ -n "${MULTI_CLASSES[$class]:-}" ] && continue
-
-        local ws_id ws_name floating ws_target
-        ws_id=$(echo "$client" | jq -r '.workspace.id')
-        ws_name=$(echo "$client" | jq -r '.workspace.name')
-        floating=$(echo "$client" | jq -r '.floating')
-        ws_target=$(get_workspace_target "$ws_id" "$ws_name")
-
-        local current_address="" is_floating="false"
-        while read -r cand; do
-            local addr
-            addr=$(echo "$cand" | jq -r '.address')
-            if [ -z "${USED_ADDRESSES[$addr]:-}" ]; then
-                current_address="$addr"
-                is_floating=$(echo "$cand" | jq -r '.floating')
-                USED_ADDRESSES[$addr]=1
-                break
-            fi
-        done < <(echo "$current_clients" | jq -c --arg c "$class" '.[] | select(.class == $c)')
-
-        if [ -n "$current_address" ]; then
-            MOVE_ADDRS+=("address:$current_address")
-            MOVE_WS+=("$(lua_ws_value "$ws_target")")
-            [ "$floating" != "$is_floating" ] && FLOAT_ADDRS+=("address:$current_address")
-            $VERBOSE && echo "  $class -> $ws_target"
-        else
-            $VERBOSE && echo "  No available window for $class -> $ws_target"
-        fi
-    done < <(echo "$SESSION_DATA" | jq -c '.clients[]')
-
-    echo "  Matched ${#MOVE_ADDRS[@]} windows"
+# Lua that focuses the window that had the focus before the placement.
+focus_window_lua() {
+    local addr
+    addr=$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // empty')
+    [ -n "$addr" ] || return
+    echo " pcall(function() d(hl.dsp.focus({window=\"address:$addr\"})) end)"
 }
-
-# Groups only mode
-if $GROUPS_ONLY; then
-    restore_groups
-    echo ""
-    echo "Group restoration complete"
-    exit 0
-fi
 
 # Workspace only mode
 if $WORKSPACE_ONLY; then
-    build_plan
-    apply_plan
+    place_windows "$(focus_window_lua)"
+    mark_restored
     echo ""
     echo "Workspace restoration complete"
     exit 0
@@ -421,64 +401,85 @@ fi
 # Full restore mode
 echo "Full restore: launching missing applications..."
 
-# Expected window counts per class
 declare -A EXPECTED_COUNTS
 while read -r entry; do
     cls=$(echo "$entry" | jq -r '.key')
-    count=$(echo "$entry" | jq -r '.value')
-    EXPECTED_COUNTS[$cls]=$count
-done < <(echo "$SESSION_DATA" | jq -c '[.clients | group_by(.class)[] | {key: .[0].class, value: length}] | .[]')
+    EXPECTED_COUNTS[$cls]=$(echo "$entry" | jq -r '.value')
+done < <(echo "$SESSION_DATA" | jq -c '.clients | group_by(.class)[] | {key: .[0].class, value: length}')
 
-# Only launch classes that are not already running, to avoid duplicates.
-RUNNING_CLIENTS=$(hyprctl clients -j)
-declare -A LAUNCHED_CLASSES
+RUNNING_COUNTS=$(live_clients | jq -c 'group_by(.class) | map({key: .[0].class, value: length}) | from_entries')
+
+# Launch every class that has fewer windows than saved. Web apps wait for
+# the second pass.
 declare -A WAIT_FOR
-
-while read -r class; do
-    [ -n "${LAUNCHED_CLASSES[$class]:-}" ] && continue
-    LAUNCHED_CLASSES[$class]=1
-
-    local_running=$(echo "$RUNNING_CLIENTS" | jq --arg c "$class" '[.[] | select(.class == $c)] | length')
-    if [ "$local_running" -gt 0 ]; then
-        $VERBOSE && echo "  Already running: $class ($local_running)"
+WEB_APPS=()
+for class in "${!EXPECTED_COUNTS[@]}"; do
+    running=$(echo "$RUNNING_COUNTS" | jq --arg c "$class" '.[$c] // 0')
+    want=${EXPECTED_COUNTS[$class]}
+    if is_web_app "$class"; then
+        [ "$running" -eq 0 ] && WEB_APPS+=("$class")
+        continue
+    fi
+    if one_window_per_launch "$class"; then
+        missing=$((want - running))
+    else
+        missing=$(( running > 0 ? 0 : 1 ))
+    fi
+    if [ "$missing" -le 0 ]; then
+        $VERBOSE && echo "  Already running: $class ($running)"
         continue
     fi
 
     launch_cmd=$(find_launch_command "$class")
-    if [ "$launch_cmd" = "SKIP_PWA" ]; then
-        $VERBOSE && echo "  Skipping PWA: $class"
+    if [ -z "$launch_cmd" ]; then
+        echo "  No launch command for: $class (add one to ~/.config/hypr/session-commands.conf)"
         continue
     fi
+    for _ in $(seq 1 "$missing"); do
+        launch "$class" "$launch_cmd"
+    done
+    WAIT_FOR[$class]=$want
+done
 
-    if $DRY_RUN; then
-        echo "  [DRY] launch: $launch_cmd ($class)"
-    else
-        echo "  Launching: $class"
-        $VERBOSE && echo "    Command: $launch_cmd"
-        $launch_cmd >/dev/null 2>&1 &
-        WAIT_FOR[$class]=${EXPECTED_COUNTS[$class]:-1}
-        sleep "$LAUNCH_DELAY"
-    fi
-done < <(echo "$SESSION_DATA" | jq -r '.clients | unique_by(.class)[] | .class')
+$DRY_RUN || wait_for_windows WAIT_FOR
 
-if ! $DRY_RUN && [ ${#WAIT_FOR[@]} -gt 0 ]; then
-    echo ""
-    echo "Waiting for launched windows..."
-    wait_for_windows WAIT_FOR
+# Second pass: web apps that the browser did not reopen by itself.
+declare -A WAIT_WEB
+if [ ${#WEB_APPS[@]} -gt 0 ]; then
+    running_now=$(live_clients)
+    for class in "${WEB_APPS[@]}"; do
+        n=$(echo "$running_now" | jq --arg c "$class" '[.[] | select(.class == $c)] | length')
+        [ "$n" -gt 0 ] && continue
+        launch_cmd=$(desktop_command "$class" || true)
+        if [ -z "$launch_cmd" ]; then
+            echo "  No desktop file for web app: $class"
+            continue
+        fi
+        launch "$class" "$launch_cmd"
+        WAIT_WEB[$class]=${EXPECTED_COUNTS[$class]}
+    done
+    $DRY_RUN || wait_for_windows WAIT_WEB
 fi
 
-build_plan
-apply_plan
+place_windows "$(focus_workspace_lua "$RETURN_WS")"
+
+# Browser windows show their final titles only after the tabs load, and
+# late windows can still appear. A second pass fixes those.
+if ! $DRY_RUN && [ ${#WAIT_FOR[@]} -gt 0 ]; then
+    sleep "$SETTLE"
+    place_windows "$(focus_workspace_lua "$RETURN_WS")"
+fi
+sweep_stage
+
+mark_restored
 
 echo ""
 if $DRY_RUN; then
     echo "Dry run complete (no changes made)"
 else
     echo "Session restore complete"
-    echo ""
-    echo "Tips:"
-    echo "  - Browser tabs restore via the browser's own session restore"
-    echo "    (Brave: Settings > On startup > Continue where you left off)"
-    echo "  - Run 'hrestore -w' after tabs load to re-fix workspaces"
-    echo "  - Run 'hrestore -g' to re-create window groups"
+    $AUTO || {
+        echo ""
+        echo "Tip: run 'hrestore -w' to put the windows back in their saved places"
+    }
 fi

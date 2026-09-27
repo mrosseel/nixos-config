@@ -404,4 +404,24 @@ in {
     source = ./scripts/hypr-restore-session.sh;
     executable = true;
   };
+
+  # Save the window layout every 15 minutes, so a crash loses at most 15
+  # minutes of layout changes. The script waits for the login restore
+  # before it writes.
+  systemd.user.services.hypr-save-session = lib.mkIf isHyprland {
+    Unit.Description = "Save the Hyprland window layout";
+    Service = {
+      Type = "oneshot";
+      Environment = "PATH=/run/current-system/sw/bin:/etc/profiles/per-user/mike/bin";
+      ExecStart = "/home/mike/.local/bin/hypr-save-session --auto";
+    };
+  };
+  systemd.user.timers.hypr-save-session = lib.mkIf isHyprland {
+    Unit.Description = "Save the Hyprland window layout every 15 minutes";
+    Timer = {
+      OnCalendar = "*:0/15";
+      AccuracySec = "10s";
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
 }

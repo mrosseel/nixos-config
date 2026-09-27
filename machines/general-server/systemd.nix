@@ -59,10 +59,30 @@ in
       RestartSec = 5;
       DynamicUser = true;
       StateDirectory = "rays-votes";
-      Environment = [ "VOTES_LOG=/var/lib/rays-votes/votes.jsonl" "PORT=8322" ];
+      Environment = [
+        "VOTES_LOG=/var/lib/rays-votes/votes.jsonl"
+        "PORT=8322"
+        "SITE_DIR=/var/www/rays.miker.be"
+      ];
       NoNewPrivileges = true;
       ProtectSystem = "strict";
       ProtectHome = true;
+      # The vote-key allow-list comes from the deployed site data.
+      ReadOnlyPaths = [ "/var/www/rays.miker.be" ];
+      MemoryMax = "128M";
+      TasksMax = 64;
+      IPAddressAllow = "localhost";
+      IPAddressDeny = "any";
+      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
+      CapabilityBoundingSet = "";
+      SystemCallFilter = [ "@system-service" ];
+      SystemCallArchitectures = "native";
+      LockPersonality = true;
+      ProtectKernelTunables = true;
+      ProtectKernelModules = true;
+      ProtectControlGroups = true;
+      RestrictNamespaces = true;
+      PrivateDevices = true;
     };
   };
 

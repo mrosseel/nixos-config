@@ -502,6 +502,10 @@
               # Capture full Hyprland logs to diagnose AMDGPU/SMU-induced renderer aborts
               wayland.windowManager.hyprland.settings.debug.disable_logs = false;
 
+              # Put the saved windows back after every login, a crash included.
+              # The log is in ~/.local/state/hypr-session/restore.log.
+              wayland.windowManager.hyprland.settings."exec-once" = [ "/home/mike/.local/bin/hypr-restore-session --auto" ];
+
               # Omarchy's capture flow owns Print; only redirect where it saves.
               wayland.windowManager.hyprland.settings.env = [ "OMARCHY_SCREENSHOT_DIR,/home/mike/Downloads" ];
 
