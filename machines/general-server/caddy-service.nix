@@ -411,7 +411,7 @@ in
     # can issue the certificate.
     virtualHosts."deltas.pifinder.eu" = {
       extraConfig = ''
-        @public path /delta /update-start /blobs/* /health
+        @public path /delta /deltas /update-start /blobs/* /health
 
         # handle blocks, not a bare `respond`: respond sorts BEFORE
         # reverse_proxy in Caddy's directive order and would 403 everything.
@@ -420,7 +420,11 @@ in
           # immutable — cache forever, anywhere.
           @blobs path /blobs/*
           header @blobs Cache-Control "public, max-age=31536000, immutable"
-          reverse_proxy localhost:8090
+          # /deltas answers with a stream of JSON lines, one per patch as it
+          # is ready: pass each line on at once, do not buffer.
+          reverse_proxy localhost:8090 {
+            flush_interval -1
+          }
         }
         handle {
           respond 403
