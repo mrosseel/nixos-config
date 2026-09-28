@@ -1112,11 +1112,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790514375,
-        "narHash": "sha256-R310u0S8jx0SnQJuXcI4defq8m5MsNKbilnMYUApzfk=",
+        "lastModified": 1790592628,
+        "narHash": "sha256-sjedP7IusIvXvZbfyIVMNdmbAGt5h0gBZ1buqRRDwvc=",
         "owner": "mrosseel",
         "repo": "pifinder-server",
-        "rev": "c9ad974ea349f377251a9be7fe0c4829ee15707e",
+        "rev": "7920605bbecf362d0f65c88b22b5421bbc8acaa3",
         "type": "github"
       },
       "original": {
