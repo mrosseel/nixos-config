@@ -111,6 +111,10 @@ in
     after = [ "network.target" ];
     wantedBy = [ "multi-user.target" ];
 
+    # Not a secret. The favicon colour tells beta from production: the
+    # pasture tile's green, TERRAIN_FILL.pasture in src/ui/design.ts.
+    environment.HEXAGONIA_SERVER_COLOR = "#628E45";
+
     serviceConfig = {
       User = "testalon";
       Group = "testalon";
