@@ -37,7 +37,38 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
     [10, 8, 7, 6], [11, 9, 0, 1], [10, 2, 1, 0], [11, 3, 4, 5], [10, 6, 5, 4]
   ];
 
+  /* A coin: a 24-sided prism. Face 0 is heads and face 1 is tails. The
+     24 side faces are the edge, and all of them share one atlas cell. */
+  var COIN_SIDES = 24, COIN_HALF_THICK = 0.09;
+  function coinVerts() {
+    var v = [], i, a;
+    for (i = 0; i < COIN_SIDES; i++) {
+      a = i * Math.PI * 2 / COIN_SIDES;
+      v.push([Math.cos(a), COIN_HALF_THICK, Math.sin(a)]);
+    }
+    for (i = 0; i < COIN_SIDES; i++) {
+      a = i * Math.PI * 2 / COIN_SIDES;
+      v.push([Math.cos(a), -COIN_HALF_THICK, Math.sin(a)]);
+    }
+    return v;
+  }
+  function coinFaces() {
+    var top = [], bottom = [], f, i;
+    for (i = 0; i < COIN_SIDES; i++) { top.push(i); bottom.push(COIN_SIDES + i); }
+    f = [top, bottom];
+    for (i = 0; i < COIN_SIDES; i++) {
+      var j = (i + 1) % COIN_SIDES;
+      f.push([i, j, COIN_SIDES + j, COIN_SIDES + i]);
+    }
+    return f;
+  }
+
   var SHAPES = {
+    coin: {
+      vertices: coinVerts(), faces: coinFaces(), coin: true,
+      readable: [0, 1], cell: 320,
+      cellOf: function (fi) { return Math.min(fi, 2); }
+    },
     tetra: {
       vertices: [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]],
       faces: [[1, 0, 2], [0, 1, 3], [2, 3, 0], [3, 2, 1]],
@@ -84,6 +115,9 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
 
   /* Die types offered in the settings sheet. */
   var TYPES = [
+    { id: "coin", shape: "coin", faces: 2, r: 0.8, coin: true,
+      body: "#d4a634", ink: "#5c3f08", rough: 0.3, metal: true,
+      massScale: 0.35, soundSize: 0.3 },
     { id: "d4",   shape: "tetra",  faces: 4,  r: 0.92, range: "1 – 4",
       body: "#d8c49a", ink: "#2b2417", rough: 0.30 },
     { id: "d6",   shape: "cube",   faces: 6,  r: 0.85, range: "1 – 6",
@@ -120,7 +154,8 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
 
   /* ============================== settings =========================== */
 
-  var defaults = { counts: { d6: 2, d20: 1 }, sens: 16, speed: "normal", prompt: true, tilt: true, sfx: true };
+  var defaults = { counts: { d6: 2, d20: 1 }, sens: 16, speed: "normal", prompt: true, tilt: true, sfx: true,
+                   coinMarks: "ht" };
   var settings = load();
 
   function load() {
@@ -143,6 +178,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       if (s && typeof s.prompt === "boolean") out.prompt = s.prompt;
       if (s && typeof s.tilt === "boolean") out.tilt = s.tilt;
       if (s && typeof s.sfx === "boolean") out.sfx = s.sfx;
+      if (s && (s.coinMarks === "ht" || s.coinMarks === "01")) out.coinMarks = s.coinMarks;
     } catch (e) {}
     return out;
   }
@@ -270,6 +306,9 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
      d4 carries the number of each corner near that corner, so the
      result reads on every visible face. */
   function faceLabels(type, kit, ready) {
+    if (type.coin) {
+      return [{ coin: "heads" }, { coin: "tails" }, { coin: "edge" }];
+    }
     if (kit.vertexValues) {
       return ready.faces.map(function (f) {
         return f.idx.map(function (vi, k) {
@@ -284,12 +323,129 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
     });
   }
 
+  /* Text around the top of a circle, read left to right. */
+  function arcText(c, text, cx, cy, radius, size) {
+    c.save();
+    c.font = "700 " + size.toFixed(1) + "px Cinzel, Georgia, serif";
+    var step = size * 0.78 / radius;
+    var a = -Math.PI / 2 - step * (text.length - 1) / 2;
+    for (var i = 0; i < text.length; i++, a += step) {
+      c.save();
+      c.translate(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+      c.rotate(a + Math.PI / 2);
+      c.fillText(text[i], 0, 0);
+      c.restore();
+    }
+    c.restore();
+  }
+
+  /* Paints a shape three times, light up-left and dark down-right under
+     the gold, so it reads as struck into the metal. */
+  function emboss(c, draw, unit) {
+    var off = Math.max(1, unit * 0.012);
+    [["rgba(255, 244, 200, 0.75)", -off], ["rgba(70, 45, 0, 0.6)", off], ["#b88a22", 0]]
+      .forEach(function (layer) {
+        c.save();
+        c.translate(layer[1], layer[1]);
+        c.fillStyle = layer[0];
+        c.strokeStyle = layer[0];
+        draw();
+        c.restore();
+      });
+  }
+
+  function sunEmblem(c, cx, cy, R) {
+    c.beginPath();
+    for (var i = 0; i < 32; i++) {
+      var a = i * Math.PI / 16 - Math.PI / 2;
+      var r = i % 2 ? R * 0.2 : (i % 4 ? R * 0.34 : R * 0.42);
+      c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    c.closePath();
+    c.fill();
+  }
+
+  function laurelEmblem(c, cx, cy, R) {
+    /* two branches of leaves from the bottom, around to the upper sides */
+    [-1, 1].forEach(function (side) {
+      for (var k = 0; k < 9; k++) {
+        var a = Math.PI / 2 + side * (0.3 + k * 0.24);
+        var x = cx + Math.cos(a) * R * 0.44, y = cy + Math.sin(a) * R * 0.44;
+        c.save();
+        c.translate(x, y);
+        c.rotate(a + side * 0.9);
+        c.beginPath();
+        c.ellipse(0, 0, R * 0.085, R * 0.035, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+    });
+    /* a five-point star in the middle */
+    c.beginPath();
+    for (var i = 0; i < 10; i++) {
+      var b = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? R * 0.09 : R * 0.22;
+      c.lineTo(cx + Math.cos(b) * r, cy + Math.sin(b) * r);
+    }
+    c.closePath();
+    c.fill();
+  }
+
+  /* One face of the coin, or the gold of its edge. R is the radius the
+     face polygon maps to in the cell. */
+  function paintCoinCell(c, cx, cy, cell, kind) {
+    var R = cell / 2 * ATLAS_FILL;
+    if (kind === "edge") {
+      var eg = c.createLinearGradient(cx, cy - cell / 2, cx, cy + cell / 2);
+      eg.addColorStop(0, "#e3bb52");
+      eg.addColorStop(1, "#9c7219");
+      c.fillStyle = eg;
+      c.fillRect(cx - cell / 2, cy - cell / 2, cell, cell);
+      return;
+    }
+    var g = c.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.05, cx, cy, R);
+    g.addColorStop(0, "#f7dc84");
+    g.addColorStop(0.6, "#d8ab3c");
+    g.addColorStop(1, "#a97c1d");
+    c.fillStyle = g;
+    c.fillRect(cx - cell / 2, cy - cell / 2, cell, cell);
+
+    /* raised rim and a ring of beads inside it */
+    c.lineWidth = R * 0.07;
+    c.strokeStyle = "rgba(120, 84, 10, 0.55)";
+    c.beginPath(); c.arc(cx, cy, R * 0.9, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = R * 0.02;
+    c.strokeStyle = "rgba(255, 238, 180, 0.7)";
+    c.beginPath(); c.arc(cx, cy, R * 0.94, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = "rgba(110, 76, 8, 0.6)";
+    for (var i = 0; i < 44; i++) {
+      var a = i * Math.PI * 2 / 44;
+      c.beginPath();
+      c.arc(cx + Math.cos(a) * R * 0.79, cy + Math.sin(a) * R * 0.79, R * 0.018, 0, Math.PI * 2);
+      c.fill();
+    }
+
+    var heads = kind === "heads";
+    if (settings.coinMarks === "01") {
+      emboss(c, function () {
+        /* Cinzel draws 1 as a roman I, so the numerals use Plex Sans */
+        c.font = "600 " + (R * 0.95).toFixed(1) + "px \"IBM Plex Sans\", system-ui, sans-serif";
+        c.fillText(heads ? "1" : "0", cx, cy + R * 0.04);
+      }, R);
+      return;
+    }
+    emboss(c, function () {
+      if (heads) sunEmblem(c, cx, cy + R * 0.1, R);
+      else laurelEmblem(c, cx, cy + R * 0.1, R);
+      arcText(c, heads ? "HEADS" : "TAILS", cx, cy, R * 0.62, R * 0.17);
+    }, R);
+  }
+
   /* Paints one atlas cell per face: body colour plus the numeral. */
   function buildAtlas(type, labels, spec) {
     var n = labels.length;
     var cols = Math.ceil(Math.sqrt(n));
     var rows = Math.ceil(n / cols);
-    var cell = 192;
+    var cell = spec.cell || 192;
     var cv = document.createElement("canvas");
     cv.width = cols * cell;
     cv.height = rows * cell;
@@ -315,6 +471,11 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
 
       var label = labels[i];
       c.fillStyle = type.ink;
+
+      if (label && label.coin) {
+        paintCoinCell(c, cx, cy, cell, label.coin);
+        continue;
+      }
 
       if (spec.pips && PIPS[label]) {
         var off = cell * 0.16, pr = cell * 0.052;
@@ -359,7 +520,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
   var ATLAS_FILL = 0.97;
 
   /* Builds the mesh geometry, mapping each face into its atlas cell. */
-  function buildGeometry(ready, radius, atlas) {
+  function buildGeometry(ready, radius, atlas, spec) {
     var pos = [], uv = [], nor = [];
     var faces = ready.faces;
     var cw = 1 / atlas.cols, ch = 1 / atlas.rows;
@@ -370,7 +531,8 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       });
       var n = f.normal;
 
-      var col = fi % atlas.cols, row = Math.floor(fi / atlas.cols);
+      var ci = spec.cellOf ? spec.cellOf(fi) : fi;
+      var col = ci % atlas.cols, row = Math.floor(ci / atlas.cols);
       var ucx = (col + 0.5) * cw;
       var vcy = 1 - (row + 0.5) * ch;
 
@@ -418,7 +580,10 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
 
     var spec = SHAPES[type.shape];
     var ready = prepareShape(spec);
-    var values = faceValues(ready.faces, type.faces);
+    /* A coin is 1 for heads and 0 for tails. Its edge has no value. */
+    var values = spec.coin
+      ? ready.faces.map(function (f, i) { return i === 0 ? 1 : i === 1 ? 0 : null; })
+      : faceValues(ready.faces, type.faces);
     /* A d4 is read at the corner that points up, so its values sit on
        the vertices: vertex i shows i + 1. */
     var vertexValues = spec.cornerLabels
@@ -427,12 +592,12 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
     var labels = faceLabels(type, { values: values, vertexValues: vertexValues }, ready);
 
     var atlas = buildAtlas(type, labels, spec);
-    var geo = buildGeometry(ready, type.r, atlas);
+    var geo = buildGeometry(ready, type.r, atlas, spec);
     var mat = new THREE.MeshPhysicalMaterial({
       map: atlas.texture,
       roughness: type.rough,
-      metalness: 0.0,
-      clearcoat: 1.0,
+      metalness: type.metal ? 0.85 : 0.0,
+      clearcoat: type.metal ? 0 : 1.0,
       clearcoatRoughness: 0.08,
       reflectivity: 0.55,
       envMap: envTex,
@@ -445,14 +610,30 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       material: mat,
       shape: buildPhysicsShape(ready, type.r, spec),
       normals: ready.faces.map(function (f) { return f.normal.clone(); }),
+      readable: spec.readable || ready.faces.map(function (f, i) { return i; }),
+      physVerts: ready.verts.map(function (v) {
+        return new CANNON.Vec3(v.x * type.r, v.y * type.r, v.z * type.r);
+      }),
+      physFaces: ready.faces.map(function (f) { return f.idx.slice(); }),
+      metal: !!type.metal,
       values: values,
       vertexValues: vertexValues,
       corners: vertexValues ? ready.verts.map(function (v) { return v.clone(); }) : null,
       ready: ready,
       spec: spec,
-      mass: 0.32 * type.r * type.r * type.r
+      mass: 0.32 * type.r * type.r * type.r * (type.massScale || 1)
     };
     return kits[type.id];
+  }
+
+  function repaintKit(id) {
+    var kit = kits[id];
+    if (!kit) return;
+    var type = TYPE_BY_ID[id];
+    var atlas = buildAtlas(type, faceLabels(type, kit, kit.ready), kit.spec);
+    kit.material.map.dispose();
+    kit.material.map = atlas.texture;
+    kit.material.needsUpdate = true;
   }
 
   /* ============================== three.js =========================== */
@@ -818,7 +999,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       var v = Math.abs(c.getImpactVelocityAlongNormal());
       if (v < 1.1) return;
       var hard = e.body && e.body.mass > 0;
-      clack(v / 14, type.r, hard);
+      clack(v / 14, type.soundSize || type.r, hard);
     });
 
     allDice.push(die);
@@ -859,6 +1040,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
         sym() * Math.max(0.5, halfD - d.type.r - 2.2)
       );
       randomOrientation(d.body.quaternion);
+      shuffleShape(d);
       d.body.velocity.set(0, 0, 0);
       d.body.angularVelocity.set(0, 0, 0);
     });
@@ -885,6 +1067,42 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
     rollStart = performance.now();
     wake();
     setReadout();
+  }
+
+  /* A fresh physics shape with the vertices and faces in a random order.
+     The contact solver works through the contacts in order, and that
+     order leaked into the result. In a headless test the coin face made
+     of the low vertex numbers landed up 53.7% of the time, chi2 21.9
+     against a 3.84 cutoff, and it followed the numbers when the two
+     faces swapped them. With a new order at each throw, 6000 throws gave
+     3045 to 2955. No die showed a bias that held on a second run, but
+     the dice get the same treatment. The d6 is a box shape and has no
+     vertex list to shuffle. */
+  function shuffleShape(die) {
+    var kit = die.kit;
+    if (kit.spec.box) return;
+    var n = kit.physVerts.length, perm = [], inv = [], i, j, t;
+    for (i = 0; i < n; i++) perm.push(i);
+    for (i = n - 1; i > 0; i--) {
+      j = Math.floor(rnd() * (i + 1));
+      t = perm[i]; perm[i] = perm[j]; perm[j] = t;
+    }
+    perm.forEach(function (old, k) { inv[old] = k; });
+    var faces = kit.physFaces.map(function (f) {
+      var g = f.map(function (vi) { return inv[vi]; });
+      var k = Math.floor(rnd() * g.length);
+      return g.slice(k).concat(g.slice(0, k));
+    });
+    for (i = faces.length - 1; i > 0; i--) {
+      j = Math.floor(rnd() * (i + 1));
+      t = faces[i]; faces[i] = faces[j]; faces[j] = t;
+    }
+    var shape = new CANNON.ConvexPolyhedron({
+      vertices: perm.map(function (old) { return kit.physVerts[old].clone(); }),
+      faces: faces
+    });
+    die.body.removeShape(die.body.shapes[0]);
+    die.body.addShape(shape);
   }
 
   function throwDice(dirX, dirZ, power) {
@@ -921,6 +1139,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
          The die does not move, so this is not the jump that moving the
          position was. */
       randomOrientation(b.quaternion);
+      shuffleShape(d);
 
 
       /* Throw speed follows the tray, so a big screen is not sluggish. */
@@ -966,10 +1185,10 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       }
       return die.kit.vertexValues[bestIdx];
     }
-    for (i = 0; i < die.kit.normals.length; i++) {
-      y = die.kit.normals[i].clone().applyQuaternion(quat).y;
-      if (y > best) { best = y; bestIdx = i; }
-    }
+    die.kit.readable.forEach(function (fi) {
+      var fy = die.kit.normals[fi].clone().applyQuaternion(quat).y;
+      if (fy > best) { best = fy; bestIdx = fi; }
+    });
     return die.kit.values[bestIdx];
   }
 
@@ -977,10 +1196,12 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
      COCKED_LIMIT the die leans on a wall or on another die. */
   var COCKED_LIMIT = Math.cos(10 * Math.PI / 180);
   function flatness(die) {
+    /* Only faces that carry a value count: a coin on its edge has a
+       side face flat on the floor, but it is not a result. */
     var quat = quatOf(die), best = -Infinity;
-    for (var i = 0; i < die.kit.normals.length; i++) {
-      best = Math.max(best, -die.kit.normals[i].clone().applyQuaternion(quat).y);
-    }
+    die.kit.readable.forEach(function (fi) {
+      best = Math.max(best, -die.kit.normals[fi].clone().applyQuaternion(quat).y);
+    });
     return best;
   }
 
@@ -992,6 +1213,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
   function reseat(die) {
     var b = die.body;
     randomOrientation(b.quaternion);
+    shuffleShape(die);
     b.position.y = Math.max(b.position.y, die.type.r + 0.4);
     b.velocity.set(
       -Math.sign(b.position.x) * (1 + rnd() * 2) + sym(),
@@ -1037,24 +1259,44 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       breakdown.innerHTML = "";
       return;
     }
-    var sum = 0, html = "";
+    /* With Heads and Tails a coin stays out of the total. With 1 and 0
+       it counts as a number. */
+    var marks01 = settings.coinMarks === "01";
+    var sum = 0, counted = 0, coins = 0, heads = 0, html = "";
     entries.forEach(function (en) {
       if (en.value == null) return;
-      sum += en.value;
+      var shown = en.value;
       var cls = "chip";
+      if (en.type.coin) {
+        coins++;
+        if (en.value) heads++;
+        if (!marks01) shown = en.value ? "Heads" : "Tails";
+        cls += en.value ? " heads" : " tails";
+      }
+      if (!en.type.coin || marks01) { sum += en.value; counted++; }
       if (en.type.id === "d20" && en.value === 20) cls += " crit";
       if (en.type.id === "d20" && en.value === 1) cls += " fumble";
       html += '<span class="' + cls + '"><span class="die-tag">' + en.type.id +
-              "</span>" + en.value + "</span>";
+              "</span>" + shown + "</span>";
     });
-    if (rollKind === "nudge") {
-      totalLabel.textContent = "Nudged, not a roll";
-      totalValue.className = "total-value stale";
+    var label, value = String(sum), valueCls = "total-value";
+    if (!counted && coins === 1) {
+      label = "Result";
+      value = heads ? "Heads" : "Tails";
+      valueCls += " word";
+    } else if (!counted) {
+      label = "Heads of " + coins;
+      value = String(heads);
     } else {
-      totalLabel.textContent = entries.length === 1 ? "Result" : "Total of " + entries.length;
-      totalValue.className = "total-value";
+      label = counted === 1 && entries.length === 1 ? "Result" : "Total of " + counted;
     }
-    totalValue.textContent = String(sum);
+    if (rollKind === "nudge") {
+      label = "Nudged, not a roll";
+      valueCls += " stale";
+    }
+    totalLabel.textContent = label;
+    totalValue.className = valueCls;
+    totalValue.textContent = value;
     breakdown.innerHTML = html;
   }
 
@@ -1073,7 +1315,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
   function setClearcoat(v) {
     Object.keys(kits).forEach(function (id) {
       var m = kits[id].material;
-      if (m.clearcoat === v) return;
+      if (kits[id].metal || m.clearcoat === v) return;
       m.clearcoat = v;
       m.needsUpdate = true;
     });
@@ -1621,10 +1863,13 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
   scrim.addEventListener("click", closeSheet);
 
   /* Flat silhouette for the sheet rows, so the list stays cheap. */
-  var SIL = { d4: 3, d6: 4, d8: 4, d10: 5, d12: 5, d20: 6, d100: 5 };
+  var SIL = { coin: 32, d4: 3, d6: 4, d8: 4, d10: 5, d12: 5, d20: 6, d100: 5 };
   function drawSilhouette(cv, type) {
     var c = cv.getContext("2d");
     var s = cv.width;
+    /* Reset first: the fonts arriving and the coin marks both redraw
+       this canvas, and a second translate drew a shifted copy. */
+    c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, s, s);
     c.translate(s / 2, s / 2);
     var n = SIL[type.id], r = s * 0.34;
@@ -1646,7 +1891,14 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
     c.font = "700 " + (s * 0.26).toFixed(0) + "px Cinzel, Georgia, serif";
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.fillText(type.percentile ? "%" : String(type.faces), 0, s * 0.01);
+    var mark = type.percentile ? "%" : String(type.faces);
+    if (type.coin) mark = settings.coinMarks === "01" ? "1" : "H";
+    c.fillText(mark, 0, s * 0.01);
+  }
+
+  function rangeText(t) {
+    if (!t.coin) return t.range;
+    return settings.coinMarks === "01" ? "1 or 0, added to the total" : "Heads or tails";
   }
 
   function buildSheet() {
@@ -1662,7 +1914,8 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
 
       var name = document.createElement("div");
       name.className = "name";
-      name.innerHTML = t.id + '<span class="range">' + t.range + "</span>";
+      name.innerHTML = t.id + '<span class="range"></span>';
+      name.querySelector(".range").textContent = rangeText(t);
       row.appendChild(name);
 
       var step = document.createElement("div");
@@ -1685,7 +1938,8 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
       row.appendChild(step);
 
       pool.appendChild(row);
-      t._ui = { row: row, n: n, minus: minus, plus: plus, canvas: pv };
+      t._ui = { row: row, n: n, minus: minus, plus: plus, canvas: pv,
+                range: name.querySelector(".range") };
     });
     syncSheet();
   }
@@ -1737,6 +1991,29 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
     settings.speed = btn.dataset.speed;
     syncSpeed();
     save();
+  });
+
+  var coinSeg = document.getElementById("coinMarks");
+  var coinBtns = coinSeg.querySelectorAll("button");
+  function syncCoinMarks() {
+    for (var i = 0; i < coinBtns.length; i++) {
+      coinBtns[i].setAttribute("aria-checked",
+        coinBtns[i].dataset.marks === settings.coinMarks ? "true" : "false");
+    }
+  }
+  syncCoinMarks();
+  coinSeg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-marks]");
+    if (!btn || btn.dataset.marks === settings.coinMarks) return;
+    settings.coinMarks = btn.dataset.marks;
+    syncCoinMarks();
+    save();
+    repaintKit("coin");
+    var coin = TYPE_BY_ID.coin;
+    coin._ui.range.textContent = rangeText(coin);
+    drawSilhouette(coin._ui.canvas, coin);
+    setReadout();
+    wake();
   });
 
   var promptSw = document.getElementById("promptSw");
@@ -1805,14 +2082,7 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
   /* Cinzel arrives after the first paint, so redraw the face atlases. */
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(function () {
-      Object.keys(kits).forEach(function (id) {
-        var type = TYPE_BY_ID[id];
-        var kit = kits[id];
-        var atlas = buildAtlas(type, faceLabels(type, kit, kit.ready), kit.spec);
-        kit.material.map.dispose();
-        kit.material.map = atlas.texture;
-        kit.material.needsUpdate = true;
-      });
+      Object.keys(kits).forEach(repaintKit);
       wake();
       TYPES.forEach(function (t) { if (t._ui) drawSilhouette(t._ui.canvas, t); });
     });

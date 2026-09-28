@@ -83,6 +83,13 @@
       </div>
     </div>
     <div class="opt">
+      <span id="coinLabel">Coin marks<span class="sub">Heads and tails stay out of the total. 1 and 0 add to it.</span></span>
+      <div class="seg" role="radiogroup" aria-labelledby="coinLabel" id="coinMarks">
+        <button role="radio" data-marks="ht" aria-checked="true">Heads · Tails</button>
+        <button role="radio" data-marks="01" aria-checked="false">1 · 0</button>
+      </div>
+    </div>
+    <div class="opt">
       <span id="promptLabel">Shake &amp; tilt prompt<span class="sub">The button on the felt that asks for the motion sensor</span></span>
       <button class="switch" id="promptSw" role="switch" aria-checked="true" aria-labelledby="promptLabel"></button>
     </div>

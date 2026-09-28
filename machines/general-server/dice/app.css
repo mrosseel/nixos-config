@@ -137,6 +137,7 @@
     min-width: calc(var(--total-size) * 2.45);
   }
   .total-value.stale { color: var(--chalk-dim); }
+  .total-value.word { font-size: clamp(34px, 10vw, 60px); }
   .total-value.muted { color: var(--chalk-dim); font-size: clamp(20px, 5.5vw, 28px); letter-spacing: 0.05em; }
 
   .breakdown {
@@ -167,6 +168,7 @@
   .chip .die-tag { color: var(--chalk-dim); font-size: 12px; }
   .chip.crit   { border-color: var(--brass); color: var(--brass); }
   .chip.fumble { border-color: var(--oxblood); color: #e0857e; }
+  .chip.heads, .chip.tails { color: #e3bb52; }
 
   .roll-btn {
     pointer-events: auto;
