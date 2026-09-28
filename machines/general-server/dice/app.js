@@ -614,14 +614,19 @@ import * as CANNON from "./vendor/cannon-es-0.20.0.min.js";
   /* Visible play area between the top bar and the readout, on the
      clearance plane, for the camera at the given distance. */
   function measureArea(dist) {
-    camera.position.set(0, dist * 0.985, dist * 0.17);
-    camera.lookAt(0, 0, 0);
-    camera.updateProjectionMatrix();
-    camera.updateMatrixWorld();
-
-    var h = window.innerHeight;
+    var w = window.innerWidth, h = window.innerHeight;
     var topPx = (barEl ? barEl.offsetHeight : 64) + 8;
     var botPx = (readoutEl ? readoutEl.offsetHeight : 108) + 8;
+
+    camera.position.set(0, dist * 0.985, dist * 0.17);
+    camera.lookAt(0, 0, 0);
+    /* The readout is taller than the top bar. Shift the picture up by
+       half the difference, so the middle of the tray is in the middle
+       of the free band and not in the middle of the screen. Without
+       this a phone showed an empty band of about 85 px under the bar. */
+    camera.setViewOffset(w, h, 0, (botPx - topPx) / 2, w, h);
+    camera.updateMatrixWorld();
+
     var nTop = Math.max(-0.9, 1 - 2 * topPx / h);
     var nBot = Math.min(0.9, -1 + 2 * botPx / h);
 
