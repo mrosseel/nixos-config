@@ -633,9 +633,10 @@ in
     virtualHosts."astropics.miker.be" = {
       extraConfig = ''
         encode gzip
-        # An upload can be 80 MB. Caddy refuses a larger body with 413.
+        # An upload can be 200 MiB (max_upload_bytes of the API). The other
+        # form fields add a little. Caddy refuses a larger body with 413.
         request_body {
-          max_size 100MB
+          max_size 210MiB
         }
         # A deploy restarts the API or the web server. A restart takes a few
         # seconds. Caddy holds a request that cannot connect for up to 30 s
