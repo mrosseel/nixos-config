@@ -391,46 +391,8 @@ in
         }
       '';
     };
-    # PiFinder NixOS binary cache (Attic). See attic-service.nix.
-    # Plain reverse proxy — no HTML headers/CSP because clients are the
-    # Nix daemon, not browsers; large NAR/chunk uploads must not be capped.
-    virtualHosts."cache.pifinder.eu" = {
-      extraConfig = ''
-        reverse_proxy localhost:8080 {
-          # Don't buffer request bodies — push uploads can be many MB.
-          flush_interval -1
-        }
-      '';
-    };
-
-    # PiFinder delta server (pifinder-differ.nix). Devices ask for byte-level
-    # patches here before falling back to full downloads from the cache.
-    # Only the device-facing routes are public; /warm, /status and /pairs are
-    # operator surface and stay loopback-only (curl on the host / SSH).
-    # NB: needs a DNS A record deltas.pifinder.eu -> this host before ACME
-    # can issue the certificate.
-    virtualHosts."deltas.pifinder.eu" = {
-      extraConfig = ''
-        @public path /delta /deltas /update-start /blobs/* /health
-
-        # handle blocks, not a bare `respond`: respond sorts BEFORE
-        # reverse_proxy in Caddy's directive order and would 403 everything.
-        handle @public {
-          # Patch blobs are content-addressed (base-hash_target-hash) and
-          # immutable — cache forever, anywhere.
-          @blobs path /blobs/*
-          header @blobs Cache-Control "public, max-age=31536000, immutable"
-          # /deltas answers with a stream of JSON lines, one per patch as it
-          # is ready: pass each line on at once, do not buffer.
-          reverse_proxy localhost:8090 {
-            flush_interval -1
-          }
-        }
-        handle {
-          respond 403
-        }
-      '';
-    };
+    # cache.pifinder.eu and deltas.pifinder.eu: the pifinder-server modules
+    # write these vhosts (pifinder-server.nix).
 
     # PiFinder file host — tarballs + desync chunk store, served as static
     # files next to the Attic cache. Read-only over HTTPS; uploads happen over

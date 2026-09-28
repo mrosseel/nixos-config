@@ -383,17 +383,6 @@ in
         }];
         scrape_interval = "15s";
       }
-      # pifinder-differ (the PiFinder patch server): jobs per lane and
-      # result, compute time, patch and NAR bytes, answers to devices, queue
-      # lengths and cache sizes. It listens on loopback, and Caddy forwards
-      # only the device routes, not /metrics.
-      {
-        job_name = "pifinder-differ";
-        static_configs = [{
-          targets = [ "127.0.0.1:8090" ];
-        }];
-        scrape_interval = "30s";
-      }
     ] ++ blackboxJobs;
 
     ruleFiles = [

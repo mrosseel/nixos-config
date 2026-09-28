@@ -64,8 +64,8 @@
     };
 
     # PiFinder server infra (attic cache + delta server) — own repo, consumed
-    # as NixOS modules on general-server. Caddy vhosts stay in this repo; see
-    # docs/caddy.md over there.
+    # as NixOS modules on general-server. The modules also write the Caddy
+    # vhosts, the scrape job and the dashboard (pifinder-server.nix).
     pifinder-server = {
       url = "github:mrosseel/pifinder-server";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -382,6 +382,7 @@
         ./machines/general-server/testalon.nix
         ./machines/general-server/runner.nix
         inputs.pifinder-server.nixosModules.default
+        ./machines/general-server/pifinder-server.nix
         ./modules/simple-mail-server.nix
         ./modules/python.nix
 	./modules/openssh.nix
