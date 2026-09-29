@@ -11,9 +11,10 @@
 #   sudo astropics-manage seed
 
 let
-  # miker.be has a wildcard DNS record to this host, so a new name needs no
-  # DNS change. Change the Caddy vhost in caddy-service.nix together with it.
-  domain = "astropics.miker.be";
+  # The official name since 2026-09-30, behind the Cloudflare proxy. The old
+  # name astropics.miker.be redirects to it (caddy-service.nix). Change the
+  # Caddy vhost together with it.
+  domain = "nightsky.pics";
 in
 {
   services.astropics = {

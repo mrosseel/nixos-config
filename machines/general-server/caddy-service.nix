@@ -602,12 +602,9 @@ in
     # also serves /media/*, the images stored on this host. The React Router
     # SSR server answers everything else. No CSP here: the pages are
     # versioned with the astropics repo, not with this file.
-    # Needs a DNS A record astropics.miker.be -> this host.
-    virtualHosts."astropics.miker.be" = {
-      # nightsky.pics is the name for the launch, behind the Cloudflare proxy
-      # (Enterprise plan: uploads up to 500 MB pass). publicUrl in
-      # astropics.nix still names astropics.miker.be.
-      serverAliases = [ "nightsky.pics" ];
+    virtualHosts."nightsky.pics" = {
+      # The official name, behind the Cloudflare proxy (Enterprise plan:
+      # uploads up to 500 MB pass). The old name redirects here.
       extraConfig = ''
         encode gzip
         # An upload can be 200 MiB (max_upload_bytes of the API). The other
@@ -671,6 +668,10 @@ in
       '';
     };
     virtualHosts."www.nightsky.pics".extraConfig = ''
+      redir https://nightsky.pics{uri} permanent
+    '';
+    # The name of the test phase. Links in old mails and shares still work.
+    virtualHosts."astropics.miker.be".extraConfig = ''
       redir https://nightsky.pics{uri} permanent
     '';
     # Testalon, the Hexalon test deployment (see testalon.nix). The Rust
