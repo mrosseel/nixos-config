@@ -43,6 +43,17 @@ in
       metrics {
         per_host
       }
+
+      # nightsky.pics runs behind the Cloudflare proxy. A request from a
+      # Cloudflare address then carries the visitor in CF-Connecting-IP, and
+      # {client_ip} is that visitor. Without this every visitor has a
+      # Cloudflare address, and one login lockout blocks them all. Only these
+      # addresses are trusted, so nobody else can set the header. The list is
+      # from https://www.cloudflare.com/ips (29 September 2026).
+      servers {
+        trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+        client_ip_headers CF-Connecting-IP X-Forwarded-For
+      }
     '';
     logFormat = ''
       output file /var/log/caddy/access.log {
@@ -593,6 +604,10 @@ in
     # versioned with the astropics repo, not with this file.
     # Needs a DNS A record astropics.miker.be -> this host.
     virtualHosts."astropics.miker.be" = {
+      # nightsky.pics is the name for the launch, behind the Cloudflare proxy
+      # (Enterprise plan: uploads up to 500 MB pass). publicUrl in
+      # astropics.nix still names astropics.miker.be.
+      serverAliases = [ "nightsky.pics" ];
       extraConfig = ''
         encode gzip
         # An upload can be 200 MiB (max_upload_bytes of the API). The other
@@ -618,6 +633,9 @@ in
             lb_try_duration 30s
             lb_try_interval 250ms
             fail_duration 2s
+            # The visitor, also behind Cloudflare. The API and the web
+            # server trust X-Forwarded-For from this host only.
+            header_up X-Forwarded-For {client_ip}
           }
         }
         handle /media/* {
@@ -631,12 +649,16 @@ in
             lb_try_duration 30s
             lb_try_interval 250ms
             fail_duration 2s
+            # The visitor, also behind Cloudflare. The API and the web
+            # server trust X-Forwarded-For from this host only.
+            header_up X-Forwarded-For {client_ip}
           }
         }
         handle {
           reverse_proxy 127.0.0.1:8301 {
             lb_try_duration 30s
             lb_try_interval 250ms
+            header_up X-Forwarded-For {client_ip}
           }
         }
         header {
@@ -648,6 +670,9 @@ in
         }
       '';
     };
+    virtualHosts."www.nightsky.pics".extraConfig = ''
+      redir https://nightsky.pics{uri} permanent
+    '';
     # Testalon, the Hexalon test deployment (see testalon.nix). The Rust
     # server holds the games and the bots; the page is a second package of
     # the same revision. Caddy decides which is which, so the bundle can ask
