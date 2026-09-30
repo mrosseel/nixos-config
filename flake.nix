@@ -110,7 +110,7 @@
     # default branch is master. Its nixpkgs follows ours, and its uv2nix
     # inputs follow its own nixpkgs, so they follow ours too.
     nightsky = {
-      url = "github:mrosseel/astropics";
+      url = "github:mrosseel/nightsky";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

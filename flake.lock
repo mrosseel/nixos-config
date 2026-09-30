@@ -779,13 +779,13 @@
         "lastModified": 1790756265,
         "narHash": "sha256-BzYnda5ru4I9MGKKp370uXYovHmb7YDvW2zKyfZD+Ws=",
         "owner": "mrosseel",
-        "repo": "astropics",
+        "repo": "nightsky",
         "rev": "56874b73869c426cef9f4ca504666f0fed5d2538",
         "type": "github"
       },
       "original": {
         "owner": "mrosseel",
-        "repo": "astropics",
+        "repo": "nightsky",
         "type": "github"
       }
     },
