@@ -37,29 +37,6 @@
         "type": "github"
       }
     },
-    "astropics": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "pyproject-build-systems": "pyproject-build-systems",
-        "pyproject-nix": "pyproject-nix",
-        "uv2nix": "uv2nix"
-      },
-      "locked": {
-        "lastModified": 1790754964,
-        "narHash": "sha256-RL797pTctUY+1Zfc8JWMY8byLYEWxGczV4ngyvq98Kg=",
-        "owner": "mrosseel",
-        "repo": "astropics",
-        "rev": "bcc781f377c827ccb38ab7672351bb7f007553bd",
-        "type": "github"
-      },
-      "original": {
-        "owner": "mrosseel",
-        "repo": "astropics",
-        "type": "github"
-      }
-    },
     "base16-schemes": {
       "flake": false,
       "locked": {
@@ -789,6 +766,29 @@
         "type": "github"
       }
     },
+    "nightsky": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "pyproject-build-systems": "pyproject-build-systems",
+        "pyproject-nix": "pyproject-nix",
+        "uv2nix": "uv2nix"
+      },
+      "locked": {
+        "lastModified": 1790756265,
+        "narHash": "sha256-BzYnda5ru4I9MGKKp370uXYovHmb7YDvW2zKyfZD+Ws=",
+        "owner": "mrosseel",
+        "repo": "astropics",
+        "rev": "56874b73869c426cef9f4ca504666f0fed5d2538",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mrosseel",
+        "repo": "astropics",
+        "type": "github"
+      }
+    },
     "nix-colors": {
       "inputs": {
         "base16-schemes": "base16-schemes",
@@ -1151,15 +1151,15 @@
     "pyproject-build-systems": {
       "inputs": {
         "nixpkgs": [
-          "astropics",
+          "nightsky",
           "nixpkgs"
         ],
         "pyproject-nix": [
-          "astropics",
+          "nightsky",
           "pyproject-nix"
         ],
         "uv2nix": [
-          "astropics",
+          "nightsky",
           "uv2nix"
         ]
       },
@@ -1180,7 +1180,7 @@
     "pyproject-nix": {
       "inputs": {
         "nixpkgs": [
-          "astropics",
+          "nightsky",
           "nixpkgs"
         ]
       },
@@ -1222,7 +1222,6 @@
     },
     "root": {
       "inputs": {
-        "astropics": "astropics",
         "claude-code": "claude-code",
         "codex-cli-nix": "codex-cli-nix",
         "copyparty": "copyparty",
@@ -1231,6 +1230,7 @@
         "grower": "grower",
         "home-manager": "home-manager",
         "hunk": "hunk",
+        "nightsky": "nightsky",
         "nix-darwin": "nix-darwin",
         "nix-minecraft": "nix-minecraft",
         "nixos-hardware": "nixos-hardware",
@@ -1375,11 +1375,11 @@
     "uv2nix": {
       "inputs": {
         "nixpkgs": [
-          "astropics",
+          "nightsky",
           "nixpkgs"
         ],
         "pyproject-nix": [
-          "astropics",
+          "nightsky",
           "pyproject-nix"
         ]
       },

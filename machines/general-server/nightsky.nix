@@ -1,14 +1,14 @@
 { pkgs, inputs, ... }:
 
-# Astropics, an astronomy image website. The module comes from
+# Nightsky.pics, an astronomy image website. The module comes from
 # github:mrosseel/astropics (nix/module.nix there). It runs Postgres, the
 # FastAPI API on 127.0.0.1:8300 and the React Router SSR server on
 # 127.0.0.1:8301. Caddy proxies the vhost (see caddy-service.nix).
 #
-# The first start writes the keys to /var/lib/astropics/env. Add the Mailgun,
+# The first start writes the keys to /var/lib/nightsky/env. Add the Mailgun,
 # Google and Discord keys to that file by hand. Admin commands:
-#   sudo astropics-manage admin make-staff <email>
-#   sudo astropics-manage seed
+#   sudo nightsky-manage admin make-staff <email>
+#   sudo nightsky-manage seed
 
 let
   # The official name since 2026-09-30, behind the Cloudflare proxy. The old
@@ -17,7 +17,7 @@ let
   domain = "nightsky.pics";
 in
 {
-  services.astropics = {
+  services.nightsky = {
     enable = true;
     publicUrl = "https://${domain}";
     # Test server: new accounts need no mail confirmation.
@@ -25,18 +25,24 @@ in
     # Mails go to the journal until Mailgun is set up.
     mailBackend = "console";
     # Built on nixtop with backend/scripts/build_sky_atlas.py and copied here by hand
-    # (see the astropics README). About 180 MB.
-    skyAtlasPath = "/var/lib/astropics/sky-atlas.bin";
-    basemapPath = "/var/lib/astropics/world.pmtiles";
+    # (see the nightsky README). About 180 MB.
+    skyAtlasPath = "/var/lib/nightsky/sky-atlas.bin";
+    basemapPath = "/var/lib/nightsky/world.pmtiles";
   };
 
-  # This host had no Postgres before Astropics. Start on 17, the version of
-  # the astropics dev shell. A later major change needs a dump and a restore.
+  # The service user keeps the uid and the gid of the old user "astropics"
+  # (rename of 2026-09-30), so the copied files in /var/lib/nightsky keep
+  # their owner.
+  users.users.nightsky.uid = 975;
+  users.groups.nightsky.gid = 969;
+
+  # This host had no Postgres before Nightsky.pics. Start on 17, the version of
+  # the nightsky dev shell. A later major change needs a dump and a restore.
   services.postgresql.package = pkgs.postgresql_17;
 
   # github:mrosseel/astropics is private, and this host has no GitHub token.
   # The nightly auto-upgrade evaluates the flake again and needs the source of
   # each input. With the source in the system closure it is already in the
   # store, so no fetch from GitHub is necessary. Deploys go from nixtop.
-  system.extraDependencies = [ inputs.astropics.outPath ];
+  system.extraDependencies = [ inputs.nightsky.outPath ];
 }

@@ -598,10 +598,10 @@ in
         }
       '';
     };
-    # Astropics, an astronomy image website (see astropics.nix). The API
+    # Nightsky.pics, an astronomy image website (see nightsky.nix). The API
     # also serves /media/*, the images stored on this host. The React Router
     # SSR server answers everything else. No CSP here: the pages are
-    # versioned with the astropics repo, not with this file.
+    # versioned with the nightsky repo, not with this file.
     virtualHosts."nightsky.pics" = {
       # The official name, behind the Cloudflare proxy (Enterprise plan:
       # uploads up to 500 MB pass). The old name redirects here.
@@ -616,13 +616,13 @@ in
         # seconds. Caddy holds a request that cannot connect for up to 30 s
         # and dials again every 250 ms. So the browser gets a slow answer, not
         # a 502. Only a failed dial is tried again, so a POST never reaches a
-        # server twice. See ADR 0058 in the astropics repo.
+        # server twice. See ADR 0058 in the nightsky repo.
         #
         # The API runs as two instances, 8300 and 8302 (ADR 0062 in the
-        # astropics repo). A deploy restarts them one after the other.
+        # nightsky repo). A deploy restarts them one after the other.
         # "first": all requests go to 8300 while it answers. After a failed
         # dial, Caddy marks the instance as down for 2 s (fail_duration) and
-        # sends the request to 8302. The roll of the astropics module waits
+        # sends the request to 8302. The roll of the nightsky module waits
         # 3 s before it stops 8302, so keep fail_duration below 3 s.
         handle /api/* {
           reverse_proxy 127.0.0.1:8300 127.0.0.1:8302 {
