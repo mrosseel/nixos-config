@@ -384,6 +384,7 @@
         inputs.pifinder-server.nixosModules.default
         ./machines/general-server/pifinder-server.nix
         ./modules/simple-mail-server.nix
+        ./modules/nightsky-mail.nix
         ./modules/python.nix
 	./modules/openssh.nix
 	./modules/fail2ban.nix
