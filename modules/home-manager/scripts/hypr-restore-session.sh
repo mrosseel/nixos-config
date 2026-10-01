@@ -206,6 +206,17 @@ is_web_app() {
     [[ "${1,,}" =~ ^(brave|chrome|chromium)-.+-(default|profile_[0-9]+)$ ]]
 }
 
+# After a crash or an OOM kill, Brave does not restore its session. It
+# shows a crash bubble, and the launch command hides that bubble. Mark
+# the last exit as clean, so --restore-last-session restores the tabs.
+mark_brave_clean_exit() {
+    local prefs="$HOME/.config/BraveSoftware/Brave-Browser/Default/Preferences"
+    [ -f "$prefs" ] || return 0
+    pgrep -x brave >/dev/null && return 0
+    jq '.profile.exit_type = "Normal" | .profile.exited_cleanly = true' "$prefs" > "${prefs}.tmp" \
+        && mv -f "${prefs}.tmp" "$prefs"
+}
+
 # Start an app through Hyprland. Its windows open on the hidden staging
 # workspace, so they do not take the focus before they are placed.
 launch() {
@@ -215,6 +226,7 @@ launch() {
         return
     fi
     echo "  Launching: $class"
+    [ "${class,,}" = "brave-browser" ] && mark_brave_clean_exit
     $VERBOSE && echo "    Command: $cmd"
     local rule
     rule=$(jq -n --arg c "[workspace $STAGE_WS silent] sh -c $(printf '%q' "$cmd")" '$c')
