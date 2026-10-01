@@ -27,7 +27,8 @@ Save current Hyprland session (windows, workspaces, positions, groups).
 Options:
   -f, --file PATH     Save to specific file
   -v, --verbose       Show detailed output
-  --auto              Timer mode: save quietly, only after the login restore
+  --auto              Timer mode: save quietly, only after the login restore,
+                      and not when the window count drops by more than half
   -h, --help          Show this help
 
 Saved data includes:
@@ -77,6 +78,16 @@ CLIENT_COUNT=$(echo "$CLIENTS" | jq 'length')
 
 if $AUTO && [ "$CLIENT_COUNT" -eq 0 ]; then
     exit 0
+fi
+
+# When many apps close at once, for example after an OOM kill, the timer
+# keeps the last good session. A manual save still writes.
+if $AUTO && [ -f "$SESSION_FILE" ]; then
+    SAVED_COUNT=$(jq '.clients | length' "$SESSION_FILE" 2>/dev/null || echo 0)
+    if [ $((CLIENT_COUNT * 2)) -lt "$SAVED_COUNT" ]; then
+        echo "Kept the saved session: $CLIENT_COUNT windows now, $SAVED_COUNT saved. Run hsave to save this state."
+        exit 0
+    fi
 fi
 
 SESSION_DATA=$(jq -n \
