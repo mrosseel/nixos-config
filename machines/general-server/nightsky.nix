@@ -28,6 +28,19 @@ in
     # (see the nightsky README). About 180 MB.
     skyAtlasPath = "/var/lib/nightsky/sky-atlas.bin";
     basemapPath = "/var/lib/nightsky/world.pmtiles";
+    # The image files are in Cloudflare R2 since 2026-10-02 (ADR 0064), in the
+    # account Parsec vzw. The keys NIGHTSKY_R2_ACCESS_KEY_ID and
+    # NIGHTSKY_R2_SECRET_ACCESS_KEY are in /var/lib/nightsky/env. The local
+    # copy in /var/lib/nightsky/media stays until the backup runs (ADR 0087).
+    storage = {
+      backend = "r2";
+      r2 = {
+        accountId = "226f32054ee675c64ab9e320f9c3bc68";
+        publicBucket = "nightsky-public";
+        privateBucket = "nightsky-private";
+        publicUrl = "https://media.nightsky.pics";
+      };
+    };
   };
 
   # The service user keeps the uid and the gid of the old user "astropics"
