@@ -5,7 +5,7 @@
 # FastAPI API on 127.0.0.1:8300 and the React Router SSR server on
 # 127.0.0.1:8301. Caddy proxies the vhost (see caddy-service.nix).
 #
-# The first start writes the keys to /var/lib/nightsky/env. Add the Mailgun,
+# The first start writes the keys to /var/lib/nightsky/env. Add the SES SMTP,
 # Google and Discord keys to that file by hand. Admin commands:
 #   sudo nightsky-manage admin make-staff <email>
 #   sudo nightsky-manage seed
@@ -22,8 +22,16 @@ in
     publicUrl = "https://${domain}";
     # Test server: new accounts need no mail confirmation.
     testMode = true;
-    # Mails go to the journal until Mailgun is set up.
-    mailBackend = "console";
+    # Amazon SES in eu-central-1 sends the app mail. The SMTP login is in
+    # /var/lib/nightsky/env: NIGHTSKY_SMTP_USERNAME and NIGHTSKY_SMTP_PASSWORD.
+    # Replies go to info@, which the pifinder.eu mailserver receives
+    # (modules/nightsky-mail.nix).
+    mailBackend = "smtp";
+    mail = {
+      from = "Nightsky.pics <no-reply@${domain}>";
+      replyTo = "info@${domain}";
+      smtp.host = "email-smtp.eu-central-1.amazonaws.com";
+    };
     # Built on nixtop with backend/scripts/build_sky_atlas.py and copied here by hand
     # (see the nightsky README). About 180 MB.
     skyAtlasPath = "/var/lib/nightsky/sky-atlas.bin";
