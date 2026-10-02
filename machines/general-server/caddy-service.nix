@@ -713,7 +713,15 @@ in
           root * /var/lib/testalon/web
           # One page, many addresses: a table lives at /?room=..., and a
           # reload must reach the same file rather than a 404.
-          try_files {path} /index.html
+          #
+          # The middle pattern is for the screens the build writes out as a
+          # page of their own, with their words in the head and their text in
+          # the body: `/rules` is the file `rules/index.html`. Without it every
+          # one of those addresses answers with the plain page, which carries
+          # the start screen's title and the start screen's text, and the whole
+          # point of writing them is lost. Production has the same rule, in
+          # nix/server.nix of the hexagonia repository.
+          try_files {path} {path}/index.html /index.html
           file_server
         }
         header {
