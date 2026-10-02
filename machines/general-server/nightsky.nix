@@ -30,8 +30,9 @@ in
     basemapPath = "/var/lib/nightsky/world.pmtiles";
     # The image files are in Cloudflare R2 since 2026-10-02 (ADR 0064), in the
     # account Parsec vzw. The keys NIGHTSKY_R2_ACCESS_KEY_ID and
-    # NIGHTSKY_R2_SECRET_ACCESS_KEY are in /var/lib/nightsky/env. The local
-    # copy in /var/lib/nightsky/media stays until the backup runs (ADR 0087).
+    # NIGHTSKY_R2_SECRET_ACCESS_KEY are in /var/lib/nightsky/env. The old local
+    # files are in /var/lib/nightsky/media-local-2026-10-02 until the backup
+    # runs (ADR 0087).
     storage = {
       backend = "r2";
       r2 = {
