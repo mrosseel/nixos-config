@@ -32,6 +32,9 @@
       mike.passwordFile = "/etc/copyparty/mike.passwd";
       # Shared login for people who need to drop a file off.
       guest.passwordFile = "/etc/copyparty/guest.passwd";
+      # Read-only login for the nightsky server. It fetches data files that
+      # must not be on a public URL.
+      nightsky.passwordFile = "/etc/copyparty/nightsky.passwd";
     };
 
     volumes = {
@@ -61,6 +64,13 @@
           rwmda = "mike";
         };
       };
+      "/nightsky" = {
+        path = "/srv/copyparty/nightsky";
+        access = {
+          r = "nightsky";
+          rwmda = "mike";
+        };
+      };
       "/music" = {
         path = "/srv/music";
         access = {
@@ -77,6 +87,7 @@
     "d /srv/copyparty/public 0755 copyparty copyparty -"
     "d /srv/copyparty/dump 0755 copyparty copyparty -"
     "d /srv/copyparty/private 0700 copyparty copyparty -"
+    "d /srv/copyparty/nightsky 0700 copyparty copyparty -"
     "d /srv/music 0755 copyparty copyparty -"
   ];
 }
