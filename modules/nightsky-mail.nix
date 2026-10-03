@@ -29,4 +29,23 @@
       };
     };
   };
+
+  # The app mail comes from Amazon SES with From nightsky.pics. The contact
+  # form sets Reply-To to the address of the visitor, often a freemail address.
+  # rspamd then gives a score of 7, so the mail goes to Junk, and greylisting
+  # holds it for 5 minutes. Mail that passes DMARC for nightsky.pics gets -10
+  # and no greylisting. Only SES and this server can pass that DMARC check.
+  services.rspamd.locals."whitelist.conf".text = ''
+    rules {
+      NIGHTSKY_DMARC {
+        domains = ["nightsky.pics"];
+        valid_dmarc = true;
+        score = -10.0;
+        description = "Mail from nightsky.pics that passes DMARC";
+      }
+    }
+  '';
+  services.rspamd.locals."greylist.conf".text = ''
+    whitelist_symbols = ["NIGHTSKY_DMARC"];
+  '';
 }
