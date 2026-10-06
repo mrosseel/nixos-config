@@ -776,11 +776,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1791280356,
-        "narHash": "sha256-8XAx9bi2W9TwTjt7yn2Za7GJf1hjFGWrL5Jj5JHbfNo=",
+        "lastModified": 1791280538,
+        "narHash": "sha256-PJF5P8kf2tXFCmwLZLXUW6aS3WYl4ISsd+S7wW0v3W0=",
         "owner": "mrosseel",
         "repo": "nightsky",
-        "rev": "b56a6b856d1d3df87ee330e0afdec775f3f10734",
+        "rev": "eced69ed950567510f1d59a6a35dd8b1c89c5ac9",
         "type": "github"
       },
       "original": {
