@@ -20,8 +20,9 @@ in
   services.nightsky = {
     enable = true;
     publicUrl = "https://${domain}";
-    # Test server: new accounts need no mail confirmation.
-    testMode = true;
+    # Launch (2026-10-06): no test mode. New accounts confirm their email, there
+    # is no test banner, and search engines may index the site (ADR 0011, 0071).
+    testMode = false;
     # Amazon SES in eu-central-1 sends the app mail. The SMTP login is in
     # /var/lib/nightsky/env: NIGHTSKY_SMTP_USERNAME and NIGHTSKY_SMTP_PASSWORD.
     # Replies go to info@, which the pifinder.eu mailserver receives
