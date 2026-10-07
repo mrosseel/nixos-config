@@ -80,6 +80,16 @@
     ];
   };
 
+  # Per-user locked memory limit. Since kernel commit 97d34aa65c29 the kernel
+  # counts memfd_secret pages against RLIMIT_MEMLOCK per user and sends
+  # SIGBUS when the budget is full. The 8 MB default was already used up,
+  # most likely by io_uring rings, so Bitwarden desktop crashed at start.
+  # A new login is needed for the new limit to apply.
+  security.pam.loginLimits = [
+    { domain = "mike"; type = "-"; item = "memlock"; value = "unlimited"; }
+  ];
+  systemd.user.settings.Manager.DefaultLimitMEMLOCK = "infinity";
+
   # zram swap - 5% of 128GB RAM (~6.4GB)
   zramSwap = {
     enable = true;
