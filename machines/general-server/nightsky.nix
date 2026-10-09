@@ -37,6 +37,15 @@ in
     # (see the nightsky README). About 180 MB.
     skyAtlasPath = "/var/lib/nightsky/sky-atlas.bin";
     basemapPath = "/var/lib/nightsky/world.pmtiles";
+    # The Moon plate solver (2026-10-09, admin-only overlay). The data folder
+    # (4.6 GB: the LOLA height map and its levels, the crater tiers, the albedo
+    # map and the catalog) was copied from nixtop by hand; the steps are in
+    # docs/moon-solver.md of the nightsky repo. The worker runs one solve at a
+    # time with a 2048M limit; the limit also counts the page cache of the maps.
+    moonWorker = {
+      enable = true;
+      dataDir = "/var/lib/nightsky/moon-data";
+    };
     # The image files are in Cloudflare R2 since 2026-10-02 (ADR 0064), in the
     # account Parsec vzw. The keys NIGHTSKY_R2_ACCESS_KEY_ID and
     # NIGHTSKY_R2_SECRET_ACCESS_KEY are in /var/lib/nightsky/env. The old local
