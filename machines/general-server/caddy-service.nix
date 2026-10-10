@@ -607,10 +607,10 @@ in
       # uploads up to 500 MB pass). The old name redirects here.
       extraConfig = ''
         encode gzip
-        # An upload can be 200 MiB (max_upload_bytes of the API). The other
+        # An upload can be 250 MiB (max_upload_bytes of the API). The other
         # form fields add a little. Caddy refuses a larger body with 413.
         request_body {
-          max_size 210MiB
+          max_size 260MiB
         }
         # A deploy restarts the API or the web server. A restart takes a few
         # seconds. Caddy holds a request that cannot connect for up to 30 s
