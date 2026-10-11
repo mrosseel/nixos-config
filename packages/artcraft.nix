@@ -28,8 +28,8 @@
 let
   apps = {
     lightcraft = {
-      version = "0.4.0";
-      hash = "sha256-wsdXgLzwWKIcSjEc5X20flnwrC9t1wRYM3aa4QA7VyM=";
+      version = "0.6.0";
+      hash = "sha256-1zjxazpxex5mcWmBqk+NvWjKpb+dBNF1gBoiePGPafE=";
       description = "Clean-room reimplementation of Adobe Lightroom in Rust";
     };
     pdfcraft = {
