@@ -62,7 +62,9 @@ let
       nativeBuildInputs = [ autoPatchelfHook ];
       buildInputs = [ stdenv.cc.cc.lib ];
 
-      runtimeDependencies = [
+      # getLib, because libdbus-1.so is in the `lib` output of dbus, not `out`.
+      # Without it the file dialogs cannot reach the portal.
+      runtimeDependencies = map lib.getLib [
         dbus
         libGL
         libX11
