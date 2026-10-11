@@ -2,6 +2,8 @@
 { config, pkgs, ... }:
 
 let
+  artcraft = pkgs.callPackage ../../packages/artcraft.nix { };
+
   # While a VNC client is connected, hold a logind idle-inhibitor so hypridle
   # can't power the display off mid-capture. That dpms-off tears down wayvnc's
   # cursor-capture session and intermittently segfaults Hyprland in the
@@ -429,6 +431,10 @@ in
     xrandr
 
     lm_sensors
+    # ArtCraft apps, GUI plus <app>-cli each (packages/artcraft.nix)
+    artcraft.lightcraft
+    artcraft.pdfcraft
+    artcraft.photocraft
     darktable
     gimp
     blender
