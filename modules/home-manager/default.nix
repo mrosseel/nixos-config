@@ -53,6 +53,7 @@ in {
     ./streamdeck.nix
     ./opencode.nix
     ./hunk.nix
+    ./omarchy-shell-glibc.nix
 #    ./gc.nix
   ];
   # specify my home-manager configs
