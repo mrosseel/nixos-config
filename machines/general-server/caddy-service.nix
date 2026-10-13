@@ -254,10 +254,24 @@ in
         # The files that install the site as a phone app are open. A phone
         # fetches the icons and the manifest without the password, and checks
         # sw.js for updates in the background. None of them holds trip data.
-        @private not path /manifest.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
+        #
+        # A secret link lets the family in without the password:
+        #   https://thailand.miker.be/?k=<THAILAND_LINK_KEY>
+        # The first visit sets a cookie for a year. A request with the key or
+        # the cookie skips basic_auth. To revoke the link, put a new key in
+        # the env file below and reload Caddy. Every phone then needs the new
+        # link once.
+        @linkkey query k={$THAILAND_LINK_KEY}
+        header @linkkey Set-Cookie "tk={$THAILAND_LINK_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
+        @private {
+          not path /manifest.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
+          not query k={$THAILAND_LINK_KEY}
+          not header Cookie *tk={$THAILAND_LINK_KEY}*
+        }
         # The hash is not in this repo, because the repo is public. It is in
         # /var/lib/caddy-secrets/thailand.env (root, 0600) as
-        # THAILAND_AUTH_HASH='<hash>'. To change the password:
+        # THAILAND_AUTH_HASH='<hash>', next to THAILAND_LINK_KEY='<key>'.
+        # To change the password:
         #   caddy hash-password --plaintext '<new password>'
         # put the hash in that file, then: systemctl reload caddy
         basic_auth @private {
