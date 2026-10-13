@@ -54,6 +54,7 @@ in {
     ./opencode.nix
     ./hunk.nix
     ./omarchy-shell-glibc.nix
+    ./omarchy-chromium.nix
 #    ./gc.nix
   ];
   # specify my home-manager configs
