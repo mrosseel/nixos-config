@@ -27,6 +27,9 @@
     description = "Thailand trip planner JSON store";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
+    # Nobody is at home to start it by hand while the family travels. Keep
+    # trying for ever, not five times and then give up.
+    startLimitIntervalSec = 0;
     path = [ pkgs.git pkgs.openssh ];
     # The attrset form, not serviceConfig.Environment: systemd splits an
     # unquoted Environment= value on spaces, which silently mangles the ssh
@@ -54,7 +57,8 @@
       Group = "thailand-planner";
       StateDirectory = "thailand-planner";
       StateDirectoryMode = "0750";
-      Restart = "on-failure";
+      Restart = "always";
+      RestartSec = 5;
       ProtectSystem = "strict";
       ProtectHome = true;
       NoNewPrivileges = true;

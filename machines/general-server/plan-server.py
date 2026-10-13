@@ -43,6 +43,8 @@ NAME = os.path.basename(DATA)
 COMMIT_QUIET = 20
 COMMIT_POLL = 5
 MAX_IMAGE = 12 * 1024 * 1024
+# The plan is about 60KB. A body far above that is a fault, not a plan.
+MAX_PLAN = 8 * 1024 * 1024
 
 EXTS = {
     'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
@@ -296,6 +298,8 @@ class H(http.server.BaseHTTPRequestHandler):
 
     def _body(self):
         n = int(self.headers.get('Content-Length', 0))
+        if n > MAX_PLAN:
+            raise ValueError('body too large')
         return self.rfile.read(n) if n > 0 else b''
 
     def _image_path(self):
@@ -308,7 +312,26 @@ class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/api/plan':
             plan = read_plan()
-            self._send(200, json.dumps(plan, ensure_ascii=False) if plan else 'null')
+            # The app polls every ten seconds. The revision is the ETag, so an
+            # unchanged plan costs a 304 and not the whole document. Any digits
+            # in If-None-Match count: Caddy can add a suffix like "-gzip".
+            etag = f'"{plan.get("rev", 0)}"' if plan else None
+            seen = re.findall(r'\d+', self.headers.get('If-None-Match') or '')
+            if etag and seen and seen[0] == etag.strip('"'):
+                self.send_response(304)
+                self.send_header('ETag', etag)
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                return
+            raw = (json.dumps(plan, ensure_ascii=False) if plan else 'null').encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(raw)))
+            self.send_header('Cache-Control', 'no-cache')
+            if etag:
+                self.send_header('ETag', etag)
+            self.end_headers()
+            self.wfile.write(raw)
             return
         if self.path.startswith('/api/versions/'):
             plan = plan_at(self.path[len('/api/versions/'):])

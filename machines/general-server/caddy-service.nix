@@ -248,7 +248,11 @@ in
     virtualHosts."thailand.miker.be" = {
       extraConfig = ''
         encode gzip
-        basic_auth {
+        # The files that install the site as a phone app are open. A phone
+        # fetches the icons and the manifest without the password, and checks
+        # sw.js for updates in the background. None of them holds trip data.
+        @private not path /manifest.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
+        basic_auth @private {
           family $2a$14$s/JqG2aVwS.OmPLAcfmes.ydNHOWCjoRHs.PF80qI.HNftlvfqsde
         }
         # Plan persistence service (see thailand-planner.nix).
