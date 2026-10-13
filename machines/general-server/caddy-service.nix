@@ -20,6 +20,9 @@ in
  imports = [ ./thailand-planner.nix ./thailand-drive-export.nix ];
  services.caddy = {
     enable = true;
+    # Secrets for the Caddyfile, kept out of the Nix store. Caddy will not
+    # start if this file is missing. See the thailand.miker.be vhost.
+    environmentFile = "/var/lib/caddy-secrets/thailand.env";
     globalConfig = ''
       # How long a reload waits for the connections of the old server before
       # it closes them. Caddy's default is eternal, so a reload can wait for
@@ -252,8 +255,13 @@ in
         # fetches the icons and the manifest without the password, and checks
         # sw.js for updates in the background. None of them holds trip data.
         @private not path /manifest.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
+        # The hash is not in this repo, because the repo is public. It is in
+        # /var/lib/caddy-secrets/thailand.env (root, 0600) as
+        # THAILAND_AUTH_HASH='<hash>'. To change the password:
+        #   caddy hash-password --plaintext '<new password>'
+        # put the hash in that file, then: systemctl reload caddy
         basic_auth @private {
-          family $2a$14$s/JqG2aVwS.OmPLAcfmes.ydNHOWCjoRHs.PF80qI.HNftlvfqsde
+          family {$THAILAND_AUTH_HASH}
         }
         # Plan persistence service (see thailand-planner.nix).
         handle /api/* {
