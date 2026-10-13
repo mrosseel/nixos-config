@@ -114,6 +114,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # tixpkgs: the ArtCraft apps (pdfcraft-bin, photocraft-bin, lightcraft-bin)
+    # on nixtop. A bot in that repo bumps them within hours of each upstream
+    # release, so `nix flake update tixpkgs` gets the latest versions. The
+    # waterfox input is a nixpkgs PR that we do not use. It follows nixpkgs so
+    # that the lock does not fetch a second nixpkgs.
+    tixpkgs = {
+      url = "github:74k1/tixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs-waterfox.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";

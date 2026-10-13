@@ -1,8 +1,8 @@
 # User, services, and application configuration for nixtop
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 let
-  artcraft = pkgs.callPackage ../../packages/artcraft.nix { };
+  tixpkgs = inputs.tixpkgs.packages.${pkgs.stdenv.hostPlatform.system};
 
   # While a VNC client is connected, hold a logind idle-inhibitor so hypridle
   # can't power the display off mid-capture. That dpms-off tears down wayvnc's
@@ -431,10 +431,10 @@ in
     xrandr
 
     lm_sensors
-    # ArtCraft apps, GUI plus <app>-cli each (packages/artcraft.nix)
-    artcraft.lightcraft
-    artcraft.pdfcraft
-    artcraft.photocraft
+    # ArtCraft apps from tixpkgs (see the tixpkgs input in flake.nix)
+    tixpkgs.lightcraft-bin
+    tixpkgs.pdfcraft-bin
+    tixpkgs.photocraft-bin
     darktable
     gimp
     blender
