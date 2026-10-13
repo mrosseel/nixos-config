@@ -126,6 +126,14 @@
       inputs.home-manager.follows = "home-manager";
     };
 
+    # Herdr UI (was herdr-gpui): a desktop client for the local herdr daemon,
+    # on nixtop. The flake builds it from source. Upstream releases each day,
+    # and `nix flake update herdr-ui` gets the newest commit.
+    herdr-ui = {
+      url = "github:penso/herdr-gpui";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";

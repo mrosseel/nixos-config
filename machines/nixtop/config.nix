@@ -435,6 +435,8 @@ in
     tixpkgs.lightcraft-bin
     tixpkgs.pdfcraft-bin
     tixpkgs.photocraft-bin
+    # Herdr UI, desktop client for herdr (see the herdr-ui input in flake.nix)
+    inputs.herdr-ui.packages.${pkgs.stdenv.hostPlatform.system}.herdr-gpui
     darktable
     gimp
     blender
