@@ -255,22 +255,36 @@ in
         # fetches the icons and the manifest without the password, and checks
         # sw.js for updates in the background. None of them holds trip data.
         #
-        # The view link is for the family at home. It opens a read-only page
-        # with the map, the route and the photos, and nothing else:
-        #   https://thailand.miker.be/?k=<THAILAND_LINK_KEY>
-        # The first visit sets a cookie for a year. A request with the key or
-        # the cookie and no password gets only the files of that page and two
-        # API paths. Those leave out notes, bookings and TODOs. To revoke the
-        # link, put a new key in the env file below and reload Caddy. Every
-        # phone then needs the new link once.
-        @linkkey query k={$THAILAND_LINK_KEY}
-        header @linkkey Set-Cookie "tk={$THAILAND_LINK_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
+        # Two secret links open the site without the password. The name in
+        # the link says what it gives:
+        #   https://thailand.miker.be/?view=<THAILAND_LINK_KEY>  read-only
+        #   https://thailand.miker.be/?edit=<THAILAND_EDIT_KEY>  the planner
+        # The older ?k=<THAILAND_LINK_KEY> is a view link too.
+        #
+        # The first visit sets a cookie for a year, tk for view and te for
+        # edit, and removes the other one. The link opened last decides. A
+        # browser that sends the password gets the planner.
+        #
+        # The view link gets only the view page (map, route, photos), GET
+        # /api/view and GET /api/photos/files/*. Those leave out notes,
+        # bookings and TODOs.
+        #
+        # Both keys are in the env file below. A key shorter than 24
+        # characters opens nothing, so a missing key cannot match an empty
+        # link. To revoke a link, put a new key in the env file and reload
+        # Caddy. Every phone then needs the new link once.
+        @editkey expression `size("{$THAILAND_EDIT_KEY}") >= 24 && {query.edit} == "{$THAILAND_EDIT_KEY}"`
+        header @editkey +Set-Cookie "te={$THAILAND_EDIT_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
+        header @editkey +Set-Cookie "tk=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
+        @viewkey expression `size("{$THAILAND_LINK_KEY}") >= 24 && ({query.view} == "{$THAILAND_LINK_KEY}" || {query.k} == "{$THAILAND_LINK_KEY}")`
+        header @viewkey +Set-Cookie "tk={$THAILAND_LINK_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
+        header @viewkey +Set-Cookie "te=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
         @open path /manifest.webmanifest /manifest-view.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
-        # A browser that holds the password sends it. It gets the planner,
-        # even if it also has the cookie.
+        # A view link in the address wins over an edit cookie, and the other
+        # way round. Without a link in the address the cookie decides.
         @viewer {
           not header Authorization *
-          expression `{query.k} == "{$THAILAND_LINK_KEY}" || {cookie.tk} == "{$THAILAND_LINK_KEY}"`
+          expression `size("{$THAILAND_LINK_KEY}") >= 24 && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {query.edit} == "{$THAILAND_EDIT_KEY}") && ({query.view} == "{$THAILAND_LINK_KEY}" || {query.k} == "{$THAILAND_LINK_KEY}" || ({cookie.tk} == "{$THAILAND_LINK_KEY}" && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {cookie.te} == "{$THAILAND_EDIT_KEY}")))`
         }
         handle @open {
           root * /var/www/thailand.miker.be
@@ -303,11 +317,16 @@ in
         handle {
           # The hash is not in this repo, because the repo is public. It is in
           # /var/lib/caddy-secrets/thailand.env (root, 0600) as
-          # THAILAND_AUTH_HASH='<hash>', next to THAILAND_LINK_KEY='<key>'.
-          # To change the password:
+          # THAILAND_AUTH_HASH='<hash>', next to THAILAND_LINK_KEY='<key>' and
+          # THAILAND_EDIT_KEY='<key>'. To change the password:
           #   caddy hash-password --plaintext '<new password>'
           # put the hash in that file, then: systemctl reload caddy
-          basic_auth {
+          #
+          # The edit link or its cookie skips the password.
+          @locked {
+            not expression `size("{$THAILAND_EDIT_KEY}") >= 24 && ({query.edit} == "{$THAILAND_EDIT_KEY}" || ({cookie.te} == "{$THAILAND_EDIT_KEY}" && {query.view} != "{$THAILAND_LINK_KEY}" && {query.k} != "{$THAILAND_LINK_KEY}"))`
+          }
+          basic_auth @locked {
             family {$THAILAND_AUTH_HASH}
           }
           # Plan persistence service (see thailand-planner.nix).
