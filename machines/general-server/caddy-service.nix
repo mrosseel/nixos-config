@@ -255,36 +255,70 @@ in
         # fetches the icons and the manifest without the password, and checks
         # sw.js for updates in the background. None of them holds trip data.
         #
-        # A secret link lets the family in without the password:
+        # The view link is for the family at home. It opens a read-only page
+        # with the map, the route and the photos, and nothing else:
         #   https://thailand.miker.be/?k=<THAILAND_LINK_KEY>
         # The first visit sets a cookie for a year. A request with the key or
-        # the cookie skips basic_auth. To revoke the link, put a new key in
-        # the env file below and reload Caddy. Every phone then needs the new
-        # link once.
+        # the cookie and no password gets only the files of that page and two
+        # API paths. Those leave out notes, bookings and TODOs. To revoke the
+        # link, put a new key in the env file below and reload Caddy. Every
+        # phone then needs the new link once.
         @linkkey query k={$THAILAND_LINK_KEY}
         header @linkkey Set-Cookie "tk={$THAILAND_LINK_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
-        @private {
-          not path /manifest.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
-          not query k={$THAILAND_LINK_KEY}
-          not header Cookie *tk={$THAILAND_LINK_KEY}*
+        @open path /manifest.webmanifest /manifest-view.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
+        # A browser that holds the password sends it. It gets the planner,
+        # even if it also has the cookie.
+        @viewer {
+          not header Authorization *
+          expression `{query.k} == "{$THAILAND_LINK_KEY}" || {cookie.tk} == "{$THAILAND_LINK_KEY}"`
         }
-        # The hash is not in this repo, because the repo is public. It is in
-        # /var/lib/caddy-secrets/thailand.env (root, 0600) as
-        # THAILAND_AUTH_HASH='<hash>', next to THAILAND_LINK_KEY='<key>'.
-        # To change the password:
-        #   caddy hash-password --plaintext '<new password>'
-        # put the hash in that file, then: systemctl reload caddy
-        basic_auth @private {
-          family {$THAILAND_AUTH_HASH}
-        }
-        # Plan persistence service (see thailand-planner.nix).
-        handle /api/* {
-          reverse_proxy localhost:8010
-        }
-        handle {
+        handle @open {
           root * /var/www/thailand.miker.be
           file_server
-          try_files {path} /index.html
+        }
+        handle @viewer {
+          @readable {
+            method GET HEAD
+            path /api/view /api/photos/files/*
+          }
+          handle @readable {
+            reverse_proxy localhost:8010
+          }
+          handle /api/* {
+            respond 403
+          }
+          @write not method GET HEAD
+          handle @write {
+            respond 403
+          }
+          handle {
+            root * /var/www/thailand.miker.be
+            # The start page of the view link is the view page.
+            rewrite / /view.html
+            rewrite /index.html /view.html
+            try_files {path} /view.html
+            file_server
+          }
+        }
+        handle {
+          # The hash is not in this repo, because the repo is public. It is in
+          # /var/lib/caddy-secrets/thailand.env (root, 0600) as
+          # THAILAND_AUTH_HASH='<hash>', next to THAILAND_LINK_KEY='<key>'.
+          # To change the password:
+          #   caddy hash-password --plaintext '<new password>'
+          # put the hash in that file, then: systemctl reload caddy
+          basic_auth {
+            family {$THAILAND_AUTH_HASH}
+          }
+          # Plan persistence service (see thailand-planner.nix).
+          handle /api/* {
+            reverse_proxy localhost:8010
+          }
+          handle {
+            root * /var/www/thailand.miker.be
+            file_server
+            try_files {path} /index.html
+          }
         }
         # Vite-hashed bundles are immutable, content-addressed by filename.
         @assets path /assets/*

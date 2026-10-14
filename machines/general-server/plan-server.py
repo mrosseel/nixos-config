@@ -1,7 +1,9 @@
 """Persistence backend for the family trip planner (thailand.miker.be).
 
-Stdlib only, single file, no framework. Access is gated by Caddy basic_auth on
-the vhost, so there is no auth logic here.
+Stdlib only, single file, no framework. Access is gated by Caddy on the vhost,
+so there is no auth logic here. Caddy lets a holder of the view link reach only
+GET /api/view and GET /api/photos/files/<f>. Those two must never return notes,
+bookings or TODOs.
 
     GET    /api/plan            -> current plan document, or null
     PUT    /api/plan            -> overwrite; needs If-Match: <rev>
@@ -11,6 +13,17 @@ the vhost, so there is no auth logic here.
     POST   /api/images          -> store an image body, returns {"url": ...}
     GET    /api/images/<id>     -> serve a stored image
     DELETE /api/images/<id>     -> drop a stored image
+
+    GET    /api/photos          -> the trip photos, newest first
+    POST   /api/photos/files    -> store a photo file, returns {"file": ...}
+    GET    /api/photos/files/<f> -> serve a photo file
+    POST   /api/photos          -> add a photo: {full, thumb, day, ...}
+    PATCH  /api/photos/<id>     -> change its day or caption
+    DELETE /api/photos/<id>     -> drop it and its files
+
+    GET    /api/view            -> the read-only overview for the family at
+                                   home: the legs, their dates and the photos.
+                                   No notes, bookings or TODOs.
 
 Two people edit this plan at the same time. Every write therefore carries the
 revision it was based on, and a stale write is refused rather than silently
@@ -37,6 +50,8 @@ REMOTE = os.environ.get('PLAN_GIT_REMOTE', '')
 ROOT = os.path.dirname(DATA)
 IMGDIR = os.path.join(ROOT, 'images')
 NAME = os.path.basename(DATA)
+PHOTODIR = os.path.join(ROOT, 'photos')
+PHOTOS = os.path.join(ROOT, 'photos.json')
 
 # One commit per burst of editing rather than per keystroke: the committer wakes
 # on a timer and only acts once the plan has been quiet for a moment.
@@ -103,6 +118,101 @@ def write_plan(plan, rev):
     last_change[0] = time.time()
     dirty.set()
     return plan
+
+
+# --- photos -----------------------------------------------------------------
+#
+# Photos are not part of the plan document. Two phones upload at the same time,
+# and a photo must not make a plan save fail with a conflict. Each photo has the
+# date it belongs to, not a place: the place comes from the plan for that date.
+
+ISO_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+FILE_RE = re.compile(r'^[0-9a-f]{32}\.(jpg|png|webp)$')
+ID_RE = re.compile(r'^[0-9a-f]{32}$')
+MAX_CAPTION = 500
+
+
+def read_photos():
+    try:
+        with open(PHOTOS, 'rb') as f:
+            photos = json.loads(f.read())
+        return photos if isinstance(photos, list) else []
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def write_photos(photos):
+    tmp = PHOTOS + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(photos, f, ensure_ascii=False, indent=1)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, PHOTOS)
+    last_change[0] = time.time()
+    dirty.set()
+
+
+def coord(v, limit):
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return round(v, 5) if -limit <= v <= limit else None
+
+
+def photo_fields(body, photo):
+    """Copy the fields a client may set onto photo. Returns an error or None."""
+    if 'day' in body:
+        if not isinstance(body['day'], str) or not ISO_RE.match(body['day']):
+            return 'day must be YYYY-MM-DD'
+        photo['day'] = body['day']
+    if 'caption' in body:
+        photo['caption'] = str(body['caption'] or '')[:MAX_CAPTION]
+    return None
+
+
+def photo_url(name):
+    return '/api/photos/files/' + name
+
+
+def public_photo(p):
+    return {
+        'id': p['id'], 'day': p['day'], 'caption': p.get('caption', ''),
+        'full': photo_url(p['full']), 'thumb': photo_url(p['thumb']),
+        'width': p.get('width'), 'height': p.get('height'),
+        'takenAt': p.get('takenAt'), 'lat': p.get('lat'), 'lon': p.get('lon'),
+    }
+
+
+def sorted_photos():
+    return sorted(read_photos(),
+                  key=lambda p: (p['day'], p.get('takenAt') or '', p.get('addedAt') or ''),
+                  reverse=True)
+
+
+def overview():
+    """The plan with everything private left out: per leg only the place and
+    its dates. Built here and not in the browser, so the private parts never
+    reach a phone that holds only the view link."""
+    plan = read_plan()
+    legs = []
+    if plan:
+        for d, dt in zip(plan['days'], day_dates(plan)):
+            place = plain(d.get('place')).strip()
+            iso = dt.isoformat()
+            if legs and legs[-1]['place'] == place:
+                legs[-1]['last'] = iso
+                legs[-1]['days'] += 1
+            else:
+                legs.append({'place': place, 'first': iso, 'last': iso, 'days': 1})
+    meta = (plan or {}).get('meta') or {}
+    return {
+        'title': plain(meta.get('title')) or 'Trip',
+        'start': legs[0]['first'] if legs else None,
+        'end': legs[-1]['last'] if legs else None,
+        'legs': legs,
+        'photos': [public_photo(p) for p in sorted_photos()],
+    }
 
 
 # --- readable rendering -----------------------------------------------------
@@ -302,6 +412,43 @@ class H(http.server.BaseHTTPRequestHandler):
             raise ValueError('body too large')
         return self.rfile.read(n) if n > 0 else b''
 
+    def _file(self, path, ctype):
+        try:
+            with open(path, 'rb') as f:
+                body = f.read()
+        except FileNotFoundError:
+            self._json(404, {'error': 'not found'})
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'private, max-age=31536000, immutable')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _store(self, folder):
+        """Write the request body to a new file in folder. Returns its name, or
+        None after an error response."""
+        ctype = (self.headers.get('Content-Type') or '').split(';')[0].strip().lower()
+        ext = EXTS.get(ctype)
+        if not ext:
+            self._json(415, {'error': 'unsupported image type'})
+            return None
+        n = int(self.headers.get('Content-Length', 0))
+        if n <= 0 or n > MAX_IMAGE:
+            self._json(413, {'error': 'image too large'})
+            return None
+        body = self.rfile.read(n)
+        os.makedirs(folder, exist_ok=True)
+        name = uuid.uuid4().hex + ext
+        tmp = os.path.join(folder, '.' + name)
+        with open(tmp, 'wb') as f:
+            f.write(body)
+        os.replace(tmp, os.path.join(folder, name))
+        last_change[0] = time.time()
+        dirty.set()
+        return name
+
     def _image_path(self):
         name = os.path.basename(self.path[len('/api/images/'):])
         ext = os.path.splitext(name)[1].lower()
@@ -362,22 +509,23 @@ class H(http.server.BaseHTTPRequestHandler):
             return
         if self.path.startswith('/api/images/'):
             path, ctype = self._image_path()
-            body = None
             if path:
-                try:
-                    with open(path, 'rb') as f:
-                        body = f.read()
-                except FileNotFoundError:
-                    body = None
-            if body is None:
+                self._file(path, ctype)
+            else:
                 self._json(404, {'error': 'not found'})
-                return
-            self.send_response(200)
-            self.send_header('Content-Type', ctype)
-            self.send_header('Content-Length', str(len(body)))
-            self.send_header('Cache-Control', 'private, max-age=31536000, immutable')
-            self.end_headers()
-            self.wfile.write(body)
+            return
+        if self.path == '/api/view':
+            self._json(200, overview())
+            return
+        if self.path == '/api/photos':
+            self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
+            return
+        if self.path.startswith('/api/photos/files/'):
+            name = self.path[len('/api/photos/files/'):]
+            if FILE_RE.match(name):
+                self._file(os.path.join(PHOTODIR, name), TYPES[os.path.splitext(name)[1]])
+            else:
+                self._json(404, {'error': 'not found'})
             return
         self._json(404, {'error': 'not found'})
 
@@ -427,30 +575,100 @@ class H(http.server.BaseHTTPRequestHandler):
             self._json(200, {'ok': True, 'rev': saved['rev']})
             return
 
+        if self.path == '/api/photos/files':
+            name = self._store(PHOTODIR)
+            if name:
+                self._json(201, {'file': name})
+            return
+
+        if self.path == '/api/photos':
+            try:
+                body = json.loads(self._body())
+                if not isinstance(body, dict):
+                    raise ValueError('not an object')
+            except ValueError:
+                self._json(400, {'error': 'bad json'})
+                return
+            full, thumb = body.get('full'), body.get('thumb')
+            for name in (full, thumb):
+                if not (isinstance(name, str) and FILE_RE.match(name)
+                        and os.path.isfile(os.path.join(PHOTODIR, name))):
+                    self._json(400, {'error': 'full and thumb must be uploaded files'})
+                    return
+            if 'day' not in body:
+                self._json(400, {'error': 'day is required'})
+                return
+            photo = {'id': uuid.uuid4().hex, 'full': full, 'thumb': thumb,
+                     'addedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+            error = photo_fields(body, photo)
+            if error:
+                self._json(400, {'error': error})
+                return
+            for key, limit in (('lat', 90), ('lon', 180)):
+                photo[key] = coord(body.get(key), limit)
+            for key in ('width', 'height'):
+                photo[key] = body[key] if isinstance(body.get(key), int) else None
+            taken = body.get('takenAt')
+            photo['takenAt'] = taken[:19] if isinstance(taken, str) else None
+            with lock:
+                photos = read_photos()
+                photos.append(photo)
+                write_photos(photos)
+            self._json(201, public_photo(photo))
+            return
+
         if self.path != '/api/images':
             self._json(404, {'error': 'not found'})
             return
-        ctype = (self.headers.get('Content-Type') or '').split(';')[0].strip().lower()
-        ext = EXTS.get(ctype)
-        if not ext:
-            self._json(415, {'error': 'unsupported image type'})
+        name = self._store(IMGDIR)
+        if name:
+            self._json(201, {'url': '/api/images/' + name})
+
+    def _photo_id(self):
+        pid = self.path[len('/api/photos/'):]
+        return pid if self.path.startswith('/api/photos/') and ID_RE.match(pid) else None
+
+    def do_PATCH(self):
+        pid = self._photo_id()
+        if not pid:
+            self._json(404, {'error': 'not found'})
             return
-        n = int(self.headers.get('Content-Length', 0))
-        if n <= 0 or n > MAX_IMAGE:
-            self._json(413, {'error': 'image too large'})
+        try:
+            body = json.loads(self._body())
+            if not isinstance(body, dict):
+                raise ValueError('not an object')
+        except ValueError:
+            self._json(400, {'error': 'bad json'})
             return
-        body = self.rfile.read(n)
-        os.makedirs(IMGDIR, exist_ok=True)
-        name = uuid.uuid4().hex + ext
-        tmp = os.path.join(IMGDIR, '.' + name)
-        with open(tmp, 'wb') as f:
-            f.write(body)
-        os.replace(tmp, os.path.join(IMGDIR, name))
-        last_change[0] = time.time()
-        dirty.set()
-        self._json(201, {'url': '/api/images/' + name})
+        with lock:
+            photos = read_photos()
+            photo = next((p for p in photos if p['id'] == pid), None)
+            if not photo:
+                self._json(404, {'error': 'no such photo'})
+                return
+            error = photo_fields(body, photo)
+            if error:
+                self._json(400, {'error': error})
+                return
+            write_photos(photos)
+        self._json(200, public_photo(photo))
 
     def do_DELETE(self):
+        pid = self._photo_id()
+        if pid:
+            with lock:
+                photos = read_photos()
+                gone = [p for p in photos if p['id'] == pid]
+                if gone:
+                    write_photos([p for p in photos if p['id'] != pid])
+            for p in gone:
+                for name in (p['full'], p['thumb']):
+                    try:
+                        os.remove(os.path.join(PHOTODIR, name))
+                    except FileNotFoundError:
+                        pass
+            self._json(200, {'ok': True})
+            return
         if not self.path.startswith('/api/images/'):
             self._json(404, {'error': 'not found'})
             return
