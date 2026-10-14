@@ -259,7 +259,6 @@ in
         # the link says what it gives:
         #   https://thailand.miker.be/?view=<THAILAND_LINK_KEY>  read-only
         #   https://thailand.miker.be/?edit=<THAILAND_EDIT_KEY>  the planner
-        # The older ?k=<THAILAND_LINK_KEY> is a view link too.
         #
         # The first visit sets a cookie for a year, tk for view and te for
         # edit, and removes the other one. The link opened last decides. A
@@ -276,7 +275,7 @@ in
         @editkey expression `size("{$THAILAND_EDIT_KEY}") >= 24 && {query.edit} == "{$THAILAND_EDIT_KEY}"`
         header @editkey +Set-Cookie "te={$THAILAND_EDIT_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
         header @editkey +Set-Cookie "tk=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
-        @viewkey expression `size("{$THAILAND_LINK_KEY}") >= 24 && ({query.view} == "{$THAILAND_LINK_KEY}" || {query.k} == "{$THAILAND_LINK_KEY}")`
+        @viewkey expression `size("{$THAILAND_LINK_KEY}") >= 24 && {query.view} == "{$THAILAND_LINK_KEY}"`
         header @viewkey +Set-Cookie "tk={$THAILAND_LINK_KEY}; Path=/; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
         header @viewkey +Set-Cookie "te=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
         @open path /manifest.webmanifest /manifest-view.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
@@ -284,7 +283,7 @@ in
         # way round. Without a link in the address the cookie decides.
         @viewer {
           not header Authorization *
-          expression `size("{$THAILAND_LINK_KEY}") >= 24 && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {query.edit} == "{$THAILAND_EDIT_KEY}") && ({query.view} == "{$THAILAND_LINK_KEY}" || {query.k} == "{$THAILAND_LINK_KEY}" || ({cookie.tk} == "{$THAILAND_LINK_KEY}" && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {cookie.te} == "{$THAILAND_EDIT_KEY}")))`
+          expression `size("{$THAILAND_LINK_KEY}") >= 24 && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {query.edit} == "{$THAILAND_EDIT_KEY}") && ({query.view} == "{$THAILAND_LINK_KEY}" || ({cookie.tk} == "{$THAILAND_LINK_KEY}" && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {cookie.te} == "{$THAILAND_EDIT_KEY}")))`
         }
         handle @open {
           root * /var/www/thailand.miker.be
@@ -324,7 +323,7 @@ in
           #
           # The edit link or its cookie skips the password.
           @locked {
-            not expression `size("{$THAILAND_EDIT_KEY}") >= 24 && ({query.edit} == "{$THAILAND_EDIT_KEY}" || ({cookie.te} == "{$THAILAND_EDIT_KEY}" && {query.view} != "{$THAILAND_LINK_KEY}" && {query.k} != "{$THAILAND_LINK_KEY}"))`
+            not expression `size("{$THAILAND_EDIT_KEY}") >= 24 && ({query.edit} == "{$THAILAND_EDIT_KEY}" || ({cookie.te} == "{$THAILAND_EDIT_KEY}" && {query.view} != "{$THAILAND_LINK_KEY}"))`
           }
           basic_auth @locked {
             family {$THAILAND_AUTH_HASH}
