@@ -280,10 +280,12 @@ in
         header @viewkey +Set-Cookie "te=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
         @open path /manifest.webmanifest /manifest-view.webmanifest /sw.js /apple-touch-icon.png /icon-192.png /icon-512.png /icon-maskable-512.png
         # A view link in the address wins over an edit cookie, and the other
-        # way round. Without a link in the address the cookie decides.
+        # way round. Without a link in the address the cookie decides. An
+        # address with edit= in it is never a view request, so a wrong edit
+        # key asks for the password and does not show the view page.
         @viewer {
           not header Authorization *
-          expression `size("{$THAILAND_LINK_KEY}") >= 24 && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {query.edit} == "{$THAILAND_EDIT_KEY}") && ({query.view} == "{$THAILAND_LINK_KEY}" || ({cookie.tk} == "{$THAILAND_LINK_KEY}" && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {cookie.te} == "{$THAILAND_EDIT_KEY}")))`
+          expression `size("{$THAILAND_LINK_KEY}") >= 24 && {query.edit} == "" && ({query.view} == "{$THAILAND_LINK_KEY}" || ({cookie.tk} == "{$THAILAND_LINK_KEY}" && !(size("{$THAILAND_EDIT_KEY}") >= 24 && {cookie.te} == "{$THAILAND_EDIT_KEY}")))`
         }
         handle @open {
           root * /var/www/thailand.miker.be
