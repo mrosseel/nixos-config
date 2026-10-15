@@ -3,7 +3,8 @@
 Stdlib only, single file, no framework. Access is gated by Caddy on the vhost,
 so there is no auth logic here. Caddy lets a holder of the view link reach only
 GET /api/view and GET /api/photos/files/<f>. Those two must never return notes,
-bookings or TODOs.
+bookings or TODOs. Caddy marks a request of the view link with the header
+X-Thailand-Viewer.
 
     GET    /api/plan            -> current plan document, or null
     PUT    /api/plan            -> overwrite; needs If-Match: <rev>
@@ -21,9 +22,15 @@ bookings or TODOs.
     PATCH  /api/photos/<id>     -> change its day or caption
     DELETE /api/photos/<id>     -> drop it and its files
 
+    GET    /api/location        -> the last position of the phone, or null
+    POST   /api/location        -> {lat, lon, accuracy}; an OwnTracks
+                                   location message also works
+
     GET    /api/view            -> the read-only overview for the family at
                                    home: the legs, their dates and the photos.
-                                   No notes, bookings or TODOs.
+                                   No notes, bookings or TODOs. The position of
+                                   the phone is in it for the view link only
+                                   from the first to the last day of the trip.
 
 Two people edit this plan at the same time. Every write therefore carries the
 revision it was based on, and a stale write is refused rather than silently
@@ -42,7 +49,7 @@ import subprocess
 import threading
 import time
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 DATA = os.environ.get('PLAN_FILE', '/var/lib/thailand-planner/plan.json')
 PORT = int(os.environ.get('PORT', '8010'))
@@ -52,6 +59,12 @@ IMGDIR = os.path.join(ROOT, 'images')
 NAME = os.path.basename(DATA)
 PHOTODIR = os.path.join(ROOT, 'photos')
 PHOTOS = os.path.join(ROOT, 'photos.json')
+# The last position of the phone. It is not in git: the history repo is a
+# copy of the plan, not a log of where the family was.
+LOCATION = os.path.join(ROOT, 'location.json')
+# The trip is in UTC+7 (Thailand, Laos, Vietnam). The days of the trip are
+# dates there. The app uses the same rule.
+TRIP_TZ = timezone(timedelta(hours=7))
 
 # One commit per burst of editing rather than per keystroke: the committer wakes
 # on a timer and only acts once the plan has been quiet for a moment.
@@ -184,16 +197,58 @@ def public_photo(p):
     }
 
 
+def read_location():
+    try:
+        with open(LOCATION, 'rb') as f:
+            loc = json.loads(f.read())
+        return loc if isinstance(loc, dict) else None
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def location_from(body):
+    """The position in a request body, or None. The app sends {lat, lon,
+    accuracy}. OwnTracks sends {_type: "location", lat, lon, acc, tst}."""
+    lat, lon = coord(body.get('lat'), 90), coord(body.get('lon'), 180)
+    if lat is None or lon is None:
+        return None
+    acc = body.get('accuracy', body.get('acc'))
+    acc = round(acc) if isinstance(acc, (int, float)) and 0 <= acc < 1e6 else None
+    now = time.time()
+    tst = body.get('tst')
+    # A queued OwnTracks message carries the time of the fix. A time in the
+    # future is a wrong clock on the phone.
+    at = tst if isinstance(tst, (int, float)) and 0 < tst <= now + 60 else now
+    return {'lat': lat, 'lon': lon, 'accuracy': acc,
+            'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(at))}
+
+
+def write_location(loc):
+    """Keep loc if it is newer than the stored one. Returns the stored one."""
+    with lock:
+        old = read_location()
+        if old and old.get('at', '') > loc['at']:
+            return old
+        tmp = LOCATION + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(loc, f)
+        os.replace(tmp, LOCATION)
+    return loc
+
+
 def sorted_photos():
     return sorted(read_photos(),
                   key=lambda p: (p['day'], p.get('takenAt') or '', p.get('addedAt') or ''),
                   reverse=True)
 
 
-def overview():
+def overview(viewer):
     """The plan with everything private left out: per leg only the place and
     its dates. Built here and not in the browser, so the private parts never
-    reach a phone that holds only the view link."""
+    reach a phone that holds only the view link.
+
+    The view link sees the position of the phone only during the trip. Before
+    and after the trip the phone is at home."""
     plan = read_plan()
     legs = []
     if plan:
@@ -206,12 +261,17 @@ def overview():
             else:
                 legs.append({'place': place, 'first': iso, 'last': iso, 'days': 1})
     meta = (plan or {}).get('meta') or {}
+    start = legs[0]['first'] if legs else None
+    end = legs[-1]['last'] if legs else None
+    today = datetime.now(TRIP_TZ).date().isoformat()
+    during = bool(legs) and start <= today <= end
     return {
         'title': plain(meta.get('title')) or 'Trip',
-        'start': legs[0]['first'] if legs else None,
-        'end': legs[-1]['last'] if legs else None,
+        'start': start,
+        'end': end,
         'legs': legs,
         'photos': [public_photo(p) for p in sorted_photos()],
+        'location': read_location() if during or not viewer else None,
     }
 
 
@@ -330,7 +390,7 @@ def ensure_repo():
         git('init', '-q', '-b', 'main')
     with open(os.path.join(ROOT, '.gitignore'), 'w') as f:
         # Attachments are tracked: they are trip data too. Only scratch is not.
-        f.write('*.tmp\nsnapshots/\n')
+        f.write('*.tmp\nsnapshots/\nlocation.json\n')
     if REMOTE:
         git('remote', 'remove', 'origin', check=False)
         git('remote', 'add', 'origin', REMOTE, check=False)
@@ -515,7 +575,10 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._json(404, {'error': 'not found'})
             return
         if self.path == '/api/view':
-            self._json(200, overview())
+            self._json(200, overview(bool(self.headers.get('X-Thailand-Viewer'))))
+            return
+        if self.path == '/api/location':
+            self._json(200, read_location())
             return
         if self.path == '/api/photos':
             self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
@@ -573,6 +636,29 @@ class H(http.server.BaseHTTPRequestHandler):
                 # a restore is itself undoable.
                 saved = write_plan(old, cur_rev + 1)
             self._json(200, {'ok': True, 'rev': saved['rev']})
+            return
+
+        if self.path == '/api/location':
+            try:
+                body = json.loads(self._body())
+                if not isinstance(body, dict):
+                    raise ValueError('not an object')
+            except ValueError:
+                self._json(400, {'error': 'bad json'})
+                return
+            if '_type' in body:
+                # OwnTracks sends other messages too, and reads the answer as
+                # a list of commands. An empty list is no command.
+                loc = location_from(body) if body['_type'] == 'location' else None
+                if loc:
+                    write_location(loc)
+                self._json(200, [])
+                return
+            loc = location_from(body)
+            if not loc:
+                self._json(400, {'error': 'lat and lon are required'})
+                return
+            self._json(200, write_location(loc))
             return
 
         if self.path == '/api/photos/files':

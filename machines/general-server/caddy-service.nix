@@ -266,7 +266,8 @@ in
         #
         # The view link gets only the view page (map, route, photos), GET
         # /api/view and GET /api/photos/files/*. Those leave out notes,
-        # bookings and TODOs.
+        # bookings and TODOs. The position of the phone is in /api/view for
+        # the view link only from the first to the last day of the trip.
         #
         # Both keys are in the env file below. A key shorter than 24
         # characters opens nothing, so a missing key cannot match an empty
@@ -297,7 +298,12 @@ in
             path /api/view /api/photos/files/*
           }
           handle @readable {
-            reverse_proxy localhost:8010
+            # The plan service gives the view link the position of the phone
+            # only during the trip. This header tells it that the request is
+            # from the view link. It replaces any value the client sends.
+            reverse_proxy localhost:8010 {
+              header_up X-Thailand-Viewer 1
+            }
           }
           handle /api/* {
             respond 403
