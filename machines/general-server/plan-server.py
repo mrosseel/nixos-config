@@ -225,8 +225,8 @@ def location_from(body):
     lat, lon = coord(body.get('lat'), 90), coord(body.get('lon'), 180)
     if lat is None or lon is None:
         return None
-    acc = body.get('accuracy')
-    acc = round(acc) if isinstance(acc, (int, float)) and 0 <= acc < 1e6 else None
+    acc = coord(body.get('accuracy'), 1e6)
+    acc = round(acc) if acc is not None and acc >= 0 else None
     name = str(body.get('name') or '').strip()[:MAX_NAME] or person.split('.')[-1]
     # The time of the fix, if the sender knows it. A time in the future is a
     # wrong clock.
