@@ -37,6 +37,10 @@
     environment = {
       PLAN_FILE = "/var/lib/thailand-planner/plan.json";
       PORT = "8010";
+      # The view link sees where the family is only on these days, in UTC+7.
+      # The planner sees it always.
+      PEOPLE_FROM = "2026-10-22";
+      PEOPLE_UNTIL = "2026-12-30";
       PLAN_GIT_REMOTE = "git@github.com:mrosseel/thailand-plan-history.git";
       # git needs a HOME for its config lookups; StateDirectory is the only
       # writable path this unit has.

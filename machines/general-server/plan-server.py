@@ -30,8 +30,7 @@ X-Thailand-Viewer.
                                    home: the legs, their dates and the photos.
                                    No notes, bookings or TODOs. The positions
                                    of the people are in it for the view link
-                                   only from the first to the last day of the
-                                   trip.
+                                   only from PEOPLE_FROM to PEOPLE_UNTIL.
 
 Two people edit this plan at the same time. Every write therefore carries the
 revision it was based on, and a stale write is refused rather than silently
@@ -66,6 +65,10 @@ LOCATION = os.path.join(ROOT, 'location.json')
 # The trip is in UTC+7 (Thailand, Laos, Vietnam). The days of the trip are
 # dates there. The app uses the same rule.
 TRIP_TZ = timezone(timedelta(hours=7))
+# The first and the last day on which the view link sees where the people
+# are. Without them, the first and the last day of the trip.
+PEOPLE_FROM = os.environ.get('PEOPLE_FROM') or None
+PEOPLE_UNTIL = os.environ.get('PEOPLE_UNTIL') or None
 
 # One commit per burst of editing rather than per keystroke: the committer wakes
 # on a timer and only acts once the plan has been quiet for a moment.
@@ -267,8 +270,8 @@ def overview(viewer):
     its dates. Built here and not in the browser, so the private parts never
     reach a phone that holds only the view link.
 
-    The view link sees the position of the phone only during the trip. Before
-    and after the trip the phone is at home."""
+    The view link sees the positions of the people only from PEOPLE_FROM to
+    PEOPLE_UNTIL. Before and after that the family is at home."""
     plan = read_plan()
     legs = []
     if plan:
@@ -283,8 +286,10 @@ def overview(viewer):
     meta = (plan or {}).get('meta') or {}
     start = legs[0]['first'] if legs else None
     end = legs[-1]['last'] if legs else None
+    first = PEOPLE_FROM or start
+    last = PEOPLE_UNTIL or end
     today = datetime.now(TRIP_TZ).date().isoformat()
-    during = bool(legs) and start <= today <= end
+    shown = bool(first and last) and first <= today <= last
     return {
         'title': plain(meta.get('title')) or 'Trip',
         'start': start,
@@ -292,7 +297,9 @@ def overview(viewer):
         'legs': legs,
         'photos': [public_photo(p) for p in sorted_photos()],
         'people': [{k: p[k] for k in ('name', 'lat', 'lon', 'accuracy', 'at')} for p in people()]
-        if during or not viewer else [],
+        if shown or not viewer else [],
+        'peopleFrom': first,
+        'peopleUntil': last,
     }
 
 
