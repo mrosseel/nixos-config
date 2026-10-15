@@ -22,15 +22,16 @@ X-Thailand-Viewer.
     PATCH  /api/photos/<id>     -> change its day or caption
     DELETE /api/photos/<id>     -> drop it and its files
 
-    GET    /api/location        -> the last position of the phone, or null
-    POST   /api/location        -> {lat, lon, accuracy}; an OwnTracks
-                                   location message also works
+    GET    /api/location        -> the last position of each person
+    POST   /api/location        -> {person, name, lat, lon, accuracy, at};
+                                   Home Assistant sends it
 
     GET    /api/view            -> the read-only overview for the family at
                                    home: the legs, their dates and the photos.
-                                   No notes, bookings or TODOs. The position of
-                                   the phone is in it for the view link only
-                                   from the first to the last day of the trip.
+                                   No notes, bookings or TODOs. The positions
+                                   of the people are in it for the view link
+                                   only from the first to the last day of the
+                                   trip.
 
 Two people edit this plan at the same time. Every write therefore carries the
 revision it was based on, and a stale write is refused rather than silently
@@ -59,8 +60,8 @@ IMGDIR = os.path.join(ROOT, 'images')
 NAME = os.path.basename(DATA)
 PHOTODIR = os.path.join(ROOT, 'photos')
 PHOTOS = os.path.join(ROOT, 'photos.json')
-# The last position of the phone. It is not in git: the history repo is a
-# copy of the plan, not a log of where the family was.
+# The last position of each person, {person: {...}}. It is not in git: the
+# history repo is a copy of the plan, not a log of where the family was.
 LOCATION = os.path.join(ROOT, 'location.json')
 # The trip is in UTC+7 (Thailand, Laos, Vietnam). The days of the trip are
 # dates there. The app uses the same rule.
@@ -197,41 +198,60 @@ def public_photo(p):
     }
 
 
-def read_location():
+PERSON_RE = re.compile(r'^[a-z0-9_.-]{1,64}$')
+MAX_NAME = 40
+
+
+def read_locations():
     try:
         with open(LOCATION, 'rb') as f:
-            loc = json.loads(f.read())
-        return loc if isinstance(loc, dict) else None
+            locs = json.loads(f.read())
+        return locs if isinstance(locs, dict) else {}
     except (FileNotFoundError, ValueError):
-        return None
+        return {}
+
+
+def people():
+    """The last position of each person, by name."""
+    return sorted(read_locations().values(), key=lambda p: p['name'].lower())
 
 
 def location_from(body):
-    """The position in a request body, or None. The app sends {lat, lon,
-    accuracy}. OwnTracks sends {_type: "location", lat, lon, acc, tst}."""
+    """The person and the position in a request body, or None. Home Assistant
+    sends {person: "person.mike", name: "Mike", lat, lon, accuracy, at}."""
+    person = body.get('person')
+    if not isinstance(person, str) or not PERSON_RE.match(person):
+        return None
     lat, lon = coord(body.get('lat'), 90), coord(body.get('lon'), 180)
     if lat is None or lon is None:
         return None
-    acc = body.get('accuracy', body.get('acc'))
+    acc = body.get('accuracy')
     acc = round(acc) if isinstance(acc, (int, float)) and 0 <= acc < 1e6 else None
+    name = str(body.get('name') or '').strip()[:MAX_NAME] or person.split('.')[-1]
+    # The time of the fix, if the sender knows it. A time in the future is a
+    # wrong clock.
     now = time.time()
-    tst = body.get('tst')
-    # A queued OwnTracks message carries the time of the fix. A time in the
-    # future is a wrong clock on the phone.
-    at = tst if isinstance(tst, (int, float)) and 0 < tst <= now + 60 else now
-    return {'lat': lat, 'lon': lon, 'accuracy': acc,
+    try:
+        at = datetime.fromisoformat(str(body.get('at'))).timestamp()
+    except ValueError:
+        at = now
+    at = min(at, now)
+    return {'person': person, 'name': name, 'lat': lat, 'lon': lon, 'accuracy': acc,
             'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(at))}
 
 
 def write_location(loc):
-    """Keep loc if it is newer than the stored one. Returns the stored one."""
+    """Keep loc if it is newer than the stored position of that person.
+    Returns the stored one."""
     with lock:
-        old = read_location()
+        locs = read_locations()
+        old = locs.get(loc['person'])
         if old and old.get('at', '') > loc['at']:
             return old
+        locs[loc['person']] = loc
         tmp = LOCATION + '.tmp'
         with open(tmp, 'w') as f:
-            json.dump(loc, f)
+            json.dump(locs, f, ensure_ascii=False)
         os.replace(tmp, LOCATION)
     return loc
 
@@ -271,7 +291,8 @@ def overview(viewer):
         'end': end,
         'legs': legs,
         'photos': [public_photo(p) for p in sorted_photos()],
-        'location': read_location() if during or not viewer else None,
+        'people': [{k: p[k] for k in ('name', 'lat', 'lon', 'accuracy', 'at')} for p in people()]
+        if during or not viewer else [],
     }
 
 
@@ -578,7 +599,7 @@ class H(http.server.BaseHTTPRequestHandler):
             self._json(200, overview(bool(self.headers.get('X-Thailand-Viewer'))))
             return
         if self.path == '/api/location':
-            self._json(200, read_location())
+            self._json(200, people())
             return
         if self.path == '/api/photos':
             self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
@@ -646,17 +667,9 @@ class H(http.server.BaseHTTPRequestHandler):
             except ValueError:
                 self._json(400, {'error': 'bad json'})
                 return
-            if '_type' in body:
-                # OwnTracks sends other messages too, and reads the answer as
-                # a list of commands. An empty list is no command.
-                loc = location_from(body) if body['_type'] == 'location' else None
-                if loc:
-                    write_location(loc)
-                self._json(200, [])
-                return
             loc = location_from(body)
             if not loc:
-                self._json(400, {'error': 'lat and lon are required'})
+                self._json(400, {'error': 'person, lat and lon are required'})
                 return
             self._json(200, write_location(loc))
             return
