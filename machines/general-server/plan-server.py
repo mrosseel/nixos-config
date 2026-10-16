@@ -25,12 +25,18 @@ X-Thailand-Viewer.
     GET    /api/location        -> the last position of each person
     POST   /api/location        -> {person, name, lat, lon, accuracy, at};
                                    Home Assistant sends it
+    GET    /api/track           -> the route the people travelled, from
+                                   PEOPLE_FROM: a list of lines of [lat, lon]
+
+    GET    /api/stories         -> the story of each day, {day: text}
+    PUT    /api/stories/<day>   -> {text}; an empty text removes it
 
     GET    /api/view            -> the read-only overview for the family at
-                                   home: the legs, their dates and the photos.
-                                   No notes, bookings or TODOs. The positions
-                                   of the people are in it for the view link
-                                   only from PEOPLE_FROM to PEOPLE_UNTIL.
+                                   home: the legs, their dates, the photos and
+                                   the stories. No notes, bookings or TODOs.
+                                   The positions and the route of the people
+                                   are in it for the view link only from
+                                   PEOPLE_FROM to PEOPLE_UNTIL.
 
 Two people edit this plan at the same time. Every write therefore carries the
 revision it was based on, and a stale write is refused rather than silently
@@ -43,6 +49,7 @@ UI browses and the only off-site copy of the trip.
 
 import http.server
 import json
+import math
 import re
 import os
 import subprocess
@@ -62,6 +69,11 @@ PHOTOS = os.path.join(ROOT, 'photos.json')
 # The last position of each person, {person: {...}}. It is not in git: the
 # history repo is a copy of the plan, not a log of where the family was.
 LOCATION = os.path.join(ROOT, 'location.json')
+# The route of each person, {person: [[lat, lon, time], ...]}. Not in git
+# either, for the same reason.
+TRACK = os.path.join(ROOT, 'track.json')
+# The story of each day, {day: text}. This is trip content, so it is in git.
+STORIES = os.path.join(ROOT, 'stories.json')
 # The trip is in UTC+7 (Thailand, Laos, Vietnam). The days of the trip are
 # dates there. The app uses the same rule.
 TRIP_TZ = timezone(timedelta(hours=7))
@@ -69,6 +81,15 @@ TRIP_TZ = timezone(timedelta(hours=7))
 # are. Without them, the first and the last day of the trip.
 PEOPLE_FROM = os.environ.get('PEOPLE_FROM') or None
 PEOPLE_UNTIL = os.environ.get('PEOPLE_UNTIL') or None
+# A position goes into the route when it is this far from the last point of
+# that person. Closer points add nothing at the zoom of the map.
+TRACK_STEP_M = 500
+# A position less accurate than this does not go into the route.
+TRACK_MAX_ACC = 1000
+# The route that the map gets is simplified: no point leaves the real route by
+# more than this, in degrees (about 200 m).
+TRACK_TOLERANCE = 0.002
+MAX_STORY = 5000
 
 # One commit per burst of editing rather than per keystroke: the committer wakes
 # on a timer and only acts once the plan has been quiet for a moment.
@@ -256,7 +277,111 @@ def write_location(loc):
         with open(tmp, 'w') as f:
             json.dump(locs, f, ensure_ascii=False)
         os.replace(tmp, LOCATION)
+        add_to_track(loc)
     return loc
+
+
+def distance_m(a, b):
+    """The distance in metres between two (lat, lon)."""
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = (math.sin((la2 - la1) / 2) ** 2
+         + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2)
+    return 2 * 6371000 * math.asin(math.sqrt(h))
+
+
+def read_track():
+    try:
+        with open(TRACK, 'rb') as f:
+            track = json.loads(f.read())
+        return track if isinstance(track, dict) else {}
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def add_to_track(loc):
+    """Add loc to the route of its person if it is far enough from the last
+    point. The caller holds the lock."""
+    if loc['accuracy'] is not None and loc['accuracy'] > TRACK_MAX_ACC:
+        return
+    track = read_track()
+    points = track.setdefault(loc['person'], [])
+    at = int(datetime.fromisoformat(loc['at']).timestamp())
+    if points and (points[-1][2] >= at
+                   or distance_m(points[-1], (loc['lat'], loc['lon'])) < TRACK_STEP_M):
+        return
+    points.append([loc['lat'], loc['lon'], at])
+    tmp = TRACK + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(track, f)
+    os.replace(tmp, TRACK)
+
+
+def simplify(points, tol):
+    """Douglas-Peucker on [(lat, lon), ...]: keep only the points that the
+    shape of the line needs."""
+    if len(points) < 3:
+        return points
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(points) - 1)]
+    while stack:
+        a, b = stack.pop()
+        (y1, x1), (y2, x2) = points[a], points[b]
+        dy, dx = y2 - y1, x2 - x1
+        norm = math.hypot(dx, dy)
+        far, index = 0.0, None
+        for i in range(a + 1, b):
+            y, x = points[i]
+            d = (abs(dy * (x - x1) - dx * (y - y1)) / norm if norm
+                 else math.hypot(x - x1, y - y1))
+            if d > far:
+                far, index = d, i
+        if index is not None and far > tol:
+            keep[index] = True
+            stack += [(a, index), (index, b)]
+    return [p for p, k in zip(points, keep) if k]
+
+
+track_cache = {}
+
+
+def route(first):
+    """The route of each person from the day first (UTC+7), simplified, as a
+    list of lines of [lat, lon]."""
+    try:
+        stamp = os.stat(TRACK).st_mtime_ns
+    except FileNotFoundError:
+        return []
+    key = (stamp, first)
+    if key not in track_cache:
+        since = (datetime.fromisoformat(first).replace(tzinfo=TRIP_TZ).timestamp()
+                 if first else 0)
+        lines = []
+        for points in read_track().values():
+            line = [(p[0], p[1]) for p in points if p[2] >= since]
+            if len(line) > 1:
+                lines.append([list(p) for p in simplify(line, TRACK_TOLERANCE)])
+        track_cache.clear()
+        track_cache[key] = lines
+    return track_cache[key]
+
+
+def read_stories():
+    try:
+        with open(STORIES, 'rb') as f:
+            stories = json.loads(f.read())
+        return stories if isinstance(stories, dict) else {}
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def write_stories(stories):
+    tmp = STORIES + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(stories, f, ensure_ascii=False, indent=1, sort_keys=True)
+    os.replace(tmp, STORIES)
+    last_change[0] = time.time()
+    dirty.set()
 
 
 def sorted_photos():
@@ -270,8 +395,9 @@ def overview(viewer):
     its dates. Built here and not in the browser, so the private parts never
     reach a phone that holds only the view link.
 
-    The view link sees the positions of the people only from PEOPLE_FROM to
-    PEOPLE_UNTIL. Before and after that the family is at home."""
+    The view link sees the positions and the route of the people only from
+    PEOPLE_FROM to PEOPLE_UNTIL. Before and after that the family is at
+    home."""
     plan = read_plan()
     legs = []
     if plan:
@@ -300,6 +426,8 @@ def overview(viewer):
         if shown or not viewer else [],
         'peopleFrom': first,
         'peopleUntil': last,
+        'track': route(first) if shown or not viewer else [],
+        'stories': read_stories(),
     }
 
 
@@ -418,7 +546,7 @@ def ensure_repo():
         git('init', '-q', '-b', 'main')
     with open(os.path.join(ROOT, '.gitignore'), 'w') as f:
         # Attachments are tracked: they are trip data too. Only scratch is not.
-        f.write('*.tmp\nsnapshots/\nlocation.json\n')
+        f.write('*.tmp\nsnapshots/\nlocation.json\ntrack.json\n')
     if REMOTE:
         git('remote', 'remove', 'origin', check=False)
         git('remote', 'add', 'origin', REMOTE, check=False)
@@ -608,6 +736,12 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path == '/api/location':
             self._json(200, people())
             return
+        if self.path == '/api/track':
+            self._json(200, overview(False)['track'])
+            return
+        if self.path == '/api/stories':
+            self._json(200, read_stories())
+            return
         if self.path == '/api/photos':
             self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
             return
@@ -621,6 +755,28 @@ class H(http.server.BaseHTTPRequestHandler):
         self._json(404, {'error': 'not found'})
 
     def do_PUT(self):
+        if self.path.startswith('/api/stories/'):
+            day = self.path[len('/api/stories/'):]
+            if not ISO_RE.match(day):
+                self._json(404, {'error': 'not found'})
+                return
+            try:
+                body = json.loads(self._body())
+                if not isinstance(body, dict):
+                    raise ValueError('not an object')
+            except ValueError:
+                self._json(400, {'error': 'bad json'})
+                return
+            text = str(body.get('text') or '').strip()[:MAX_STORY]
+            with lock:
+                stories = read_stories()
+                if text:
+                    stories[day] = text
+                else:
+                    stories.pop(day, None)
+                write_stories(stories)
+            self._json(200, {'day': day, 'text': text})
+            return
         if self.path != '/api/plan':
             self._json(404, {'error': 'not found'})
             return
