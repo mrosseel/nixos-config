@@ -114,7 +114,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # tixpkgs: the ArtCraft apps (pdfcraft-bin, photocraft-bin, lightcraft-bin)
+    # tixpkgs: the ArtCraft apps (deckcraft-bin, pdfcraft-bin, photocraft-bin,
+    # lightcraft-bin)
     # on nixtop. A bot in that repo bumps them within hours of each upstream
     # release, so `nix flake update tixpkgs` gets the latest versions. The
     # waterfox input is a nixpkgs PR that we do not use. It follows nixpkgs so

@@ -432,6 +432,7 @@ in
 
     lm_sensors
     # ArtCraft apps from tixpkgs (see the tixpkgs input in flake.nix)
+    tixpkgs.deckcraft-bin
     tixpkgs.lightcraft-bin
     tixpkgs.pdfcraft-bin
     tixpkgs.photocraft-bin
