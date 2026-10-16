@@ -230,7 +230,10 @@ def read_locations():
     try:
         with open(LOCATION, 'rb') as f:
             locs = json.loads(f.read())
-        return locs if isinstance(locs, dict) else {}
+        # Only entries of a person. An older version of this file held one
+        # position without a person.
+        return ({k: v for k, v in locs.items() if isinstance(v, dict) and 'name' in v}
+                if isinstance(locs, dict) else {})
     except (FileNotFoundError, ValueError):
         return {}
 
