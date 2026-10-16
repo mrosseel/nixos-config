@@ -387,6 +387,27 @@ def write_stories(stories):
     dirty.set()
 
 
+# How the family reaches a leg, from the transport items on its first day. The
+# first match wins, so a day with a taxi and a flight is a flight. The app has
+# the same table in src/transport.js.
+TRANSPORT = [
+    ('flight', re.compile(r'vlucht|flight|vliegtuig|plane', re.I)),
+    ('train', re.compile(r'trein|train', re.I)),
+    ('boat', re.compile(r'boot|boat|ferry|slowboat|cruise', re.I)),
+    ('bus', re.compile(r'bus|minivan|limo', re.I)),
+    ('car', re.compile(r'taxi|auto|grab|chauffeur|driver|transfer|\bcar\b', re.I)),
+]
+
+
+def transport_of(day):
+    """The way of travel of the transport items of a day, or None. Only the
+    kind goes to the view link, not the details."""
+    text = ' '.join(
+        '%s %s' % (plain(n.get('title')), plain((n.get('data') or {}).get('mode')))
+        for n in day.get('nodes') or [] if n.get('type') == 'transport')
+    return next((mode for mode, rx in TRANSPORT if rx.search(text)), None)
+
+
 def sorted_photos():
     return sorted(read_photos(),
                   key=lambda p: (p['day'], p.get('takenAt') or '', p.get('addedAt') or ''),
@@ -411,7 +432,8 @@ def overview(viewer):
                 legs[-1]['last'] = iso
                 legs[-1]['days'] += 1
             else:
-                legs.append({'place': place, 'first': iso, 'last': iso, 'days': 1})
+                legs.append({'place': place, 'first': iso, 'last': iso, 'days': 1,
+                             'by': transport_of(d)})
     meta = (plan or {}).get('meta') or {}
     start = legs[0]['first'] if legs else None
     end = legs[-1]['last'] if legs else None
