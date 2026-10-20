@@ -678,6 +678,41 @@ in
     };
   };
 
+  # A daily copy of the Nightsky production database from general-server. It
+  # is the only backup until the S3 backup of ADR 0087 runs. The dumps are in
+  # /home/mike/backups/nightsky for 30 days. pg_restore --list checks each
+  # dump. A broken dump stays as a .part file.
+  systemd.services.nightsky-db-pull = {
+    description = "Copy a dump of the Nightsky database from general-server";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    path = [ pkgs.openssh pkgs.coreutils pkgs.findutils pkgs.postgresql_17 ];
+    serviceConfig = {
+      Type = "oneshot";
+      User = "mike";
+      UMask = "0077";
+    };
+    script = ''
+      set -euo pipefail
+      dir=/home/mike/backups/nightsky
+      mkdir -p "$dir"
+      part="$dir/nightsky-$(date +%F).dump.part"
+      ssh -o BatchMode=yes -o ConnectTimeout=30 mike@pifinder.eu \
+        'sudo -n -u postgres pg_dump --format=custom nightsky' > "$part"
+      pg_restore --list "$part" > /dev/null
+      mv "$part" "''${part%.part}"
+      find "$dir" -name 'nightsky-*.dump' -mtime +30 -delete
+    '';
+  };
+  systemd.timers.nightsky-db-pull = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 04:00:00";
+      # nixtop is sometimes off at 04:00. Then the copy runs at the next boot.
+      Persistent = true;
+    };
+  };
+
   # Samba share automounts, guest access. The short timeouts make an access to
   # a powered-off host fail after 5s instead of blocking yazi or a shell for 90s.
   # rigel (Unraid NAS) is often off, its shares go under /mnt/rigel. The device
