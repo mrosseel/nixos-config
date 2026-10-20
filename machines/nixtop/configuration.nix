@@ -103,6 +103,10 @@
   # monitor the intermittent wired-drop issue (ARP flux from dual-homing).
   networking.networkmanager.logLevel = "INFO";
 
+  # Wake-on-LAN on the wired NIC (r8169). HA script.wake_nixtop sends the
+  # magic packet to 9c:bf:0d:01:0d:b5.
+  networking.interfaces.enp191s0.wakeOnLan.enable = true;
+
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
