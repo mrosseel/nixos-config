@@ -21,8 +21,36 @@
 #
 # systemd reads it as root and hands the unit a private 0400 copy, so the key
 # itself stays root-only on disk.
+#
+# The notifications to the phones of the family at home need a VAPID key
+# pair. The unit thailand-planner-vapid makes it once, in the same secrets
+# directory, before the service starts. A new key means every phone must
+# subscribe again.
 
+let
+  # pywebpush sends the notifications. Everything else is the stdlib.
+  python = pkgs.python3.withPackages (ps: [ ps.pywebpush ]);
+in
 {
+  systemd.services.thailand-planner-vapid = {
+    description = "VAPID key for the trip planner notifications";
+    before = [ "thailand-planner.service" ];
+    requiredBy = [ "thailand-planner.service" ];
+    path = [ pkgs.openssl ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      install -d -m 0700 /var/lib/thailand-planner-secrets
+      if [ ! -f /var/lib/thailand-planner-secrets/vapid.pem ]; then
+        umask 077
+        openssl ecparam -name prime256v1 -genkey -noout \
+          -out /var/lib/thailand-planner-secrets/vapid.pem
+      fi
+    '';
+  };
+
   systemd.services.thailand-planner = {
     description = "Thailand trip planner JSON store";
     wantedBy = [ "multi-user.target" ];
@@ -41,6 +69,8 @@
       # The planner sees it always.
       PEOPLE_FROM = "2026-10-22";
       PEOPLE_UNTIL = "2026-12-30";
+      # The credential below, as the unit sees it.
+      VAPID_PRIVATE_KEY = "%d/vapid.pem";
       PLAN_GIT_REMOTE = "git@github.com:mrosseel/thailand-plan-history.git";
       # git needs a HOME for its config lookups; StateDirectory is the only
       # writable path this unit has.
@@ -52,8 +82,11 @@
         + " -o UserKnownHostsFile=/var/lib/thailand-planner/known_hosts";
     };
     serviceConfig = {
-      ExecStart = "${pkgs.python3}/bin/python3 ${./plan-server.py}";
-      LoadCredential = "deploy_key:/var/lib/thailand-planner-secrets/deploy_key";
+      ExecStart = "${python}/bin/python3 ${./plan-server.py}";
+      LoadCredential = [
+        "deploy_key:/var/lib/thailand-planner-secrets/deploy_key"
+        "vapid.pem:/var/lib/thailand-planner-secrets/vapid.pem"
+      ];
       # A fixed user rather than DynamicUser: the state directory is a git repo
       # you sometimes want to inspect, and the Drive exporter has to read it.
       # DynamicUser hid it behind /var/lib/private under an unpredictable uid.

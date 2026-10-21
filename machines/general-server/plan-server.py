@@ -4,7 +4,7 @@ Stdlib only, single file, no framework. Access is gated by Caddy on the vhost,
 so there is no auth logic here. Caddy lets a holder of the view link reach only
 GET /api/view and GET /api/photos/files/<f>. Those two must never return notes,
 bookings or TODOs. Caddy marks a request of the view link with the header
-X-Thailand-Viewer.
+X-Thailand-Viewer. The view link can also reach /api/push/*.
 
     GET    /api/plan            -> current plan document, or null
     PUT    /api/plan            -> overwrite; needs If-Match: <rev>
@@ -31,6 +31,12 @@ X-Thailand-Viewer.
     GET    /api/stories         -> the story of each day, {day: text}
     PUT    /api/stories/<day>   -> {text}; an empty text removes it
 
+    GET    /api/push/key        -> the public VAPID key for the browser
+    POST   /api/push/subscribe  -> {subscription}; a phone asks for a
+                                   notification when there are new photos
+                                   or a new story
+    DELETE /api/push/subscribe  -> {endpoint}; the phone stops them
+
     GET    /api/view            -> the read-only overview for the family at
                                    home: the legs, their dates, the photos and
                                    the stories. No notes, bookings or TODOs.
@@ -47,6 +53,7 @@ commit and is pushed to a private remote, which is both the version history the
 UI browses and the only off-site copy of the trip.
 """
 
+import base64
 import http.server
 import json
 import math
@@ -57,6 +64,14 @@ import threading
 import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
+
+# Web push to the phones of the family at home. Without the package, as in
+# the local sandbox, the site works and sends no notifications.
+try:
+    from cryptography.hazmat.primitives import serialization
+    from pywebpush import webpush, WebPushException
+except ImportError:
+    webpush = None
 
 DATA = os.environ.get('PLAN_FILE', '/var/lib/thailand-planner/plan.json')
 PORT = int(os.environ.get('PORT', '8010'))
@@ -90,6 +105,17 @@ TRACK_MAX_ACC = 1000
 # more than this, in degrees (about 200 m).
 TRACK_TOLERANCE = 0.002
 MAX_STORY = 5000
+# The push subscriptions of the family at home, {endpoint: subscription}. Not
+# in git: a subscription is the key of one phone.
+PUSH = os.path.join(ROOT, 'push.json')
+# The private VAPID key, a PEM file. Without it there are no notifications.
+VAPID_KEY = os.environ.get('VAPID_PRIVATE_KEY') or ''
+VAPID_SUB = 'mailto:planner@miker.be'
+# One notification for a burst of photos and stories. It goes out after this
+# many seconds without a new one.
+PUSH_QUIET = 180
+PUSH_POLL = 10
+MAX_SUBS = 200
 
 # One commit per burst of editing rather than per keystroke: the committer wakes
 # on a timer and only acts once the plan has been quiet for a moment.
@@ -571,7 +597,7 @@ def ensure_repo():
         git('init', '-q', '-b', 'main')
     with open(os.path.join(ROOT, '.gitignore'), 'w') as f:
         # Attachments are tracked: they are trip data too. Only scratch is not.
-        f.write('*.tmp\nsnapshots/\nlocation.json\ntrack.json\n')
+        f.write('*.tmp\nsnapshots/\nlocation.json\ntrack.json\npush.json\n')
     if REMOTE:
         git('remote', 'remove', 'origin', check=False)
         git('remote', 'add', 'origin', REMOTE, check=False)
@@ -642,6 +668,147 @@ def plan_at(sha):
         return json.loads(raw)
     except (subprocess.SubprocessError, OSError, ValueError):
         return None
+
+
+# --- notifications ----------------------------------------------------------
+#
+# A phone of the family at home subscribes once. Each new photo and each new
+# story counts, and after a quiet moment one notification goes to every
+# phone: "3 nieuwe foto's en een nieuw verhaal uit Luang Prabang".
+
+def read_subs():
+    try:
+        with open(PUSH, 'rb') as f:
+            subs = json.loads(f.read())
+        return subs if isinstance(subs, dict) else {}
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def write_subs(subs):
+    tmp = PUSH + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(subs, f)
+    os.replace(tmp, PUSH)
+
+
+def subscription_from(body):
+    """The push subscription in a request body, as the browser gives it, or
+    None."""
+    sub = body.get('subscription')
+    if not isinstance(sub, dict):
+        return None
+    endpoint, keys = sub.get('endpoint'), sub.get('keys')
+    if not (isinstance(endpoint, str) and endpoint.startswith('https://')
+            and len(endpoint) < 2048):
+        return None
+    if not (isinstance(keys, dict) and isinstance(keys.get('p256dh'), str)
+            and isinstance(keys.get('auth'), str)):
+        return None
+    return {'endpoint': endpoint,
+            'keys': {'p256dh': keys['p256dh'][:200], 'auth': keys['auth'][:100]}}
+
+
+push_on = bool(webpush and VAPID_KEY)
+vapid_public = [None]
+
+
+def vapid_public_key():
+    """The public VAPID key as the browser wants it: the raw point,
+    base64url without padding. None when push is off."""
+    if not push_on:
+        return None
+    if vapid_public[0] is None:
+        with open(VAPID_KEY, 'rb') as f:
+            key = serialization.load_pem_private_key(f.read(), password=None)
+        raw = key.public_key().public_bytes(serialization.Encoding.X962,
+                                            serialization.PublicFormat.UncompressedPoint)
+        vapid_public[0] = base64.urlsafe_b64encode(raw).rstrip(b'=').decode()
+    return vapid_public[0]
+
+
+# The photos and stories the phones were not told about yet: photos per day,
+# the days with a new story, and the time of the last one.
+pending = {'photos': {}, 'stories': set(), 'at': 0.0}
+
+
+def note(kind, day):
+    """Count a new photo or story for the next notification. The caller
+    holds the lock."""
+    if kind == 'photo':
+        pending['photos'][day] = pending['photos'].get(day, 0) + 1
+    else:
+        pending['stories'].add(day)
+    pending['at'] = time.time()
+
+
+def place_of(day):
+    plan = read_plan()
+    for d, dt in zip(plan['days'], day_dates(plan)) if plan else ():
+        if dt.isoformat() == day:
+            return plain(d.get('place')).strip()
+    return ''
+
+
+def notification():
+    """One message for all pending changes, or None. A change on a day the
+    view link cannot see yet, from a preview of a later day, is not in it."""
+    today = datetime.now(TRIP_TZ).date().isoformat()
+    photos = sum(n for d, n in pending['photos'].items() if d <= today)
+    stories = [d for d in pending['stories'] if d <= today]
+    days = sorted({d for d in pending['photos'] if d <= today} | set(stories))
+    if not days:
+        return None
+    parts = []
+    if photos:
+        parts.append('1 nieuwe foto' if photos == 1 else f"{photos} nieuwe foto's")
+    if stories:
+        parts.append('een nieuw verhaal' if len(stories) == 1 else f'{len(stories)} nieuwe verhalen')
+    place = place_of(days[-1])
+    meta = (read_plan() or {}).get('meta') or {}
+    return {'title': plain(meta.get('title')) or 'Reis',
+            'body': ' en '.join(parts) + (f' uit {place}' if place else ''),
+            'url': '/view.html'}
+
+
+def send_push(msg):
+    """Send msg to every phone. A phone that is gone (404, 410) is removed.
+    Not under the lock: a slow push must not block a save."""
+    data = json.dumps(msg, ensure_ascii=False)
+    gone = []
+    for endpoint, sub in read_subs().items():
+        try:
+            webpush(subscription_info=sub, data=data, vapid_private_key=VAPID_KEY,
+                    vapid_claims={'sub': VAPID_SUB}, ttl=24 * 3600, timeout=20)
+        except WebPushException as e:
+            status = getattr(e.response, 'status_code', None)
+            if status in (404, 410):
+                gone.append(endpoint)
+            else:
+                print(f'push failed for a phone: {e}', flush=True)
+        except Exception as e:  # noqa: BLE001 - a network fault must not stop the thread
+            print(f'push failed for a phone: {e}', flush=True)
+    if gone:
+        with lock:
+            subs = read_subs()
+            for endpoint in gone:
+                subs.pop(endpoint, None)
+            write_subs(subs)
+        print(f'{len(gone)} phone(s) unsubscribed', flush=True)
+
+
+def notifier():
+    while True:
+        time.sleep(PUSH_POLL)
+        with lock:
+            if not pending['at'] or time.time() - pending['at'] < PUSH_QUIET:
+                continue
+            msg = notification()
+            pending['photos'].clear()
+            pending['stories'].clear()
+            pending['at'] = 0.0
+        if msg and push_on:
+            send_push(msg)
 
 
 # --- HTTP -------------------------------------------------------------------
@@ -790,6 +957,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path == '/api/stories':
             self._json(200, read_stories())
             return
+        if self.path == '/api/push/key':
+            self._json(200, {'key': vapid_public_key()})
+            return
         if self.path == '/api/photos':
             self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
             return
@@ -818,6 +988,8 @@ class H(http.server.BaseHTTPRequestHandler):
             text = str(body.get('text') or '').strip()[:MAX_STORY]
             with lock:
                 stories = read_stories()
+                if text and text != stories.get(day):
+                    note('story', day)
                 if text:
                     stories[day] = text
                 else:
@@ -885,6 +1057,28 @@ class H(http.server.BaseHTTPRequestHandler):
             self._json(200, write_location(loc))
             return
 
+        if self.path == '/api/push/subscribe':
+            try:
+                body = json.loads(self._body())
+                if not isinstance(body, dict):
+                    raise ValueError('not an object')
+            except ValueError:
+                self._json(400, {'error': 'bad json'})
+                return
+            sub = subscription_from(body)
+            if not sub:
+                self._json(400, {'error': 'a push subscription is required'})
+                return
+            with lock:
+                subs = read_subs()
+                if sub['endpoint'] not in subs and len(subs) >= MAX_SUBS:
+                    self._json(429, {'error': 'too many phones'})
+                    return
+                subs[sub['endpoint']] = sub
+                write_subs(subs)
+            self._json(201, {'ok': True, 'push': push_on})
+            return
+
         if self.path == '/api/photos/files':
             name = self._store(PHOTODIR)
             if name:
@@ -924,6 +1118,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 photos = read_photos()
                 photos.append(photo)
                 write_photos(photos)
+                note('photo', photo['day'])
             self._json(201, public_photo(photo))
             return
 
@@ -964,6 +1159,17 @@ class H(http.server.BaseHTTPRequestHandler):
         self._json(200, public_photo(photo))
 
     def do_DELETE(self):
+        if self.path == '/api/push/subscribe':
+            try:
+                endpoint = json.loads(self._body()).get('endpoint')
+            except (ValueError, AttributeError):
+                endpoint = None
+            with lock:
+                subs = read_subs()
+                if subs.pop(endpoint, None) is not None:
+                    write_subs(subs)
+            self._json(200, {'ok': True})
+            return
         pid = self._photo_id()
         if pid:
             with lock:
@@ -998,5 +1204,8 @@ class H(http.server.BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     ensure_repo()
+    if not push_on:
+        print('push notifications off: no pywebpush or no VAPID_PRIVATE_KEY', flush=True)
     threading.Thread(target=committer, daemon=True).start()
+    threading.Thread(target=notifier, daemon=True).start()
     http.server.ThreadingHTTPServer(('127.0.0.1', PORT), H).serve_forever()

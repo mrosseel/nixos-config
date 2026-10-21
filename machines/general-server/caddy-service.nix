@@ -265,7 +265,7 @@ in
         # browser that sends the password gets the planner.
         #
         # The view link gets only the view page (map, route, photos), GET
-        # /api/view and GET /api/photos/files/*. Those leave out notes,
+        # /api/view, GET /api/photos/files/* and /api/push/*. Those leave out notes,
         # bookings and TODOs. Where the family is, is in /api/view for the
         # view link only on the days in thailand-planner.nix.
         #
@@ -304,6 +304,15 @@ in
             reverse_proxy localhost:8010 {
               header_up X-Thailand-Viewer 1
             }
+          }
+          # A phone of the view link subscribes to the notifications about
+          # new photos and stories, and unsubscribes.
+          @push {
+            method GET POST DELETE
+            path /api/push/*
+          }
+          handle @push {
+            reverse_proxy localhost:8010
           }
           handle /api/* {
             respond 403
