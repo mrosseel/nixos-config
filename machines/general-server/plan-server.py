@@ -577,29 +577,38 @@ def ensure_repo():
         git('remote', 'add', 'origin', REMOTE, check=False)
 
 
-def commit_and_push():
+def commit():
+    """Commit what changed. Returns True when there is a new commit. The
+    caller holds the lock, so no write lands between add and commit."""
     try:
         git('add', '-A')
         if not git('status', '--porcelain').stdout.strip():
-            return
+            return False
         plan = read_plan()
         rev = plan.get('rev', '?') if plan else '?'
         git('commit', '-q', '-m', f'plan: rev {rev}')
         push_state['commitAt'] = time.time()
+        return True
     except (subprocess.SubprocessError, OSError) as e:
         print(f'commit failed: {e}', flush=True)
+        return False
+
+
+def push():
+    """Push to the off-site copy. Not under the lock: a push waits up to
+    two minutes when GitHub is slow, and a save must not wait with it."""
+    if not REMOTE:
         return
-    if REMOTE:
-        try:
-            git('push', '-q', 'origin', 'main')
-            push_state.update(ok=True, at=time.time(), error=None)
-        except (subprocess.SubprocessError, OSError) as e:
-            # Off-site backup is best effort; the local history is still intact
-            # and the next successful push carries everything missed. It is not
-            # silent, though — the app shows it.
-            detail = getattr(e, 'stderr', '') or str(e)
-            push_state.update(ok=False, at=time.time(), error=detail.strip()[-300:])
-            print(f'push failed: {e}', flush=True)
+    try:
+        git('push', '-q', 'origin', 'main')
+        push_state.update(ok=True, at=time.time(), error=None)
+    except (subprocess.SubprocessError, OSError) as e:
+        # Off-site backup is best effort; the local history is still intact
+        # and the next successful push carries everything missed. It is not
+        # silent, though — the app shows it.
+        detail = getattr(e, 'stderr', '') or str(e)
+        push_state.update(ok=False, at=time.time(), error=detail.strip()[-300:])
+        print(f'push failed: {e}', flush=True)
 
 
 def committer():
@@ -608,7 +617,9 @@ def committer():
         if dirty.is_set() and time.time() - last_change[0] >= COMMIT_QUIET:
             dirty.clear()
             with lock:
-                commit_and_push()
+                committed = commit()
+            if committed:
+                push()
 
 
 def versions(limit=200):
@@ -636,6 +647,10 @@ def plan_at(sha):
 # --- HTTP -------------------------------------------------------------------
 
 class H(http.server.BaseHTTPRequestHandler):
+    # A client that stops in the middle of a request holds a thread. After
+    # this many seconds of silence the thread closes the connection.
+    timeout = 60
+
     def _send(self, code, body, ctype='application/json'):
         raw = body if isinstance(body, bytes) else body.encode()
         self.send_response(code)
@@ -647,8 +662,16 @@ class H(http.server.BaseHTTPRequestHandler):
     def _json(self, code, obj):
         self._send(code, json.dumps(obj, ensure_ascii=False))
 
+    def _length(self):
+        """The Content-Length header as a number. A missing or a bad header
+        counts as zero."""
+        try:
+            return int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            return 0
+
     def _body(self):
-        n = int(self.headers.get('Content-Length', 0))
+        n = self._length()
         if n > MAX_PLAN:
             raise ValueError('body too large')
         return self.rfile.read(n) if n > 0 else b''
@@ -675,7 +698,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if not ext:
             self._json(415, {'error': 'unsupported image type'})
             return None
-        n = int(self.headers.get('Content-Length', 0))
+        n = self._length()
         if n <= 0 or n > MAX_IMAGE:
             self._json(413, {'error': 'image too large'})
             return None
