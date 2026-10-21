@@ -135,6 +135,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # gufo: LLM engine for Strix Halo (gfx1151), on nixtop. See modules/gufo.nix.
+    # No `inputs.nixpkgs.follows`: gufo qualifies its own ROCm toolchain pin.
+    gufo.url = "github:gufo-org/gufo";
+
     # sketchybar config
     sketchybar = {
       url = "github:FelixKratz/dotfiles";
@@ -443,6 +447,7 @@
         ./modules/openssh.nix
         ./modules/python.nix
         ./modules/ai.nix
+        ./modules/gufo.nix
         ./modules/printing.nix
         ./modules/scanning.nix
         ./modules/games.nix
