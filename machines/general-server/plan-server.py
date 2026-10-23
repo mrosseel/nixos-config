@@ -4,7 +4,8 @@ Stdlib only, single file, no framework. Access is gated by Caddy on the vhost,
 so there is no auth logic here. Caddy lets a holder of the view link reach only
 GET /api/view and GET /api/photos/files/<f>. Those two must never return notes,
 bookings or TODOs. Caddy marks a request of the view link with the header
-X-Thailand-Viewer. The view link can also reach /api/push/*.
+X-Thailand-Viewer. The view link can also reach /api/push/*, GET
+/api/reactions and POST /api/reactions/<id> and /api/comments/<id>.
 
     GET    /api/plan            -> current plan document, or null
     PUT    /api/plan            -> overwrite; needs If-Match: <rev>
@@ -411,6 +412,70 @@ def write_stories(stories):
     os.replace(tmp, STORIES)
     last_change[0] = time.time()
     dirty.set()
+
+
+# --- reactions and comments --------------------------------------------------
+# The family at home reacts to a photo with an emoji, or writes a comment with
+# an optional name. The file holds, per photo id, the count of each emoji and
+# the comments. Nobody logs in: a phone remembers its own reactions itself.
+# Each address may send a limited number of comments and reactions per hour.
+REACTIONS = os.path.join(ROOT, 'reactions.json')
+EMOJIS = ('❤️', '😂', '😮', '👍', '🙏')
+MAX_COMMENT = 500
+MAX_COMMENT_NAME = 40
+MAX_COMMENTS_PER_PHOTO = 200
+RATE_WINDOW = 3600
+RATE_COMMENTS = 10
+RATE_REACTIONS = 60
+rate = {}  # (address, kind) -> the times of its requests this hour
+
+
+def read_reactions():
+    try:
+        with open(REACTIONS, 'rb') as f:
+            data = json.loads(f.read())
+        return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def write_reactions(data):
+    tmp = REACTIONS + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
+    os.replace(tmp, REACTIONS)
+    last_change[0] = time.time()
+    dirty.set()
+
+
+def reactions_of(data, pid):
+    entry = data.setdefault(pid, {})
+    entry.setdefault('emoji', {})
+    entry.setdefault('comments', [])
+    return entry
+
+
+def under_limit(address, kind, limit):
+    """True when the address is under its limit for this kind this hour. A
+    request that passes counts. The caller holds the lock."""
+    now = time.time()
+    key = (address, kind)
+    times = [t for t in rate.get(key, []) if now - t < RATE_WINDOW]
+    if len(times) >= limit:
+        rate[key] = times
+        return False
+    times.append(now)
+    rate[key] = times
+    if len(rate) > 5000:
+        for k in [k for k, v in rate.items() if not v or now - v[-1] >= RATE_WINDOW]:
+            del rate[k]
+    return True
+
+
+def one_line(text, limit):
+    """The text without control characters, at most limit characters."""
+    text = ''.join(c for c in text if c == '\n' or c >= ' ')
+    return text.strip()[:limit]
 
 
 # How the family reaches a leg, from the transport items on its first day. The
@@ -963,6 +1028,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path == '/api/photos':
             self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
             return
+        if self.path == '/api/reactions':
+            self._json(200, {'photos': read_reactions()})
+            return
         if self.path.startswith('/api/photos/files/'):
             name = self.path[len('/api/photos/files/'):]
             if FILE_RE.match(name):
@@ -1085,6 +1153,10 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._json(201, {'file': name})
             return
 
+        if self.path.startswith('/api/reactions/') or self.path.startswith('/api/comments/'):
+            self._react()
+            return
+
         if self.path == '/api/photos':
             try:
                 body = json.loads(self._body())
@@ -1133,6 +1205,63 @@ class H(http.server.BaseHTTPRequestHandler):
         pid = self.path[len('/api/photos/'):]
         return pid if self.path.startswith('/api/photos/') and ID_RE.match(pid) else None
 
+    def _address(self):
+        """The address of the client. Caddy appends it to X-Forwarded-For, so
+        the last entry is the one to trust."""
+        forwarded = self.headers.get('X-Forwarded-For', '')
+        return forwarded.split(',')[-1].strip() or self.client_address[0]
+
+    def _react(self):
+        """POST /api/reactions/<id> {emoji, remove} and
+        POST /api/comments/<id> {name, text}, from the family at home."""
+        kind, _, pid = self.path[len('/api/'):].partition('/')
+        if not ID_RE.match(pid):
+            self._json(404, {'error': 'not found'})
+            return
+        try:
+            body = json.loads(self._body())
+            if not isinstance(body, dict):
+                raise ValueError('not an object')
+        except ValueError:
+            self._json(400, {'error': 'bad json'})
+            return
+        if kind == 'reactions':
+            emoji = body.get('emoji')
+            if emoji not in EMOJIS:
+                self._json(400, {'error': 'unknown emoji'})
+                return
+            comment = None
+        else:
+            text = one_line(body.get('text') if isinstance(body.get('text'), str) else '', MAX_COMMENT)
+            if not text:
+                self._json(400, {'error': 'text is required'})
+                return
+            name = body.get('name') if isinstance(body.get('name'), str) else ''
+            comment = {'id': uuid.uuid4().hex, 'name': one_line(name, MAX_COMMENT_NAME),
+                       'text': text, 'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+        with lock:
+            if not any(p['id'] == pid for p in read_photos()):
+                self._json(404, {'error': 'no such photo'})
+                return
+            limit = RATE_REACTIONS if comment is None else RATE_COMMENTS
+            if not under_limit(self._address(), kind, limit):
+                self._json(429, {'error': 'too many this hour'})
+                return
+            data = read_reactions()
+            entry = reactions_of(data, pid)
+            if comment is None:
+                n = entry['emoji'].get(emoji, 0) + (-1 if body.get('remove') else 1)
+                entry['emoji'][emoji] = max(0, n)
+                if not entry['emoji'][emoji]:
+                    del entry['emoji'][emoji]
+            else:
+                if len(entry['comments']) >= MAX_COMMENTS_PER_PHOTO:
+                    self._json(429, {'error': 'too many comments on this photo'})
+                    return
+                entry['comments'].append(comment)
+            write_reactions(data)
+        self._json(201 if comment else 200, comment or {'emoji': entry['emoji']})
+
     def do_PATCH(self):
         pid = self._photo_id()
         if not pid:
@@ -1170,6 +1299,22 @@ class H(http.server.BaseHTTPRequestHandler):
                     write_subs(subs)
             self._json(200, {'ok': True})
             return
+        if self.path.startswith('/api/comments/'):
+            # Only the travellers get here: Caddy stops a DELETE from the
+            # view link.
+            pid, _, cid = self.path[len('/api/comments/'):].partition('/')
+            if not (ID_RE.match(pid) and ID_RE.match(cid)):
+                self._json(404, {'error': 'not found'})
+                return
+            with lock:
+                data = read_reactions()
+                entry = reactions_of(data, pid)
+                kept = [c for c in entry['comments'] if c['id'] != cid]
+                if len(kept) != len(entry['comments']):
+                    entry['comments'] = kept
+                    write_reactions(data)
+            self._json(200, {'ok': True})
+            return
         pid = self._photo_id()
         if pid:
             with lock:
@@ -1177,6 +1322,9 @@ class H(http.server.BaseHTTPRequestHandler):
                 gone = [p for p in photos if p['id'] == pid]
                 if gone:
                     write_photos([p for p in photos if p['id'] != pid])
+                    data = read_reactions()
+                    if data.pop(pid, None) is not None:
+                        write_reactions(data)
             for p in gone:
                 for name in (p['full'], p['thumb']):
                     try:

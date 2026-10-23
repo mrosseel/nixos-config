@@ -295,7 +295,7 @@ in
         handle @viewer {
           @readable {
             method GET HEAD
-            path /api/view /api/photos/files/*
+            path /api/view /api/photos/files/* /api/reactions
           }
           handle @readable {
             # The plan service gives the view link the positions of the
@@ -312,6 +312,16 @@ in
             path /api/push/*
           }
           handle @push {
+            reverse_proxy localhost:8010
+          }
+          # The family at home reacts to a photo with an emoji or a comment.
+          # The service limits the number per address and hour. A DELETE
+          # of a comment is for the travellers only, so it is not here.
+          @react {
+            method POST
+            path /api/reactions/* /api/comments/*
+          }
+          handle @react {
             reverse_proxy localhost:8010
           }
           handle /api/* {
