@@ -20,6 +20,10 @@
     # rather than the master branch to keep the lock stable. Drop this input and
     # the overlay once nixpkgs-unstable carries 0.32.12 or newer.
     nixpkgs-master.url = "github:NixOS/nixpkgs/4c1ce41ae6abea5c8895e698356ecb84ff4f5385";
+    # Temporary: php 8.3.36 for general-server (see
+    # machines/general-server/security-pins.nix). Drop this input and that
+    # overlay once nixpkgs-unstable carries 8.3.36 or newer.
+    nixpkgs-php.url = "github:NixOS/nixpkgs/d782438fa9d27ba0dfb54bdcd4e6eb342fef2132";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager/master";
@@ -395,6 +399,7 @@
         ./machines/general-server/hardware-configuration.nix
         ./machines/general-server/caddy-service.nix
         ./machines/general-server/auto-update.nix
+        ./machines/general-server/security-pins.nix
         ./machines/general-server/systemd.nix
         ./machines/general-server/backup-vault.nix
         ./machines/general-server/monitoring.nix

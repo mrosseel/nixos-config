@@ -1053,6 +1053,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-php": {
+      "locked": {
+        "lastModified": 1792727391,
+        "narHash": "sha256-9QsyAgbHULnfRpxjhMgRFU8rdA/I2Jg1dsA+B0nEqLA=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d782438fa9d27ba0dfb54bdcd4e6eb342fef2132",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d782438fa9d27ba0dfb54bdcd4e6eb342fef2132",
+        "type": "github"
+      }
+    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1782847189,
@@ -1147,11 +1163,11 @@
     },
     "nixpkgs_7": {
       "locked": {
-        "lastModified": 1791734076,
-        "narHash": "sha256-i5qk1kLiit98rRbh1AXmWBNT9QXC/y4l5Wk/u5EdpDQ=",
+        "lastModified": 1792502884,
+        "narHash": "sha256-IoNisKcGbUjdd45qCqywGMCYmZ5EnkxezvLII0FWwNA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "7fd4004d0511991fff3a0524856a9be09e28c5f0",
+        "rev": "02c087f3fe673c9e317f206a627cb6b910336dbe",
         "type": "github"
       },
       "original": {
@@ -1338,6 +1354,7 @@
         "nixpkgs": "nixpkgs_7",
         "nixpkgs-kernel": "nixpkgs-kernel",
         "nixpkgs-master": "nixpkgs-master",
+        "nixpkgs-php": "nixpkgs-php",
         "nixpkgs-stable": "nixpkgs-stable",
         "omarchy-nix": "omarchy-nix",
         "pifinder-server": "pifinder-server",

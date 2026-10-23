@@ -244,13 +244,15 @@ in
     environment = {
       NODE_ENV = "production";
     };
-    path = [ pkgs.bash pkgs.nodejs ];
+    # nodejs_24_security: see security-pins.nix. Back to pkgs.nodejs once
+    # nixos-unstable has node 24.22.1 or newer.
+    path = [ pkgs.bash pkgs.nodejs_24_security ];
     serviceConfig = {
       Type = "simple";
       User = "mike";
       Group = "mike";
       WorkingDirectory = "/home/mike/starnights_shop/";
-      ExecStart = "${pkgs.nodejs}/bin/node node_modules/.bin/tsx src/server/index.ts";
+      ExecStart = "${pkgs.nodejs_24_security}/bin/node node_modules/.bin/tsx src/server/index.ts";
       Restart = "on-failure";
       RestartSec = 5;
     };
