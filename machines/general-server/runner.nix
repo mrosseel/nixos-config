@@ -42,6 +42,9 @@ let
 in
 {
   services.github-runners.testalon = {
+    # Node 24.22.1 for the runner (CVE-2026-111497). Drop when nixos-unstable
+    # has it; see security-pins.nix.
+    package = pkgs.github-runner.override { nodejs_24 = pkgs.nodejs_24_security; };
     enable = true;
     url = "https://github.com/mrosseel/hexagonia";
     # A registration token, written once by hand. The runner trades it for

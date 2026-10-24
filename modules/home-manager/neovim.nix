@@ -24,7 +24,8 @@ in
   # Ensure Home Manager is managing the packages for the user environment
   home.packages = with pkgs; [
     neovim
-    nodejs
+    # Node 24.22.1 where a machine has the security overlay (CVE-2026-111497).
+    (pkgs.nodejs_24_security or pkgs.nodejs)
     gcc
     neovim-aliases
   ];
