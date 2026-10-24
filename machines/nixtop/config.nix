@@ -255,6 +255,16 @@ in
   # Enable Wayland support
   programs.xwayland.enable = true;
 
+  # Mesa from the nixpkgs of the Hyprland flake. A Mesa from the system
+  # nixpkgs needs a newer glibc than Hyprland has, so Hyprland could not load
+  # it and did not start. Remove this when Hyprland uses the system nixpkgs.
+  hardware.graphics = let
+    hyprPkgs = inputs.omarchy-nix.inputs.hyprland.inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+  in {
+    package = hyprPkgs.mesa;
+    package32 = hyprPkgs.pkgsi686Linux.mesa;
+  };
+
   # Bluetooth
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
