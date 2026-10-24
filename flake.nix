@@ -37,6 +37,11 @@
       url = "github:mrosseel/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
+      # quickshell 0.3.1 does not compile against the Qt 6.12 of nixpkgs
+      # 02c087f (static assertion in the moc output). 0.3.2 does. Remove this
+      # line when the omarchy-nix fork pins quickshell v0.3.2 or newer.
+      inputs.quickshell.url = "github:quickshell-mirror/quickshell/v0.3.2";
+      inputs.quickshell.inputs.nixpkgs.follows = "nixpkgs";
     };
     nixos-mailserver = {
       url = "gitlab:simple-nixos-mailserver/nixos-mailserver/main";
