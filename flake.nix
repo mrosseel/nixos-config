@@ -176,6 +176,7 @@
       (import ./overlays/brave.nix)
       (import ./overlays/ollama.nix nixpkgs-master)
       (import ./overlays/azure-cli.nix nixpkgs-stable)
+      (import ./overlays/pyopenjtalk-plus.nix)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
