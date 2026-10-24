@@ -157,7 +157,7 @@
       allowUnsupportedSystem = false;
       permittedInsecurePackages = [
         "libsoup-2.74.3"
-        "ventoy-1.1.17"
+        "ventoy-1.1.18"
         "electron-39.8.10"
         "electron-40.10.5"  # vesktop 1.6.5 (Electron Discord client); EOL but low-risk
       ];
@@ -170,6 +170,7 @@
       claude-code.overlays.default
       (import ./overlays/brave.nix)
       (import ./overlays/ollama.nix nixpkgs-master)
+      (import ./overlays/azure-cli.nix nixpkgs-stable)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).
