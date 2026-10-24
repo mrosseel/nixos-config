@@ -415,10 +415,13 @@ def write_stories(stories):
 
 
 # --- reactions and comments --------------------------------------------------
-# The family at home reacts to a photo with an emoji, or writes a comment with
-# an optional name. The file holds, per photo id, the count of each emoji and
-# the comments. Nobody logs in: a phone remembers its own reactions itself.
-# Each address may send a limited number of comments and reactions per hour.
+# The family at home reacts to a photo with an emoji, or writes a comment.
+# Each reaction and comment carries the name the sender typed once on their
+# phone. The file holds, per photo id, the count of each emoji, the names
+# behind each emoji, and the comments. Nobody logs in: a phone remembers its
+# own reactions and its name itself. Reactions from before the names have a
+# count but no name. Each address may send a limited number of comments and
+# reactions per hour.
 REACTIONS = os.path.join(ROOT, 'reactions.json')
 EMOJIS = ('❤️', '😂', '😮', '👍', '🙏')
 MAX_COMMENT = 500
@@ -451,6 +454,7 @@ def write_reactions(data):
 def reactions_of(data, pid):
     entry = data.setdefault(pid, {})
     entry.setdefault('emoji', {})
+    entry.setdefault('who', {})
     entry.setdefault('comments', [])
     return entry
 
@@ -1212,7 +1216,7 @@ class H(http.server.BaseHTTPRequestHandler):
         return forwarded.split(',')[-1].strip() or self.client_address[0]
 
     def _react(self):
-        """POST /api/reactions/<id> {emoji, remove} and
+        """POST /api/reactions/<id> {emoji, name, remove} and
         POST /api/comments/<id> {name, text}, from the family at home."""
         kind, _, pid = self.path[len('/api/'):].partition('/')
         if not ID_RE.match(pid):
@@ -1225,6 +1229,10 @@ class H(http.server.BaseHTTPRequestHandler):
         except ValueError:
             self._json(400, {'error': 'bad json'})
             return
+        name = one_line(body.get('name') if isinstance(body.get('name'), str) else '', MAX_COMMENT_NAME)
+        if not name:
+            self._json(400, {'error': 'name is required'})
+            return
         if kind == 'reactions':
             emoji = body.get('emoji')
             if emoji not in EMOJIS:
@@ -1236,8 +1244,7 @@ class H(http.server.BaseHTTPRequestHandler):
             if not text:
                 self._json(400, {'error': 'text is required'})
                 return
-            name = body.get('name') if isinstance(body.get('name'), str) else ''
-            comment = {'id': uuid.uuid4().hex, 'name': one_line(name, MAX_COMMENT_NAME),
+            comment = {'id': uuid.uuid4().hex, 'name': name,
                        'text': text, 'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
         with lock:
             if not any(p['id'] == pid for p in read_photos()):
@@ -1250,17 +1257,30 @@ class H(http.server.BaseHTTPRequestHandler):
             data = read_reactions()
             entry = reactions_of(data, pid)
             if comment is None:
-                n = entry['emoji'].get(emoji, 0) + (-1 if body.get('remove') else 1)
+                # One reaction per name and emoji. A removal without a
+                # matching name takes one from the count: a reaction given
+                # before the names.
+                names = entry['who'].setdefault(emoji, [])
+                n = entry['emoji'].get(emoji, 0)
+                if body.get('remove'):
+                    if name in names:
+                        names.remove(name)
+                    n -= 1
+                elif name not in names:
+                    names.append(name)
+                    n += 1
                 entry['emoji'][emoji] = max(0, n)
                 if not entry['emoji'][emoji]:
                     del entry['emoji'][emoji]
+                if not names:
+                    del entry['who'][emoji]
             else:
                 if len(entry['comments']) >= MAX_COMMENTS_PER_PHOTO:
                     self._json(429, {'error': 'too many comments on this photo'})
                     return
                 entry['comments'].append(comment)
             write_reactions(data)
-        self._json(201 if comment else 200, comment or {'emoji': entry['emoji']})
+        self._json(201 if comment else 200, comment or {'emoji': entry['emoji'], 'who': entry['who']})
 
     def do_PATCH(self):
         pid = self._photo_id()
