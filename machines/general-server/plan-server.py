@@ -63,6 +63,9 @@ import os
 import subprocess
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
@@ -412,6 +415,26 @@ def write_stories(stories):
     os.replace(tmp, STORIES)
     last_change[0] = time.time()
     dirty.set()
+
+
+# --- photos from Google Photos ----------------------------------------------
+# The travellers pick photos in the Google Photos picker, in the browser. The
+# browser cannot download the picked bytes itself: the download needs the
+# OAuth token in a header, and the Google host does not allow that from
+# another site. So the browser sends the URL and its short-lived token here,
+# and this service fetches the bytes. Only Google photo hosts are fetched.
+FETCH_HOSTS = ('.googleusercontent.com', 'photospicker.googleapis.com')
+MAX_FETCH = 80 * 1024 * 1024
+
+
+def fetch_host_ok(url):
+    try:
+        u = urllib.parse.urlsplit(url)
+    except ValueError:
+        return False
+    host = (u.hostname or '').lower()
+    return u.scheme == 'https' and any(
+        host == h.lstrip('.') or host.endswith(h) for h in FETCH_HOSTS)
 
 
 # --- reactions and comments --------------------------------------------------
@@ -1157,6 +1180,10 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._json(201, {'file': name})
             return
 
+        if self.path == '/api/photos/fetch':
+            self._fetch_photo()
+            return
+
         if self.path.startswith('/api/reactions/') or self.path.startswith('/api/comments/'):
             self._react()
             return
@@ -1214,6 +1241,45 @@ class H(http.server.BaseHTTPRequestHandler):
         the last entry is the one to trust."""
         forwarded = self.headers.get('X-Forwarded-For', '')
         return forwarded.split(',')[-1].strip() or self.client_address[0]
+
+    def _fetch_photo(self):
+        """POST /api/photos/fetch {url, token}: the bytes of one picked Google
+        photo, for the planner only. Caddy keeps the viewer out."""
+        try:
+            body = json.loads(self._body())
+            if not isinstance(body, dict):
+                raise ValueError('not an object')
+        except ValueError:
+            self._json(400, {'error': 'bad json'})
+            return
+        url, token = body.get('url'), body.get('token')
+        if not (isinstance(url, str) and isinstance(token, str) and token and fetch_host_ok(url)):
+            self._json(400, {'error': 'url must be a Google photo URL, token is required'})
+            return
+        req = urllib.request.Request(url, headers={
+            'Authorization': 'Bearer ' + token, 'User-Agent': 'thailand-planner'})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                ctype = r.headers.get('Content-Type', 'application/octet-stream')
+                data = r.read(MAX_FETCH + 1)
+        except urllib.error.HTTPError as e:
+            self._json(502, {'error': f'Google answered {e.code}'})
+            return
+        except (urllib.error.URLError, OSError, ValueError):
+            self._json(502, {'error': 'Google not reachable'})
+            return
+        if len(data) > MAX_FETCH:
+            self._json(413, {'error': 'photo too large'})
+            return
+        if not ctype.startswith('image/'):
+            self._json(502, {'error': 'not an image'})
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(data)
 
     def _react(self):
         """POST /api/reactions/<id> {emoji, name, remove} and
