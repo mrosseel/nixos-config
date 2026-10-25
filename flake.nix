@@ -178,6 +178,7 @@
       (import ./overlays/azure-cli.nix nixpkgs-stable)
       (import ./overlays/pyopenjtalk-plus.nix)
       (import ./overlays/calibre.nix)
+      (import ./overlays/anydesk.nix nixpkgs-master)
     ];
     user = "mike";
     # Shared bits applied to every NixOS host (Darwin uses `configuration` below).

@@ -24,11 +24,15 @@ in
       shellPid=$(${pkgs.procps}/bin/pgrep -o -u "$USER" -f "quickshell -n -p $shellDir" || true)
 
       if [ -n "$shellPid" ] && [ -r "$pamFile" ]; then
-        runningGlibc=$(${pkgs.gnugrep}/bin/grep -o '/nix/store/[^ ]*-glibc-[0-9.]*-[^/]*/lib/libc\.so\.6' "/proc/$shellPid/maps" 2>/dev/null \
+        # The activation script runs with pipefail. Each grep gets "|| true":
+        # a grep with no match exits 1, and /proc/<pid>/maps of a process that
+        # is not dumpable is not readable (grep exits 2). Both only mean "no
+        # data", and then the check below is skipped.
+        runningGlibc=$({ ${pkgs.gnugrep}/bin/grep -o '/nix/store/[^ ]*-glibc-[0-9.]*-[^/]*/lib/libc\.so\.6' "/proc/$shellPid/maps" 2>/dev/null || true; } \
           | ${pkgs.gnused}/bin/sed -n 's|.*-glibc-\([0-9]*\.[0-9]*\).*|\1|p' | head -n 1)
-        neededGlibc=$(${pkgs.gnugrep}/bin/grep -o '/nix/store/[^ ]*\.so' "$pamFile" | sort -u \
+        neededGlibc=$({ ${pkgs.gnugrep}/bin/grep -o '/nix/store/[^ ]*\.so' "$pamFile" || true; } | sort -u \
           | while read -r module; do ${pkgs.binutils-unwrapped}/bin/readelf -V --wide "$module" 2>/dev/null; done \
-          | ${pkgs.gnugrep}/bin/grep -o 'GLIBC_[0-9.]*' | ${pkgs.gnused}/bin/sed 's/GLIBC_//' | sort -V | tail -n 1)
+          | { ${pkgs.gnugrep}/bin/grep -o 'GLIBC_[0-9.]*' || true; } | ${pkgs.gnused}/bin/sed 's/GLIBC_//' | sort -V | tail -n 1)
 
         if [ -n "$runningGlibc" ] && [ -n "$neededGlibc" ] \
           && [ "$(printf '%s\n%s\n' "$runningGlibc" "$neededGlibc" | sort -V | head -n 1)" != "$neededGlibc" ]; then
