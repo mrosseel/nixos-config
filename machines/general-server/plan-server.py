@@ -21,6 +21,7 @@ X-Thailand-Viewer. The view link can also reach /api/push/*, GET
     GET    /api/photos/files/<f> -> serve a photo file
     POST   /api/photos          -> add a photo: {full, thumb, day, ...}
     PATCH  /api/photos/<id>     -> change its day or caption
+    PUT    /api/photos/order    -> {day, ids}: the order of the photos of a day
     DELETE /api/photos/<id>     -> drop it and its files
 
     GET    /api/location        -> the last position of each person
@@ -527,9 +528,13 @@ def transport_of(day):
 
 
 def sorted_photos():
-    return sorted(read_photos(),
-                  key=lambda p: (p['day'], p.get('takenAt') or '', p.get('addedAt') or ''),
-                  reverse=True)
+    """Newest day first. Within a day: the photos the travellers arranged by
+    hand, in that order, then the others newest first. Each sort is stable,
+    so the later sorts keep the order of the earlier ones."""
+    newest = sorted(read_photos(),
+                    key=lambda p: (p.get('takenAt') or '', p.get('addedAt') or ''), reverse=True)
+    arranged = sorted(newest, key=lambda p: (p.get('order') is None, p.get('order') or 0))
+    return sorted(arranged, key=lambda p: p['day'], reverse=True)
 
 
 def overview(viewer):
@@ -1068,6 +1073,9 @@ class H(http.server.BaseHTTPRequestHandler):
         self._json(404, {'error': 'not found'})
 
     def do_PUT(self):
+        if self.path == '/api/photos/order':
+            self._order_photos()
+            return
         if self.path.startswith('/api/stories/'):
             day = self.path[len('/api/stories/'):]
             if not ISO_RE.match(day):
@@ -1241,6 +1249,35 @@ class H(http.server.BaseHTTPRequestHandler):
         the last entry is the one to trust."""
         forwarded = self.headers.get('X-Forwarded-For', '')
         return forwarded.split(',')[-1].strip() or self.client_address[0]
+
+    def _order_photos(self):
+        """PUT /api/photos/order {day, ids}: the ids of every photo of that day,
+        in the order the travellers want. A photo added to the day later comes
+        after them."""
+        try:
+            body = json.loads(self._body())
+            if not isinstance(body, dict):
+                raise ValueError('not an object')
+        except ValueError:
+            self._json(400, {'error': 'bad json'})
+            return
+        day, ids = body.get('day'), body.get('ids')
+        if not (isinstance(day, str) and ISO_RE.match(day) and isinstance(ids, list)
+                and all(isinstance(i, str) for i in ids)):
+            self._json(400, {'error': 'day and ids are required'})
+            return
+        with lock:
+            photos = read_photos()
+            of_day = {p['id'] for p in photos if p['day'] == day}
+            if set(ids) != of_day or len(ids) != len(of_day):
+                self._json(409, {'error': 'ids must be every photo of that day, once'})
+                return
+            rank = {pid: i for i, pid in enumerate(ids)}
+            for p in photos:
+                if p['id'] in rank:
+                    p['order'] = rank[p['id']]
+            write_photos(photos)
+        self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
 
     def _fetch_photo(self):
         """POST /api/photos/fetch {url, token}: the bytes of one picked Google
