@@ -19,12 +19,12 @@ X-Thailand-Viewer. The view link can also reach /api/push/*, GET
     GET    /api/photos          -> the trip photos, newest first
     POST   /api/photos/files    -> store a photo file, returns {"file": ...}
     GET    /api/photos/files/<f> -> serve a photo file
-    POST   /api/photos          -> add a photo: {full, thumb, day, ...};
-                                   held: true keeps it off the view page
-    PATCH  /api/photos/<id>     -> change its day, caption or held
+    POST   /api/photos          -> add a photo: {full, thumb, day, ...}.
+                                   It is held until the release
+    PATCH  /api/photos/<id>     -> change its day or caption
     PUT    /api/photos/order    -> {day, ids}: the order of the photos of a day
-    POST   /api/photos/release  -> {ids}: show the held photos to the family,
-                                   with one notification
+    POST   /api/release         -> show every held photo and story draft to
+                                   the family, with one notification
     DELETE /api/photos/<id>     -> drop it and its files
 
     GET    /api/location        -> the last position of each person
@@ -33,8 +33,10 @@ X-Thailand-Viewer. The view link can also reach /api/push/*, GET
     GET    /api/track           -> the route the people travelled, from
                                    PEOPLE_FROM: a list of lines of [lat, lon]
 
-    GET    /api/stories         -> the story of each day, {day: text}
-    PUT    /api/stories/<day>   -> {text}; an empty text removes it
+    GET    /api/stories         -> {stories: {day: text}, drafts: {day: text}}:
+                                   the released stories and the drafts
+    PUT    /api/stories/<day>   -> {text}: the draft, released by /api/release;
+                                   an empty text removes the story then
 
     GET    /api/push/key        -> the public VAPID key for the browser
     POST   /api/push/subscribe  -> {subscription}; a phone asks for a
@@ -97,6 +99,8 @@ LOCATION = os.path.join(ROOT, 'location.json')
 TRACK = os.path.join(ROOT, 'track.json')
 # The story of each day, {day: text}. This is trip content, so it is in git.
 STORIES = os.path.join(ROOT, 'stories.json')
+# The story texts the travellers saved but did not release yet.
+DRAFTS = os.path.join(ROOT, 'story-drafts.json')
 # The trip is in UTC+7 (Thailand, Laos, Vietnam). The days of the trip are
 # dates there. The app uses the same rule.
 TRIP_TZ = timezone(timedelta(hours=7))
@@ -233,32 +237,35 @@ def coord(v, limit):
 
 
 def photo_fields(body, photo):
-    """Copy the fields a client may set onto photo. Returns an error or None.
-    A held photo is one the travellers keep back: the family does not see it
-    until it is released."""
+    """Copy the fields a client may set onto photo. Returns an error or None."""
     if 'day' in body:
         if not isinstance(body['day'], str) or not ISO_RE.match(body['day']):
             return 'day must be YYYY-MM-DD'
         photo['day'] = body['day']
     if 'caption' in body:
         photo['caption'] = str(body['caption'] or '')[:MAX_CAPTION]
-    if 'held' in body:
-        if not isinstance(body['held'], bool):
-            return 'held must be true or false'
-        if body['held']:
-            photo['held'] = True
-        else:
-            photo.pop('held', None)
     return None
 
 
-def release(photos, ids):
-    """Lets the family see the held photos among ids. Counts each one for
-    the next notification. The caller holds the lock."""
+def release_all():
+    """The family gets to see every held photo and every story draft. Each
+    one counts for the next notification, which is one message for all of
+    them. The caller holds the lock. Returns the new state."""
+    photos = read_photos()
     for p in photos:
-        if p['id'] in ids and p.get('held'):
-            p.pop('held')
+        if p.pop('held', None):
             note('photo', p['day'])
+    write_photos(photos)
+    stories, drafts = read_stories(), read_drafts()
+    for day, text in drafts.items():
+        if text:
+            stories[day] = text
+            note('story', day)
+        else:
+            stories.pop(day, None)
+    write_stories(stories)
+    write_drafts({})
+    return {'photos': [public_photo(p) for p in sorted_photos()], 'stories': stories, 'drafts': {}}
 
 
 def photo_url(name):
@@ -422,20 +429,28 @@ def route(first):
     return track_cache[key]
 
 
-def read_stories():
+def read_stories(path=STORIES):
     try:
-        with open(STORIES, 'rb') as f:
+        with open(path, 'rb') as f:
             stories = json.loads(f.read())
         return stories if isinstance(stories, dict) else {}
     except (FileNotFoundError, ValueError):
         return {}
 
 
-def write_stories(stories):
-    tmp = STORIES + '.tmp'
+def read_drafts():
+    return read_stories(DRAFTS)
+
+
+def write_drafts(drafts):
+    write_stories(drafts, DRAFTS)
+
+
+def write_stories(stories, path=STORIES):
+    tmp = path + '.tmp'
     with open(tmp, 'w') as f:
         json.dump(stories, f, ensure_ascii=False, indent=1, sort_keys=True)
-    os.replace(tmp, STORIES)
+    os.replace(tmp, path)
     last_change[0] = time.time()
     dirty.set()
 
@@ -1074,7 +1089,7 @@ class H(http.server.BaseHTTPRequestHandler):
             self._json(200, overview(False)['track'])
             return
         if self.path == '/api/stories':
-            self._json(200, read_stories())
+            self._json(200, {'stories': read_stories(), 'drafts': read_drafts()})
             return
         if self.path == '/api/push/key':
             self._json(200, {'key': vapid_public_key()})
@@ -1111,16 +1126,16 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._json(400, {'error': 'bad json'})
                 return
             text = str(body.get('text') or '').strip()[:MAX_STORY]
+            # The text is a draft until the release. A draft equal to the
+            # released story is no draft.
             with lock:
-                stories = read_stories()
-                if text and text != stories.get(day):
-                    note('story', day)
-                if text:
-                    stories[day] = text
+                drafts = read_drafts()
+                if text == (read_stories().get(day) or ''):
+                    drafts.pop(day, None)
                 else:
-                    stories.pop(day, None)
-                write_stories(stories)
-            self._json(200, {'day': day, 'text': text})
+                    drafts[day] = text
+                write_drafts(drafts)
+            self._json(200, {'day': day, 'text': text, 'draft': day in drafts})
             return
         if self.path != '/api/plan':
             self._json(404, {'error': 'not found'})
@@ -1217,8 +1232,10 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path.startswith('/api/reactions/') or self.path.startswith('/api/comments/'):
             self._react()
             return
-        if self.path == '/api/photos/release':
-            self._release_photos()
+        if self.path == '/api/release':
+            with lock:
+                state = release_all()
+            self._json(200, state)
             return
 
         if self.path == '/api/photos':
@@ -1238,7 +1255,8 @@ class H(http.server.BaseHTTPRequestHandler):
             if 'day' not in body:
                 self._json(400, {'error': 'day is required'})
                 return
-            photo = {'id': uuid.uuid4().hex, 'full': full, 'thumb': thumb,
+            # Held until the release: the family does not see it yet.
+            photo = {'id': uuid.uuid4().hex, 'full': full, 'thumb': thumb, 'held': True,
                      'addedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
             error = photo_fields(body, photo)
             if error:
@@ -1254,8 +1272,6 @@ class H(http.server.BaseHTTPRequestHandler):
                 photos = read_photos()
                 photos.append(photo)
                 write_photos(photos)
-                if not photo.get('held'):
-                    note('photo', photo['day'])
             self._json(201, public_photo(photo))
             return
 
@@ -1302,23 +1318,6 @@ class H(http.server.BaseHTTPRequestHandler):
             for p in photos:
                 if p['id'] in rank:
                     p['order'] = rank[p['id']]
-            write_photos(photos)
-        self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
-
-    def _release_photos(self):
-        """POST /api/photos/release {ids}: the family gets to see these held
-        photos, and one notification for all of them."""
-        try:
-            body = json.loads(self._body())
-            ids = body.get('ids') if isinstance(body, dict) else None
-            if not (isinstance(ids, list) and all(isinstance(i, str) for i in ids)):
-                raise ValueError('no ids')
-        except ValueError:
-            self._json(400, {'error': 'ids is required'})
-            return
-        with lock:
-            photos = read_photos()
-            release(photos, set(ids))
             write_photos(photos)
         self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
 
@@ -1446,13 +1445,10 @@ class H(http.server.BaseHTTPRequestHandler):
             if not photo:
                 self._json(404, {'error': 'no such photo'})
                 return
-            was_held = bool(photo.get('held'))
             error = photo_fields(body, photo)
             if error:
                 self._json(400, {'error': error})
                 return
-            if was_held and not photo.get('held'):
-                note('photo', photo['day'])
             write_photos(photos)
         self._json(200, public_photo(photo))
 
