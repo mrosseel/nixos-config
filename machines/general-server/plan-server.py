@@ -19,9 +19,12 @@ X-Thailand-Viewer. The view link can also reach /api/push/*, GET
     GET    /api/photos          -> the trip photos, newest first
     POST   /api/photos/files    -> store a photo file, returns {"file": ...}
     GET    /api/photos/files/<f> -> serve a photo file
-    POST   /api/photos          -> add a photo: {full, thumb, day, ...}
-    PATCH  /api/photos/<id>     -> change its day or caption
+    POST   /api/photos          -> add a photo: {full, thumb, day, ...};
+                                   held: true keeps it off the view page
+    PATCH  /api/photos/<id>     -> change its day, caption or held
     PUT    /api/photos/order    -> {day, ids}: the order of the photos of a day
+    POST   /api/photos/release  -> {ids}: show the held photos to the family,
+                                   with one notification
     DELETE /api/photos/<id>     -> drop it and its files
 
     GET    /api/location        -> the last position of each person
@@ -230,14 +233,32 @@ def coord(v, limit):
 
 
 def photo_fields(body, photo):
-    """Copy the fields a client may set onto photo. Returns an error or None."""
+    """Copy the fields a client may set onto photo. Returns an error or None.
+    A held photo is one the travellers keep back: the family does not see it
+    until it is released."""
     if 'day' in body:
         if not isinstance(body['day'], str) or not ISO_RE.match(body['day']):
             return 'day must be YYYY-MM-DD'
         photo['day'] = body['day']
     if 'caption' in body:
         photo['caption'] = str(body['caption'] or '')[:MAX_CAPTION]
+    if 'held' in body:
+        if not isinstance(body['held'], bool):
+            return 'held must be true or false'
+        if body['held']:
+            photo['held'] = True
+        else:
+            photo.pop('held', None)
     return None
+
+
+def release(photos, ids):
+    """Lets the family see the held photos among ids. Counts each one for
+    the next notification. The caller holds the lock."""
+    for p in photos:
+        if p['id'] in ids and p.get('held'):
+            p.pop('held')
+            note('photo', p['day'])
 
 
 def photo_url(name):
@@ -250,6 +271,7 @@ def public_photo(p):
         'full': photo_url(p['full']), 'thumb': photo_url(p['thumb']),
         'width': p.get('width'), 'height': p.get('height'),
         'takenAt': p.get('takenAt'), 'lat': p.get('lat'), 'lon': p.get('lon'),
+        'held': bool(p.get('held')),
     }
 
 
@@ -569,7 +591,7 @@ def overview(viewer):
         'start': start,
         'end': end,
         'legs': legs,
-        'photos': [public_photo(p) for p in sorted_photos()],
+        'photos': [public_photo(p) for p in sorted_photos() if not p.get('held')],
         'people': [{k: p[k] for k in ('name', 'lat', 'lon', 'accuracy', 'at')} for p in people()]
         if shown or not viewer else [],
         'peopleFrom': first,
@@ -1195,6 +1217,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path.startswith('/api/reactions/') or self.path.startswith('/api/comments/'):
             self._react()
             return
+        if self.path == '/api/photos/release':
+            self._release_photos()
+            return
 
         if self.path == '/api/photos':
             try:
@@ -1229,7 +1254,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 photos = read_photos()
                 photos.append(photo)
                 write_photos(photos)
-                note('photo', photo['day'])
+                if not photo.get('held'):
+                    note('photo', photo['day'])
             self._json(201, public_photo(photo))
             return
 
@@ -1276,6 +1302,23 @@ class H(http.server.BaseHTTPRequestHandler):
             for p in photos:
                 if p['id'] in rank:
                     p['order'] = rank[p['id']]
+            write_photos(photos)
+        self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
+
+    def _release_photos(self):
+        """POST /api/photos/release {ids}: the family gets to see these held
+        photos, and one notification for all of them."""
+        try:
+            body = json.loads(self._body())
+            ids = body.get('ids') if isinstance(body, dict) else None
+            if not (isinstance(ids, list) and all(isinstance(i, str) for i in ids)):
+                raise ValueError('no ids')
+        except ValueError:
+            self._json(400, {'error': 'ids is required'})
+            return
+        with lock:
+            photos = read_photos()
+            release(photos, set(ids))
             write_photos(photos)
         self._json(200, {'photos': [public_photo(p) for p in sorted_photos()]})
 
@@ -1403,10 +1446,13 @@ class H(http.server.BaseHTTPRequestHandler):
             if not photo:
                 self._json(404, {'error': 'no such photo'})
                 return
+            was_held = bool(photo.get('held'))
             error = photo_fields(body, photo)
             if error:
                 self._json(400, {'error': error})
                 return
+            if was_held and not photo.get('held'):
+                note('photo', photo['day'])
             write_photos(photos)
         self._json(200, public_photo(photo))
 
