@@ -5,6 +5,7 @@
 {
   imports = [
     ./disko-config.nix
+    ./cve-2026-98432-workaround.nix
   ];
 
   # Set the system platform
