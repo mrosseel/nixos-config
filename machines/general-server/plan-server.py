@@ -17,9 +17,13 @@ X-Thailand-Viewer. The view link can also reach /api/push/*, GET
     DELETE /api/images/<id>     -> drop a stored image
 
     GET    /api/photos          -> the trip photos, newest first
-    POST   /api/photos/files    -> store a photo file, returns {"file": ...}
-    GET    /api/photos/files/<f> -> serve a photo file
-    POST   /api/photos          -> add a photo: {full, thumb, day, ...}.
+    POST   /api/photos/files    -> store a photo or video file, returns
+                                   {"file": ...}
+    GET    /api/photos/files/<f> -> serve a photo or video file, with byte
+                                   ranges for the video players
+    POST   /api/photos          -> add a photo: {full, thumb, day, ...}; a
+                                   video has video (its file) and duration,
+                                   full and thumb are its poster frame.
                                    It is held until the release
     PATCH  /api/photos/<id>     -> change its day or caption
     PUT    /api/photos/order    -> {day, ids}: the order of the photos of a day
@@ -62,6 +66,7 @@ UI browses and the only off-site copy of the trip.
 
 import base64
 import http.server
+import io
 import json
 import math
 import re
@@ -134,6 +139,11 @@ MAX_SUBS = 200
 COMMIT_QUIET = 20
 COMMIT_POLL = 5
 MAX_IMAGE = 12 * 1024 * 1024
+# A video is uploaded as the phone made it: the browser cannot shrink it.
+MAX_VIDEO = 200 * 1024 * 1024
+# Files are read and written in pieces of this size. A video must not be
+# held in memory as a whole.
+CHUNK = 1024 * 1024
 # The plan is about 60KB. A body far above that is a fault, not a plan.
 MAX_PLAN = 8 * 1024 * 1024
 
@@ -141,7 +151,8 @@ EXTS = {
     'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
     'image/gif': '.gif', 'image/heic': '.heic', 'image/avif': '.avif',
 }
-TYPES = {v: k for k, v in EXTS.items()}
+VIDEO_EXTS = {'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/webm': '.webm'}
+TYPES = {v: k for k, v in {**EXTS, **VIDEO_EXTS}.items()}
 
 lock = threading.Lock()
 dirty = threading.Event()
@@ -203,7 +214,8 @@ def write_plan(plan, rev):
 # date it belongs to, not a place: the place comes from the plan for that date.
 
 ISO_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-FILE_RE = re.compile(r'^[0-9a-f]{32}\.(jpg|png|webp)$')
+FILE_RE = re.compile(r'^[0-9a-f]{32}\.(jpg|png|webp|mp4|mov|webm)$')
+VIDEO_RE = re.compile(r'\.(mp4|mov|webm)$')
 ID_RE = re.compile(r'^[0-9a-f]{32}$')
 MAX_CAPTION = 500
 
@@ -279,6 +291,8 @@ def public_photo(p):
         'width': p.get('width'), 'height': p.get('height'),
         'takenAt': p.get('takenAt'), 'lat': p.get('lat'), 'lon': p.get('lon'),
         'held': bool(p.get('held')),
+        'video': photo_url(p['video']) if p.get('video') else None,
+        'duration': p.get('duration'),
     }
 
 
@@ -978,37 +992,82 @@ class H(http.server.BaseHTTPRequestHandler):
         return self.rfile.read(n) if n > 0 else b''
 
     def _file(self, path, ctype):
+        """Send a stored file, or the part of it a Range header asks for.
+        A video player asks for parts; an iPhone plays nothing without."""
         try:
-            with open(path, 'rb') as f:
-                body = f.read()
-        except FileNotFoundError:
+            size = os.path.getsize(path)
+            f = open(path, 'rb')
+        except OSError:
             self._json(404, {'error': 'not found'})
             return
-        self.send_response(200)
-        self.send_header('Content-Type', ctype)
-        self.send_header('Content-Length', str(len(body)))
-        self.send_header('Cache-Control', 'private, max-age=31536000, immutable')
-        self.end_headers()
-        self.wfile.write(body)
+        start, end, status = 0, size - 1, 200
+        m = re.match(r'bytes=(\d*)-(\d*)$', self.headers.get('Range') or '')
+        if m and (m.group(1) or m.group(2)):
+            if m.group(1):
+                start = int(m.group(1))
+                end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+            else:
+                start = max(0, size - int(m.group(2)))
+            if start > end or start >= size:
+                f.close()
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{size}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            status = 206
+        with f:
+            self.send_response(status)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Length', str(end - start + 1))
+            self.send_header('Accept-Ranges', 'bytes')
+            if status == 206:
+                self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+            self.send_header('Cache-Control', 'private, max-age=31536000, immutable')
+            self.end_headers()
+            f.seek(start)
+            left = end - start + 1
+            try:
+                while left > 0:
+                    piece = f.read(min(CHUNK, left))
+                    if not piece:
+                        break
+                    self.wfile.write(piece)
+                    left -= len(piece)
+            except (BrokenPipeError, ConnectionResetError):
+                # A player stops reading when it has what it needs.
+                pass
 
-    def _store(self, folder):
+    def _store(self, folder, video=False):
         """Write the request body to a new file in folder. Returns its name, or
-        None after an error response."""
+        None after an error response. With video, a video file is taken too,
+        up to MAX_VIDEO."""
         ctype = (self.headers.get('Content-Type') or '').split(';')[0].strip().lower()
-        ext = EXTS.get(ctype)
+        ext = EXTS.get(ctype) or (VIDEO_EXTS.get(ctype) if video else None)
         if not ext:
-            self._json(415, {'error': 'unsupported image type'})
+            self._json(415, {'error': 'unsupported file type'})
             return None
+        limit = MAX_VIDEO if ctype in VIDEO_EXTS else MAX_IMAGE
         n = self._length()
-        if n <= 0 or n > MAX_IMAGE:
-            self._json(413, {'error': 'image too large'})
+        if n <= 0 or n > limit:
+            self._json(413, {'error': f'file too large, at most {limit // (1024 * 1024)} MB'})
             return None
-        body = self.rfile.read(n)
         os.makedirs(folder, exist_ok=True)
         name = uuid.uuid4().hex + ext
         tmp = os.path.join(folder, '.' + name)
-        with open(tmp, 'wb') as f:
-            f.write(body)
+        try:
+            with open(tmp, 'wb') as f:
+                left = n
+                while left > 0:
+                    piece = self.rfile.read(min(CHUNK, left))
+                    if not piece:
+                        raise OSError('short body')
+                    f.write(piece)
+                    left -= len(piece)
+        except OSError:
+            os.remove(tmp)
+            self._json(400, {'error': 'upload stopped early'})
+            return None
         os.replace(tmp, os.path.join(folder, name))
         last_change[0] = time.time()
         dirty.set()
@@ -1220,7 +1279,7 @@ class H(http.server.BaseHTTPRequestHandler):
             return
 
         if self.path == '/api/photos/files':
-            name = self._store(PHOTODIR)
+            name = self._store(PHOTODIR, video=True)
             if name:
                 self._json(201, {'file': name})
             return
@@ -1266,6 +1325,15 @@ class H(http.server.BaseHTTPRequestHandler):
                 photo[key] = coord(body.get(key), limit)
             for key in ('width', 'height'):
                 photo[key] = body[key] if isinstance(body.get(key), int) else None
+            video = body.get('video')
+            if video is not None:
+                if not (isinstance(video, str) and FILE_RE.match(video) and VIDEO_RE.search(video)
+                        and os.path.isfile(os.path.join(PHOTODIR, video))):
+                    self._json(400, {'error': 'video must be an uploaded video file'})
+                    return
+                photo['video'] = video
+                duration = body.get('duration')
+                photo['duration'] = round(duration, 1) if isinstance(duration, (int, float)) and duration > 0 else None
             taken = body.get('takenAt')
             photo['takenAt'] = taken[:19] if isinstance(taken, str) else None
             with lock:
@@ -1323,7 +1391,8 @@ class H(http.server.BaseHTTPRequestHandler):
 
     def _fetch_photo(self):
         """POST /api/photos/fetch {url, token}: the bytes of one picked Google
-        photo, for the planner only. Caddy keeps the viewer out."""
+        photo or video, for the planner only. Caddy keeps the viewer out.
+        The bytes go through in pieces, a video is never in memory whole."""
         try:
             body = json.loads(self._body())
             if not isinstance(body, dict):
@@ -1337,28 +1406,50 @@ class H(http.server.BaseHTTPRequestHandler):
             return
         req = urllib.request.Request(url, headers={
             'Authorization': 'Bearer ' + token, 'User-Agent': 'thailand-planner'})
+        # Once the headers are out, an error can only end the stream.
+        sent = False
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
-                ctype = r.headers.get('Content-Type', 'application/octet-stream')
-                data = r.read(MAX_FETCH + 1)
+                ctype = r.headers.get('Content-Type', 'application/octet-stream').split(';')[0].strip()
+                is_video = ctype.startswith('video/')
+                if not (is_video or ctype.startswith('image/')):
+                    self._json(502, {'error': 'not a photo or video'})
+                    return
+                limit = MAX_VIDEO if is_video else MAX_FETCH
+                try:
+                    length = int(r.headers.get('Content-Length') or 0)
+                except ValueError:
+                    length = 0
+                if length > limit:
+                    self._json(413, {'error': f'too large, at most {limit // (1024 * 1024)} MB'})
+                    return
+                if length <= 0:
+                    # No length from Google: take it whole, up to the limit.
+                    data = r.read(limit + 1)
+                    if len(data) > limit:
+                        self._json(413, {'error': f'too large, at most {limit // (1024 * 1024)} MB'})
+                        return
+                    length = len(data)
+                    r = io.BytesIO(data)
+                self.send_response(200)
+                self.send_header('Content-Type', ctype)
+                self.send_header('Content-Length', str(length))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                sent = True
+                left = length
+                while left > 0:
+                    piece = r.read(min(CHUNK, left))
+                    if not piece:
+                        break
+                    self.wfile.write(piece)
+                    left -= len(piece)
         except urllib.error.HTTPError as e:
-            self._json(502, {'error': f'Google answered {e.code}'})
-            return
+            if not sent:
+                self._json(502, {'error': f'Google answered {e.code}'})
         except (urllib.error.URLError, OSError, ValueError):
-            self._json(502, {'error': 'Google not reachable'})
-            return
-        if len(data) > MAX_FETCH:
-            self._json(413, {'error': 'photo too large'})
-            return
-        if not ctype.startswith('image/'):
-            self._json(502, {'error': 'not an image'})
-            return
-        self.send_response(200)
-        self.send_header('Content-Type', ctype)
-        self.send_header('Content-Length', str(len(data)))
-        self.send_header('Cache-Control', 'no-store')
-        self.end_headers()
-        self.wfile.write(data)
+            if not sent:
+                self._json(502, {'error': 'Google not reachable'})
 
     def _react(self):
         """POST /api/reactions/<id> {emoji, name, remove} and
@@ -1491,9 +1582,10 @@ class H(http.server.BaseHTTPRequestHandler):
                     if data.pop(pid, None) is not None:
                         write_reactions(data)
             for p in gone:
-                for name in (p['full'], p['thumb']):
+                for name in (p['full'], p['thumb'], p.get('video')):
                     try:
-                        os.remove(os.path.join(PHOTODIR, name))
+                        if name:
+                            os.remove(os.path.join(PHOTODIR, name))
                     except FileNotFoundError:
                         pass
             self._json(200, {'ok': True})
