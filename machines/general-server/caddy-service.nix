@@ -208,6 +208,26 @@ in
         }
       '';
     };
+    # CoverFill Android app: landing page and the privacy policy that the
+    # Google Play listing links to. Static files rsync'd from
+    # ~/dev/coverfill/store/site by store/deploy-site.sh.
+    virtualHosts."coverfill.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/coverfill.miker.be
+        # /privacy serves privacy.html. The Play listing uses that address.
+        try_files {path} {path}.html
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+      '';
+    };
     virtualHosts."www.miker.be" = {
       extraConfig = ''
         redir https://miker.be{uri} permanent
