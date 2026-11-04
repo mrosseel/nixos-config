@@ -646,6 +646,14 @@
                 # Hard-recover the Wave:3 mic if its USB firmware hangs (-110); fix-wave3 lives in nixtop/config.nix
                 bindd = SUPER CTRL, R, Fix Wave3 mic, exec, fix-wave3
 
+                # The Voxtype dictation keys, now for any backend. Upstream moved
+                # dictation to Alt + Space and Right Alt, and its migration
+                # 1793477875 keeps these keys for existing users in bindings.lua.
+                # Here bindings.lua is generated, so the keys are set here.
+                bindd = SUPER CTRL, X, Toggle dictation, exec, omarchy-dictation toggle
+                bindd = , F9, Start dictation (push-to-talk), exec, omarchy-dictation start
+                binddr = , F9, Stop dictation (push-to-talk), exec, omarchy-dictation stop
+
                 # Second workspace bank. Omarchy binds SUPER + 1..0 to workspaces
                 # 1-10 and ships no more, so the function row drives 11-20 with the
                 # same three actions. Pairs with omarchy.shell.workspace_count = 20.
