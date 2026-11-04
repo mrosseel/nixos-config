@@ -111,6 +111,12 @@
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # gscan2pdf needs sane-frontends, and sane-frontends still uses gtk2.
+  # nixpkgs marks gtk2 broken before it removes it in NixOS 27.05
+  # (NixOS/nixpkgs#410814). Remove this line when gscan2pdf stops using
+  # sane-frontends, or when gscan2pdf goes.
+  nixpkgs.config.problems.handlers."gtk+".broken = "warn";
+
   # State version
   system.stateVersion = "25.05";
 }

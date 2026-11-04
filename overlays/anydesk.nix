@@ -12,8 +12,17 @@
 #
 # Remove this overlay and its import in flake.nix once nixpkgs has a patchelf
 # without the bug, or splits the anydesk patchelf call in two.
+#
+# The src override is also TEMPORARY. AnyDesk replaced
+# anydesk-8.1.0-amd64.tar.gz on its server on Nov 3 2026 under the same
+# version, so the nixpkgs hash (sha256-ImFf...) no longer matches the download.
+# Remove the override when nixpkgs has the new hash or a newer version.
 master: final: prev: {
   anydesk = prev.anydesk.overrideAttrs (old: {
+    src = prev.fetchurl {
+      url = "https://download.anydesk.com/linux/anydesk-${old.version}-amd64.tar.gz";
+      hash = "sha256-zS5P2eyTHZY7cBW8mQ2Q6M0lXcx9VZZTtpG3Bb6u7IQ=";
+    };
     nativeBuildInputs = [
       master.legacyPackages.${prev.stdenv.hostPlatform.system}.patchelf
     ]

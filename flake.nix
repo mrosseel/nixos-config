@@ -37,10 +37,6 @@
       url = "github:mrosseel/omarchy-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
-      # quickshell 0.3.1 does not compile against the Qt 6.12 of nixpkgs
-      # 02c087f (static assertion in the moc output). 0.3.2 does. Remove this
-      # line when the omarchy-nix fork pins quickshell v0.3.2 or newer.
-      inputs.quickshell.url = "github:quickshell-mirror/quickshell/v0.3.2";
       inputs.quickshell.inputs.nixpkgs.follows = "nixpkgs";
     };
     nixos-mailserver = {
@@ -176,8 +172,6 @@
       (import ./overlays/brave.nix)
       (import ./overlays/ollama.nix nixpkgs-master)
       (import ./overlays/azure-cli.nix nixpkgs-stable)
-      (import ./overlays/pyopenjtalk-plus.nix)
-      (import ./overlays/calibre.nix)
       (import ./overlays/anydesk.nix nixpkgs-master)
     ];
     user = "mike";
@@ -518,6 +512,9 @@
               # PiFinder, Hyprland, NixOS...). Seeded once; edits at runtime stick.
               config_file = ./machines/nixtop/voxtype.toml;
             };
+            # Hex is the dictation backend here. Voxtype stays installed as the
+            # fallback. Select it with `omarchy default dictation hex`.
+            hex.enable = true;
             # Bound below as SUPER + F1..F10; this only teaches the bar to show them.
             shell.workspace_count = 20;
             # Replaces the old linuxPackages_7_0 pin in machines/nixtop/configuration.nix.

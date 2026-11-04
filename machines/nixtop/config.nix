@@ -265,16 +265,6 @@ in
     package32 = hyprPkgs.pkgsi686Linux.mesa;
   };
 
-  # The Hyprland flake wraps bin/Hyprland in a bash script. nixpkgs 02c087f
-  # refuses a script as the source of the cap_sys_nice wrapper
-  # (security.wrappers.Hyprland, NixOS/nixpkgs#573049). A binary wrapper
-  # passes the check. nixpkgs made the same change in its own package.
-  # Remove this when the omarchy Hyprland input uses makeBinaryWrapper.
-  programs.hyprland.package = let
-    hyprPkgs = inputs.omarchy-nix.inputs.hyprland.inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system};
-    omarchyHyprland = inputs.omarchy-nix.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-  in lib.mkForce (omarchyHyprland.override { makeWrapper = hyprPkgs.makeBinaryWrapper; });
-
   # Bluetooth
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
