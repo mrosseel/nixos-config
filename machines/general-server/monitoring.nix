@@ -28,8 +28,10 @@ let
     { host = "pifinder.eu"; icon = "mdi:compass"; }
     { host = "catalogs.pifinder.eu"; icon = "mdi:book-open-variant"; }
     { host = "cache.pifinder.eu"; icon = "mdi:package-variant"; }
+    { host = "cache.pifinder.io"; icon = "mdi:package-variant"; }
     { host = "files.pifinder.eu"; icon = "mdi:file-download"; }
     { host = "deltas.pifinder.eu"; icon = "mdi:delta"; codes = [ 403 ]; }
+    { host = "deltas.pifinder.io"; icon = "mdi:delta"; codes = [ 403 ]; }
     { host = "thailand.miker.be"; icon = "mdi:map-marker-path"; codes = [ 401 ]; }
   ];
 
