@@ -1,6 +1,10 @@
-{ inputs, ... }:
+{ ... }:
 
 # TEMPORARY. Security fixes that nixos-unstable does not carry yet.
+#
+# 2026-11-07: nixos-unstable 0bb2eed has php 8.3.36 and node 22.23.4, so the
+# php83 and nodejs_22 pins are gone. Node 24 stays at 24.21.0 there, so the
+# nodejs_24_security pin stays.
 #
 # The 2026-10-21 releases fixed remote code execution in PHP (CVE-2026-109618,
 # CVE-2026-109619; fixed in 8.3.36) and in the Node.js Brotli decoder
@@ -58,10 +62,10 @@ in
 {
   nixpkgs.overlays = [
     (final: prev: {
-      php83 = inputs.nixpkgs-php.legacyPackages.${prev.stdenv.hostPlatform.system}.php83;
-
+      # 1.2.1 already has the LoongArch fix that nixpkgs patches into 1.2.0.
       brotli_1_2_1 = prev.brotli.overrideAttrs (_: rec {
         version = "1.2.1";
+        patches = [ ];
         src = prev.fetchFromGitHub {
           owner = "google";
           repo = "brotli";
@@ -76,11 +80,6 @@ in
       nodejs_24_security = prev.nodejs_24.override {
         nodejs-slim = final.nodejs-slim_24_security;
       };
-
-      nodejs-slim_22 = bumpNodejs prev
-        (withBrotli prev final.brotli_1_2_1 prev.nodejs-slim_22) "22.23.4"
-        "7b9adc82d612d0a2a863d96c46de2292552e250cee51956ebbe0146c42aacae9";
-      nodejs_22 = prev.nodejs_22.override { nodejs-slim = final.nodejs-slim_22; };
     })
   ];
 }
