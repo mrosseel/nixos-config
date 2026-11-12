@@ -46,6 +46,16 @@ in
       enable = true;
       dataDir = "/var/lib/nightsky/moon-data";
     };
+    # The Inbox tab of the admin area copies info@ over IMAP (ADR 0128). The
+    # password unit is in modules/nightsky-mail.nix. Dovecot listens on this
+    # host, and its certificate has the name mail.pifinder.eu.
+    inbox = {
+      enable = true;
+      host = "127.0.0.1";
+      tlsName = "mail.pifinder.eu";
+      user = "info@${domain}";
+      passwordFile = "/var/lib/nightsky-inbox/password";
+    };
     # The image files are in Cloudflare R2 since 2026-10-02 (ADR 0064), in the
     # account Parsec vzw. The keys NIGHTSKY_R2_ACCESS_KEY_ID and
     # NIGHTSKY_R2_SECRET_ACCESS_KEY are in /var/lib/nightsky/env. The old local
