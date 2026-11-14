@@ -900,6 +900,23 @@ in
         }
       '';
     };
+    # The initial rules of Nomic, one static page restated in new words
+    # (~/dev/nomic.miker.be/deploy.sh).
+    virtualHosts."nomic.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/nomic.miker.be
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Cache-Control "public, max-age=3600, must-revalidate"
+          -Server
+        }
+      '';
+    };
     # Catch-all for names that resolve here through the *.miker.be
     # wildcard but have no site of their own. Declared vhosts are more
     # specific and still win, including their automatic HTTPS redirect.
@@ -933,5 +950,7 @@ in
     "d /var/www/spain2026.miker.be 0755 mike users -"
     # Lunar rays predictor, same rsync-deploy pattern (~/dev/LunarRays/deploy.sh).
     "d /var/www/rays.miker.be 0755 mike users -"
+    # Nomic rules page, same rsync-deploy pattern.
+    "d /var/www/nomic.miker.be 0755 mike users -"
   ];
 }
