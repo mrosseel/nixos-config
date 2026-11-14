@@ -43,6 +43,7 @@ in
     "d /var/www/asterisms.miker.be 0755 mike mike -"
     "d /var/www/sun.miker.be 0755 mike mike -"
     "d /var/www/coverfill.miker.be 0755 mike mike -"
+    "d /var/www/imposter.miker.be 0755 mike mike -"
     "d /home/mike/sun.miker.be/backend/data/input 0755 mike mike -"
     "d /home/mike/sun.miker.be/backend/data/store 0755 mike mike -"
   ];

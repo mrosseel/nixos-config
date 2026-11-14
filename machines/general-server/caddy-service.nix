@@ -228,6 +228,25 @@ in
         }
       '';
     };
+    # Imposter party game, an offline PWA. Static files rsync'd from
+    # ~/dev/imposter.miker.be by deploy.sh. The service worker keeps the
+    # game cached, so the server only needs to make sure updates arrive.
+    virtualHosts."imposter.miker.be" = {
+      extraConfig = ''
+        encode gzip
+        root * /var/www/imposter.miker.be
+        file_server
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          Cache-Control "no-cache, must-revalidate"
+          -Server
+        }
+      '';
+    };
     virtualHosts."www.miker.be" = {
       extraConfig = ''
         redir https://miker.be{uri} permanent
