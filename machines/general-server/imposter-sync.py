@@ -3,7 +3,8 @@
 
 POST /api/game/<CODE>         <- {"token": "...", "state": {...}}
 GET  /api/game/<CODE>/events  -> text/event-stream, one "data:" line with
-                                 the state each time it changes
+                                 the state each time it changes, and a
+                                 "ping" event every PING_SEC seconds
 
 The main phone sends the state of the game: the round number, the phase,
 the votes and the score. The other phones listen and follow. The state
@@ -40,7 +41,7 @@ MAX_ROOMS = 2000
 MAX_STREAMS = 400
 ROOM_TTL = 12 * 3600
 POSTS_PER_SEC = 10
-PING_SEC = 20
+PING_SEC = 10
 
 PATH_RE = re.compile(r"^/api/game/([A-Z2-9]{6})(/events)?$")
 
@@ -156,7 +157,8 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
                     self.wfile.write(b"data: " + json.dumps(state).encode() + b"\n\n")
                     sent = seq
                 else:
-                    self.wfile.write(b": ping\n\n")
+                    # A named event, so the phone sees it and knows the stream is alive.
+                    self.wfile.write(b"event: ping\ndata: {}\n\n")
                 self.wfile.flush()
         except OSError:
             pass
