@@ -17,7 +17,7 @@ let
   ];
 in
 {
- imports = [ ./thailand-planner.nix ./thailand-drive-export.nix ];
+ imports = [ ./thailand-planner.nix ./thailand-drive-export.nix ./nomic.nix ];
  services.caddy = {
     enable = true;
     # Secrets for the Caddyfile, kept out of the Nix store. Caddy will not
@@ -919,19 +919,28 @@ in
         }
       '';
     };
-    # The initial rules of Nomic, one static page restated in new words
-    # (~/dev/nomic.miker.be/deploy.sh).
+    # Nomic: the rules restated in new words, and a game tracker. Static files
+    # are rsync'd from ~/dev/nomic.miker.be by deploy.sh. The games are on the
+    # store in nomic.nix, behind /api/*.
     virtualHosts."nomic.miker.be" = {
       extraConfig = ''
         encode gzip
-        root * /var/www/nomic.miker.be
-        file_server
+        handle /api/* {
+          request_body {
+            max_size 2MB
+          }
+          reverse_proxy localhost:8020
+        }
+        handle {
+          root * /var/www/nomic.miker.be
+          file_server
+          header Cache-Control "public, max-age=3600, must-revalidate"
+        }
         header {
           Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
           X-Content-Type-Options "nosniff"
           X-Frame-Options "DENY"
           Referrer-Policy "strict-origin-when-cross-origin"
-          Cache-Control "public, max-age=3600, must-revalidate"
           -Server
         }
       '';
