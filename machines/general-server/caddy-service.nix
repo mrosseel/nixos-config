@@ -233,7 +233,16 @@ in
     # game cached, so the server only needs to make sure updates arrive.
     virtualHosts."imposter.miker.be" = {
       extraConfig = ''
-        encode gzip
+        # gzip would hold back the event stream of the sync API.
+        @notapi not path /api/*
+        encode @notapi gzip
+        # Round sync for a game on several phones, see imposter-sync.py.
+        # flush_interval -1 sends each event at once.
+        handle /api/* {
+          reverse_proxy localhost:8323 {
+            flush_interval -1
+          }
+        }
         root * /var/www/imposter.miker.be
         file_server
         header {

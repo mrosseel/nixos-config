@@ -48,6 +48,40 @@ in
     "d /home/mike/sun.miker.be/backend/data/store 0755 mike mike -"
   ];
 
+  # Round sync for imposter.miker.be: the other phones in a game follow
+  # the main phone. Rooms are in memory only. No word or imposter is sent.
+  systemd.services.imposter-sync = {
+    description = "imposter.miker.be round sync";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.python3}/bin/python3 ${./imposter-sync.py}";
+      Restart = "on-failure";
+      RestartSec = 5;
+      DynamicUser = true;
+      Environment = [ "PORT=8323" ];
+      NoNewPrivileges = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      MemoryMax = "128M";
+      # One thread for each open event stream (MAX_STREAMS is 400).
+      TasksMax = 512;
+      IPAddressAllow = "localhost";
+      IPAddressDeny = "any";
+      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
+      CapabilityBoundingSet = "";
+      SystemCallFilter = [ "@system-service" ];
+      SystemCallArchitectures = "native";
+      LockPersonality = true;
+      ProtectKernelTunables = true;
+      ProtectKernelModules = true;
+      ProtectControlGroups = true;
+      RestrictNamespaces = true;
+      PrivateDevices = true;
+    };
+  };
+
   # Thumbs up/down counter for rays.miker.be: stdlib Python, JSONL log,
   # localhost only, Caddy proxies /api/* to it.
   systemd.services.rays-votes = {
