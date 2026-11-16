@@ -4,6 +4,7 @@
 POST /api/game/<CODE>         <- {"token": "...", "state": {...}}
 POST /api/game/<CODE>/skip    <- {"n": round, "who": player index, "vote": true | false}
 GET  /api/game/<CODE>         -> {"state": {...}}, so a phone can join with the code
+POST /api/game/<CODE>/hello   <- {"who": player index}, every HELLO_SEC seconds from each phone
 GET  /api/game/<CODE>/events  -> text/event-stream, one "data:" line with
                                  the state each time it changes, and a
                                  "ping" event every PING_SEC seconds
@@ -19,6 +20,11 @@ votes go out with the state as "skip": {"id", "n", "by", "yes": [...],
 "no": [...]}. The main phone skips when all players agree. A new round from
 the main phone clears the votes. A vote needs no token: a wrong vote can
 only stop a skip or help one.
+
+Each phone sends a hello with its player index. A player counts as online
+for ONLINE_SEC seconds after its last hello. The list goes out as
+"online": [...] with the state, and with each ping, so the game leader
+sees how many phones are connected. A hello needs no token.
 
 The first POST for a code stores its token. Later POSTs must send the
 same token, so only the main phone can change the game. Rooms are kept
@@ -52,12 +58,18 @@ ROOM_TTL = 12 * 3600
 POSTS_PER_SEC = 20
 PING_SEC = 10
 
-PATH_RE = re.compile(r"^/api/game/([A-Z2-9]{6})(/events|/skip)?$")
+PATH_RE = re.compile(r"^/api/game/([A-Z2-9]{6})(/events|/skip|/hello)?$")
+ONLINE_SEC = 35
 MAX_PLAYERS = 50
 
 lock = threading.Condition()
 rooms = {}  # code -> {"token", "state", "seq", "updated", "posts": [times]}
 streams = 0
+
+
+def online(room, now):
+    """The players with a hello in the last ONLINE_SEC seconds."""
+    return sorted(w for w, t in room.get("seen", {}).items() if now - t < ONLINE_SEC)
 
 
 def cleanup():
@@ -115,6 +127,8 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
             return self.reply(404)
         if m.group(2) == "/skip":
             return self.skip(m.group(1))
+        if m.group(2) == "/hello":
+            return self.hello(m.group(1))
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0 or length > MAX_BODY:
             return self.reply(413)
@@ -147,6 +161,28 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
             lock.notify_all()
             seq = room["seq"]
         self.reply(200, {"seq": seq})
+
+    def hello(self, code):
+        body = self.read_json()
+        try:
+            who = int(body["who"])
+            assert 0 <= who < MAX_PLAYERS
+        except Exception:
+            return self.reply(400)
+        now = time.time()
+        with lock:
+            room = rooms.get(code)
+            if room is None:
+                return self.reply(404)
+            if self.limited(room, now):
+                return self.reply(429)
+            before = online(room, now)
+            room.setdefault("seen", {})[who] = now
+            # Tell the phones only when a player comes online.
+            if online(room, now) != before:
+                room["seq"] += 1
+                lock.notify_all()
+        self.reply(200, {"online": online(room, now)})
 
     def skip(self, code):
         body = self.read_json()
@@ -225,13 +261,14 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
                         lock.wait(PING_SEC)
                     seq, state = room["seq"], room["state"]
                     if state is not None:
-                        state = dict(state, skip=room.get("skip"))
+                        state = dict(state, skip=room.get("skip"), online=online(room, time.time()))
+                    beat = {"online": online(room, time.time())}
                 if seq != sent and state is not None:
                     self.wfile.write(b"data: " + json.dumps(state).encode() + b"\n\n")
                     sent = seq
                 else:
                     # A named event, so the phone sees it and knows the stream is alive.
-                    self.wfile.write(b"event: ping\ndata: {}\n\n")
+                    self.wfile.write(b"event: ping\ndata: " + json.dumps(beat).encode() + b"\n\n")
                 self.wfile.flush()
         except OSError:
             pass
