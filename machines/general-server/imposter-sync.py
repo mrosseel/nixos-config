@@ -2,6 +2,7 @@
 """Round sync for imposter.miker.be, a game on several phones.
 
 POST /api/game/<CODE>         <- {"token": "...", "state": {...}}
+POST /api/game/<CODE>/skip    <- {"n": round, "who": player index, "vote": true | false}
 GET  /api/game/<CODE>/events  -> text/event-stream, one "data:" line with
                                  the state each time it changes, and a
                                  "ping" event every PING_SEC seconds
@@ -10,6 +11,12 @@ The main phone sends the state of the game: the round number, the phase,
 the votes and the score. The other phones listen and follow. The state
 holds no word and no imposter: each phone calculates those itself from
 the game code and the round number.
+
+Any phone can ask to skip a round, and each phone votes on /skip. The
+votes go out with the state as "skip": {"id", "n", "by", "yes": [...],
+"no": [...]}. The main phone skips when all players agree. A new round from
+the main phone clears the votes. A vote needs no token: a wrong vote can
+only stop a skip or help one.
 
 The first POST for a code stores its token. Later POSTs must send the
 same token, so only the main phone can change the game. Rooms are kept
@@ -43,7 +50,8 @@ ROOM_TTL = 12 * 3600
 POSTS_PER_SEC = 10
 PING_SEC = 10
 
-PATH_RE = re.compile(r"^/api/game/([A-Z2-9]{6})(/events)?$")
+PATH_RE = re.compile(r"^/api/game/([A-Z2-9]{6})(/events|/skip)?$")
+MAX_PLAYERS = 50
 
 lock = threading.Condition()
 rooms = {}  # code -> {"token", "state", "seq", "updated", "posts": [times]}
@@ -80,10 +88,25 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def read_json(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0 or length > MAX_BODY:
+            return None
+        try:
+            return json.loads(self.rfile.read(length))
+        except Exception:
+            return None
+
+    def limited(self, room, now):
+        room["posts"] = [t for t in room["posts"] if now - t < 1] + [now]
+        return len(room["posts"]) > POSTS_PER_SEC
+
     def do_POST(self):
         m = PATH_RE.match(self.path)
-        if not m or m.group(2):
+        if not m or m.group(2) == "/events":
             return self.reply(404)
+        if m.group(2) == "/skip":
+            return self.skip(m.group(1))
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0 or length > MAX_BODY:
             return self.reply(413)
@@ -105,15 +128,50 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
                 room["token"] = token
             elif not hmac.compare_digest(room["token"], token):
                 return self.reply(403)
-            room["posts"] = [t for t in room["posts"] if now - t < 1] + [now]
-            if len(room["posts"]) > POSTS_PER_SEC:
+            if self.limited(room, now):
                 return self.reply(429)
+            # A new round ends a skip vote for an earlier round.
+            if room.get("skip") and room["skip"]["n"] != state.get("n"):
+                room["skip"] = None
             room["state"] = state
             room["seq"] += 1
             room["updated"] = now
             lock.notify_all()
             seq = room["seq"]
         self.reply(200, {"seq": seq})
+
+    def skip(self, code):
+        body = self.read_json()
+        try:
+            n, who, vote = int(body["n"]), int(body["who"]), bool(body["vote"])
+            assert 1 <= n <= 100000 and 0 <= who < MAX_PLAYERS
+        except Exception:
+            return self.reply(400)
+        now = time.time()
+        with lock:
+            room = rooms.get(code)
+            if room is None or room["state"] is None:
+                return self.reply(404)
+            if room["state"].get("n") != n:
+                return self.reply(409)
+            if self.limited(room, now):
+                return self.reply(429)
+            sk = room.get("skip")
+            # A yes after a no, or for a new round, starts a new request.
+            if not sk or sk["n"] != n or (sk["no"] and vote):
+                if not vote:
+                    return self.reply(200, {"skip": sk})
+                room["skips"] = room.get("skips", 0) + 1
+                sk = {"id": room["skips"], "n": n, "by": who, "yes": [], "no": []}
+            for key in ("yes", "no"):
+                if who in sk[key]:
+                    sk[key].remove(who)
+            sk["yes" if vote else "no"].append(who)
+            room["skip"] = sk
+            room["seq"] += 1
+            room["updated"] = now
+            lock.notify_all()
+        self.reply(200, {"skip": sk})
 
     def do_GET(self):
         m = PATH_RE.match(self.path)
@@ -153,6 +211,8 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
                     if room["seq"] == sent:
                         lock.wait(PING_SEC)
                     seq, state = room["seq"], room["state"]
+                    if state is not None:
+                        state = dict(state, skip=room.get("skip"))
                 if seq != sent and state is not None:
                     self.wfile.write(b"data: " + json.dumps(state).encode() + b"\n\n")
                     sent = seq
