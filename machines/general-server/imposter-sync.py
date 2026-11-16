@@ -3,12 +3,14 @@
 
 POST /api/game/<CODE>         <- {"token": "...", "state": {...}}
 POST /api/game/<CODE>/skip    <- {"n": round, "who": player index, "vote": true | false}
+GET  /api/game/<CODE>         -> {"state": {...}}, so a phone can join with the code
 GET  /api/game/<CODE>/events  -> text/event-stream, one "data:" line with
                                  the state each time it changes, and a
                                  "ping" event every PING_SEC seconds
 
 The main phone sends the state of the game: the round number, the phase,
-the votes and the score. The other phones listen and follow. The state
+the votes, the score, and the game settings with the player names (so a
+phone can join with only the code). The other phones listen and follow. The state
 holds no word and no imposter: each phone calculates those itself from
 the game code and the round number.
 
@@ -47,7 +49,7 @@ MAX_BODY = 4096
 MAX_ROOMS = 2000
 MAX_STREAMS = 400
 ROOM_TTL = 12 * 3600
-POSTS_PER_SEC = 10
+POSTS_PER_SEC = 20
 PING_SEC = 10
 
 PATH_RE = re.compile(r"^/api/game/([A-Z2-9]{6})(/events|/skip)?$")
@@ -186,6 +188,11 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
                 return super().do_GET()
             return self.reply(404)
         if not m.group(2):
+            with lock:
+                room = rooms.get(m.group(1))
+                state = room and room["state"]
+            return self.reply(200, {"state": state}) if state else self.reply(404)
+        if m.group(2) != "/events":
             return self.reply(404)
         self.stream(m.group(1))
 
