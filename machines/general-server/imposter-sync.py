@@ -81,10 +81,16 @@ class Handler(SimpleHTTPRequestHandler if SITE_DIR else BaseHTTPRequestHandler):
 
     def reply(self, code, body=None):
         data = json.dumps(body or {}).encode()
+        # An error reply can leave the request body unread. Close the
+        # connection, or Caddy sends the next request after that body.
+        if code >= 400:
+            self.close_connection = True
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        if code >= 400:
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(data)
 
