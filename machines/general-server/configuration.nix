@@ -206,6 +206,13 @@
     "aof-use-rdb-preamble" = "no";
   };
 
+  # No service on this host uses SCTP. The SCTP kernel module has a
+  # use-after-free that gives root to any process that can open an SCTP
+  # socket (nginx2root, 2026-11-18). The kernel loads the module on the
+  # first such socket, so this stops the load. Remove when the kernel fix
+  # is in nixpkgs.
+  boot.extraModprobeConfig = "install sctp ${pkgs.coreutils}/bin/false";
+
   system.stateVersion = "23.11"; # Did you read the comment?
 
 }
