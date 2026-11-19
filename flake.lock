@@ -882,11 +882,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1795056767,
-        "narHash": "sha256-LBOoDVEtuuK8PjmNfV6MmGuAr8nMvxzqI9K1CfXKOPA=",
+        "lastModified": 1795085335,
+        "narHash": "sha256-fSNVnQ+4GBA8RZY5ZK8h5q73m8Je9A2bbhUnKb54FyE=",
         "owner": "mrosseel",
         "repo": "nightsky",
-        "rev": "5ad0e603f5a93504e57631c807b4c41a40b27bc7",
+        "rev": "e4390daa662cbf0ada56e39c6cd7aa88db356755",
         "type": "github"
       },
       "original": {
