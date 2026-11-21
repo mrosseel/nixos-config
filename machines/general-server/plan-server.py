@@ -37,10 +37,13 @@ X-Thailand-Viewer. The view link can also reach /api/push/*, GET
     GET    /api/track           -> the route the people travelled, from
                                    PEOPLE_FROM: a list of lines of [lat, lon]
 
-    GET    /api/stories         -> {stories: {day: text}, drafts: {day: text}}:
-                                   the released stories and the drafts
+    GET    /api/stories         -> {stories: {day: text}, drafts: {day: text},
+                                   titles: {day: text}}: the released
+                                   stories, the drafts and the headings
     PUT    /api/stories/<day>   -> {text}: the draft, released by /api/release;
                                    an empty text removes the story then
+    PUT    /api/titles/<day>    -> {text}: the heading of a day, shown at
+                                   once; an empty text gives the default
 
     GET    /api/push/key        -> the public VAPID key for the browser
     POST   /api/push/subscribe  -> {subscription}; a phone asks for a
@@ -106,6 +109,10 @@ TRACK = os.path.join(ROOT, 'track.json')
 STORIES = os.path.join(ROOT, 'stories.json')
 # The story texts the travellers saved but did not release yet.
 DRAFTS = os.path.join(ROOT, 'story-drafts.json')
+# The heading of a day, {day: text}, as the travellers typed it. A day
+# without one shows its place from the plan. A change of the plan does not
+# change a saved heading.
+TITLES = os.path.join(ROOT, 'titles.json')
 # The trip is in UTC+7 (Thailand, Laos, Vietnam). The days of the trip are
 # dates there. The app uses the same rule.
 TRIP_TZ = timezone(timedelta(hours=7))
@@ -122,6 +129,7 @@ TRACK_MAX_ACC = 1000
 # more than this, in degrees (about 200 m).
 TRACK_TOLERANCE = 0.002
 MAX_STORY = 5000
+MAX_TITLE = 120
 # The push subscriptions of the family at home, {endpoint: subscription}. Not
 # in git: a subscription is the key of one phone.
 PUSH = os.path.join(ROOT, 'push.json')
@@ -627,6 +635,7 @@ def overview(viewer):
         'peopleUntil': last,
         'track': route(first) if shown or not viewer else [],
         'stories': read_stories(),
+        'titles': read_stories(TITLES),
     }
 
 
@@ -1148,7 +1157,8 @@ class H(http.server.BaseHTTPRequestHandler):
             self._json(200, overview(False)['track'])
             return
         if self.path == '/api/stories':
-            self._json(200, {'stories': read_stories(), 'drafts': read_drafts()})
+            self._json(200, {'stories': read_stories(), 'drafts': read_drafts(),
+                             'titles': read_stories(TITLES)})
             return
         if self.path == '/api/push/key':
             self._json(200, {'key': vapid_public_key()})
@@ -1195,6 +1205,9 @@ class H(http.server.BaseHTTPRequestHandler):
                     drafts[day] = text
                 write_drafts(drafts)
             self._json(200, {'day': day, 'text': text, 'draft': day in drafts})
+            return
+        if self.path.startswith('/api/titles/'):
+            self._put_title(self.path[len('/api/titles/'):])
             return
         if self.path != '/api/plan':
             self._json(404, {'error': 'not found'})
@@ -1359,6 +1372,27 @@ class H(http.server.BaseHTTPRequestHandler):
         the last entry is the one to trust."""
         forwarded = self.headers.get('X-Forwarded-For', '')
         return forwarded.split(',')[-1].strip() or self.client_address[0]
+
+    def _put_title(self, day):
+        if not ISO_RE.match(day):
+            self._json(404, {'error': 'not found'})
+            return
+        try:
+            body = json.loads(self._body())
+            if not isinstance(body, dict):
+                raise ValueError('not an object')
+        except ValueError:
+            self._json(400, {'error': 'bad json'})
+            return
+        text = ' '.join(str(body.get('text') or '').split())[:MAX_TITLE]
+        with lock:
+            titles = read_stories(TITLES)
+            if text:
+                titles[day] = text
+            else:
+                titles.pop(day, None)
+            write_stories(titles, TITLES)
+        self._json(200, {'day': day, 'text': text})
 
     def _order_photos(self):
         """PUT /api/photos/order {day, ids}: the ids of every photo of that day,
